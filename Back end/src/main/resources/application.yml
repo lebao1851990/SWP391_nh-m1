@@ -1,0 +1,40 @@
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:plagiarism_system}?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:123456}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+
+  flyway:
+    enabled: false
+
+server:
+  port: ${PORT:8080}
+  servlet:
+    session:
+      cookie:
+        name: codeassess_session
+        http-only: true
+        secure: false # set to true in production
+        same-site: lax
+        
+plagiarism:
+  kgram-size: 5
+  window-size: 4
+
+app:
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000}
+  ai:
+    provider: ${AI_PROVIDER:none}
+    api-key: ${AI_API_KEY:}

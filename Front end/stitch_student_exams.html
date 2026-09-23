@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"on-secondary":"#ffffff","surface-tint":"#2151da","surface-container-lowest":"#ffffff","primary-container":"#1d4ed8","tertiary-fixed-dim":"#68dba9","surface-container-highest":"#dae2fd","surface-container-high":"#e2e7ff","surface-variant":"#dae2fd","on-primary-fixed":"#001551","secondary":"#006398","on-primary-fixed-variant":"#0039b5","inverse-surface":"#283044","on-surface":"#131b2e","primary-fixed":"#dce1ff","tertiary":"#004f35","outline":"#747686","on-primary":"#ffffff","surface-dim":"#d2d9f4","on-secondary-fixed-variant":"#004b73","tertiary-container":"#006948","on-surface-variant":"#434655","inverse-primary":"#b7c4ff","secondary-fixed-dim":"#93ccff","tertiary-fixed":"#85f8c4","on-background":"#131b2e","on-primary-container":"#cad3ff","on-error-container":"#93000a","on-secondary-fixed":"#001d31","error":"#ba1a1a","primary":"#0037b0","on-error":"#ffffff","on-secondary-container":"#00476e","secondary-fixed":"#cce5ff","on-tertiary-fixed":"#002114","surface":"#faf8ff","surface-container":"#eaedff","surface-bright":"#faf8ff","inverse-on-surface":"#eef0ff","on-tertiary-fixed-variant":"#005137","background":"#faf8ff","primary-fixed-dim":"#b7c4ff","on-tertiary-container":"#76eab6","outline-variant":"#c4c5d7","surface-container-low":"#f2f3ff","on-tertiary":"#ffffff","secondary-container":"#5bb8fe","error-container":"#ffdad6"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},"spacing":{"space-md":"1rem","space-xs":"0.25rem","gutter-desktop":"1.5rem","margin-desktop":"2rem","gutter":"1rem","space-lg":"1.5rem","space-2xl":"3rem","space-sm":"0.5rem","margin":"1rem","margin-tablet":"1.5rem","space-xl":"2rem"},"fontFamily":{"body-sm":["Inter"],"body-md":["Inter"],"headline-lg":["Inter"],"label-sm":["JetBrains Mono"],"label-md":["Inter"],"headline-md":["Inter"],"body-lg":["Inter"],"display-lg-mobile":["Inter"],"display-lg":["Inter"],"headline-sm":["Inter"],"code-body":["JetBrains Mono"]},"fontSize":{"body-sm":["12px",{"lineHeight":"16px","fontWeight":"400"}],"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}],"headline-lg":["24px",{"lineHeight":"32px","fontWeight":"600"}],"label-sm":["11px",{"lineHeight":"14px","fontWeight":"500"}],"label-md":["13px",{"lineHeight":"16px","fontWeight":"500"}],"headline-md":["20px",{"lineHeight":"28px","fontWeight":"600"}],"body-lg":["16px",{"lineHeight":"24px","fontWeight":"400"}],"display-lg-mobile":["26px",{"lineHeight":"34px","fontWeight":"700"}],"display-lg":["32px",{"lineHeight":"40px","fontWeight":"700"}],"headline-sm":["16px",{"lineHeight":"24px","fontWeight":"600"}],"code-body":["13px",{"lineHeight":"20px","fontWeight":"400"}]}}}}</script></head><body class="bg-surface font-body-md text-on-surface antialiased min-h-screen"><aside class="fixed left-0 top-0 h-full w-64 bg-surface-container-low border-r border-outline-variant/30 z-50 flex flex-col justify-between select-none"><div class="flex flex-col"><div class="h-16 px-space-md border-b border-outline-variant/30 flex items-center justify-between bg-surface-container-lowest"><div class="flex items-center gap-space-sm"><img alt="CodeAssess Platform Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1Vao3Y6xQMjqXTbT0uq_yo8lbGg-heRKpXSKBSjXtegdx1e5vfGhgJzuncGi-sUjoOl0BgHtivk4wWW3XeKcN9AQ2t8wQJYu2gvg2r0pLDm3bu6f27IprWrzD7I4-P5lpAGxBau9uMxZ16Qfap_aRMclu0JAHOHDDWjhmIu8xqO_gDt41MZoThoFdN8SqgyyoW1_8s32R1-eStvMDvG9LEBlJFGTf9W_XvRgav13mVBTQwrjhuFtvA9ocw"/><div class="flex flex-col"><span class="font-headline-sm text-headline-sm text-on-surface leading-tight">CodeAssess</span><span class="font-label-sm text-label-sm text-on-surface-variant leading-none">AY 2025–2026</span></div></div><span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-primary-fixed text-on-primary-fixed border border-primary/20">EDU</span></div><div class="px-space-md py-space-sm"><span class="font-label-sm text-label-sm text-outline font-semibold uppercase tracking-wider">Assessment Portal</span></div><nav class="px-space-xs space-y-0.5" data-active-classes="bg-primary-container text-on-primary font-semibold"><a class="flex items-center justify-between px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="dashboard" href="#"><span class="font-body-md text-body-md">Dashboard</span></a><a aria-current="page" class="flex items-center justify-between px-space-sm py-2 rounded transition-colors bg-primary-container text-on-primary font-semibold" data-path="my-exams" href="#"><span class="font-body-md text-body-md">My Exams</span></a><a class="flex items-center justify-between px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="my-submissions" href="#"><span class="font-body-md text-body-md">My Submissions</span></a><a class="flex items-center justify-between px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="my-appeals" href="#"><span class="font-body-md text-body-md">My Appeals</span><span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-[#fffbeb] text-[#92400e] border border-[#fde68a] font-semibold">1</span></a></nav><div class="my-space-sm border-t border-outline-variant/30 mx-space-sm"></div><div class="px-space-md py-space-xs"><span class="font-label-sm text-label-sm text-outline font-semibold uppercase tracking-wider">System Governance</span></div><nav class="px-space-xs space-y-0.5" data-active-classes="bg-primary-container text-on-primary font-semibold"><a class="flex items-center justify-between px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="settings" href="#"><span class="font-body-md text-body-md">Settings</span></a><a class="flex items-center justify-between px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="user-profile" href="#"><span class="font-body-md text-body-md">Profile</span></a><a class="flex items-center justify-between px-space-sm py-2 rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="documentation" href="#"><span class="font-body-md text-body-md">Documentation</span></a></nav></div><div class="p-space-sm border-t border-outline-variant/30 bg-surface-container-lowest"><div class="flex items-center justify-between p-space-xs mb-space-xs rounded bg-surface-container-low"><div class="flex items-center gap-space-xs"><span class="h-2 w-2 rounded-full bg-tertiary-fixed-dim"></span><span class="font-label-sm text-label-sm text-on-surface">AST Engine Online</span></div><span class="font-label-sm text-label-sm text-outline">99.9%</span></div><div class="flex items-center justify-between gap-space-xs"><a class="flex-1 flex items-center justify-center px-2 py-1.5 rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="helpdesk" href="#"><span class="font-label-md text-label-md">Helpdesk</span></a><a class="flex items-center justify-center px-2 py-1.5 rounded text-error hover:bg-error-container hover:text-on-error-container transition-colors" data-path="login" href="#"><span class="font-label-md text-label-md">Exit</span></a></div></div></aside><div class="pl-64"><header class="fixed top-0 left-64 right-0 h-16 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline-variant/30 z-40 px-space-lg flex items-center justify-between"><div class="flex items-center gap-space-md flex-1 max-w-xl"><div class="flex items-center gap-space-sm text-on-surface-variant font-body-sm text-body-sm"><img alt="CodeAssess Logo" class="h-6 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1Vao3Y6xQMjqXTbT0uq_yo8lbGg-heRKpXSKBSjXtegdx1e5vfGhgJzuncGi-sUjoOl0BgHtivk4wWW3XeKcN9AQ2t8wQJYu2gvg2r0pLDm3bu6f27IprWrzD7I4-P5lpAGxBau9uMxZ16Qfap_aRMclu0JAHOHDDWjhmIu8xqO_gDt41MZoThoFdN8SqgyyoW1_8s32R1-eStvMDvG9LEBlJFGTf9W_XvRgav13mVBTQwrjhuFtvA9ocw"/><span class="text-outline-variant">/</span><span class="font-label-md text-label-md text-on-surface font-semibold">Student Portal</span></div></div><div class="flex items-center gap-space-md"><div class="flex items-center gap-1.5 px-space-sm py-1 rounded bg-surface-container border border-outline-variant/30 text-on-surface"><span class="material-symbols-outlined text-[16px] text-primary">school</span><span class="font-label-md text-label-md font-medium">Fall 2026 - CS Dept</span><span class="material-symbols-outlined text-[16px] text-outline">arrow_drop_down</span></div><button class="relative p-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded transition-colors" title="Notifications"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="absolute top-1 right-1 h-2 w-2 rounded-full bg-error ring-2 ring-surface-container-lowest"></span></button><button class="p-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded transition-colors" title="Help &amp; Documentation"><span class="material-symbols-outlined text-[20px]">help_outline</span></button><div class="h-5 w-[1px] bg-outline-variant/40"></div><div class="flex items-center gap-space-sm pl-space-xs"><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div><div class="flex flex-col text-left"><div class="flex items-center gap-1.5"><span class="font-label-md text-label-md font-semibold text-on-surface">Nguyen Van A</span><span class="font-label-sm text-label-sm px-1 rounded bg-secondary-fixed text-on-secondary-fixed leading-tight">Student</span></div><span class="font-label-sm text-label-sm text-outline">SE18029</span></div><span class="material-symbols-outlined text-[18px] text-outline cursor-pointer hover:text-on-surface">expand_more</span></div></div></header><main class="w-full pt-16 bg-surface min-h-screen"><div class="max-w-7xl mx-auto px-space-lg py-space-lg"><div class="flex flex-col w-full">
+<div class="flex flex-col lg:flex-row lg:items-end justify-between gap-space-md mb-space-lg">
+<div class="space-y-1">
+<div class="flex items-center gap-space-xs text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider">
+<span>Academic Year 2025–2026</span>
+<span>/</span>
+<span class="text-primary font-semibold">Semester 1</span>
+</div>
+<h1 class="font-display-lg text-display-lg text-on-surface tracking-tight">My Exams</h1>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-2xl">
+        View your upcoming assessments, submitted programming tasks, and completed evaluation results.
+      </p>
+</div>
+<div class="flex items-center gap-2 bg-surface-container px-space-sm py-1.5 rounded-lg shadow-sm">
+<div class="flex items-center gap-1.5 px-2 py-1 bg-surface-container-lowest rounded text-on-surface shadow-sm">
+<span class="material-symbols-outlined text-[16px] text-tertiary">verified</span>
+<span class="font-label-sm text-label-sm font-semibold">AST Integrity Shield Active</span>
+</div>
+<span class="font-label-sm text-label-sm text-outline px-1.5 py-0.5 font-code-body">v4.18-rel</span>
+</div>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-space-md mb-space-lg">
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex items-center justify-between transition-transform hover:-translate-y-0.5">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Upcoming Deadlines</span>
+<span class="font-display-lg text-display-lg text-on-surface mt-1">02</span>
+<span class="font-body-sm text-body-sm text-secondary flex items-center gap-1 mt-0.5">
+<span class="material-symbols-outlined text-[14px]">schedule</span> 1 within 48h
+        </span>
+</div>
+<div class="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[24px]">terminal</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex items-center justify-between transition-transform hover:-translate-y-0.5">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Pending Evaluation</span>
+<span class="font-display-lg text-display-lg text-on-surface mt-1">01</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1 mt-0.5">
+<span class="material-symbols-outlined text-[14px]">sync</span> Automated grader run
+        </span>
+</div>
+<div class="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[24px]">model_training</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex items-center justify-between transition-transform hover:-translate-y-0.5">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Completed &amp; Graded</span>
+<span class="font-display-lg text-display-lg text-on-surface mt-1">05</span>
+<span class="font-body-sm text-body-sm text-tertiary flex items-center gap-1 mt-0.5">
+<span class="material-symbols-outlined text-[14px]">trending_up</span> 8.4 avg grade
+        </span>
+</div>
+<div class="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-[24px]">task_alt</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex items-center justify-between transition-transform hover:-translate-y-0.5">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Active Appeals</span>
+<span class="font-display-lg text-display-lg text-on-surface mt-1">01</span>
+<span class="font-body-sm text-body-sm text-error flex items-center gap-1 mt-0.5">
+<span class="material-symbols-outlined text-[14px]">flag</span> Case #AP-9042
+        </span>
+</div>
+<div class="w-12 h-12 rounded-xl bg-surface-container-high flex items-center justify-center text-error">
+<span class="material-symbols-outlined text-[24px]">policy</span>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden flex flex-col">
+<div class="px-space-md pt-space-md bg-surface-container-low/50 flex flex-col lg:flex-row lg:items-center justify-between gap-space-md">
+<div class="flex items-center gap-1 overflow-x-auto pb-space-xs lg:pb-0" id="filterTabs">
+<button class="tab-btn px-4 py-2.5 rounded-t-lg font-label-md text-label-md transition-all flex items-center gap-2 bg-surface-container-lowest text-primary font-semibold shadow-sm" data-tab="all">
+<span>All Assessments</span>
+<span class="px-1.5 py-0.5 rounded-full text-label-sm bg-primary-fixed text-on-primary-fixed font-code-body">5</span>
+</button>
+<button class="tab-btn px-4 py-2.5 rounded-t-lg font-label-md text-label-md transition-all flex items-center gap-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60" data-tab="upcoming">
+<span>Upcoming</span>
+<span class="px-1.5 py-0.5 rounded-full text-label-sm bg-surface-container-high text-on-surface-variant font-code-body">3</span>
+</button>
+<button class="tab-btn px-4 py-2.5 rounded-t-lg font-label-md text-label-md transition-all flex items-center gap-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60" data-tab="submitted">
+<span>Submitted</span>
+<span class="px-1.5 py-0.5 rounded-full text-label-sm bg-surface-container-high text-on-surface-variant font-code-body">2</span>
+</button>
+<button class="tab-btn px-4 py-2.5 rounded-t-lg font-label-md text-label-md transition-all flex items-center gap-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60" data-tab="completed">
+<span>Completed</span>
+<span class="px-1.5 py-0.5 rounded-full text-label-sm bg-surface-container-high text-on-surface-variant font-code-body">4</span>
+</button>
+</div>
+<div class="flex items-center gap-2 self-end lg:self-center pb-2">
+<span class="font-label-sm text-label-sm text-outline">Real-time sync</span>
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-tertiary-fixed-dim opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-tertiary"></span>
+</span>
+</div>
+</div>
+<div class="p-space-md bg-surface-container-low/30 flex flex-col md:flex-row gap-3 items-center justify-between">
+<div class="relative w-full md:w-80 lg:w-96">
+<span class="material-symbols-outlined absolute left-3 top-2.5 text-[18px] text-outline">search</span>
+<input class="w-full pl-9 pr-8 py-2 bg-surface-container-lowest rounded-lg font-body-md text-body-md text-on-surface placeholder:text-outline focus:outline-none shadow-sm focus:ring-1 focus:ring-primary-container" id="searchInput" placeholder="Search exams by title or course code..." type="text"/>
+<button class="hidden absolute right-2.5 top-2.5 text-outline hover:text-on-surface" id="clearSearch">
+<span class="material-symbols-outlined text-[16px]">close</span>
+</button>
+</div>
+<div class="flex items-center flex-wrap gap-2.5 w-full md:w-auto justify-end">
+<div class="relative">
+<select class="appearance-none bg-surface-container-lowest pl-3 pr-8 py-2 rounded-lg font-label-md text-label-md text-on-surface shadow-sm focus:outline-none cursor-pointer" id="courseSelect">
+<option value="all">All Enrolled Courses</option>
+<option value="CS202">CS202 - Object-Oriented Programming</option>
+<option value="DB301">DB301 - Database Systems</option>
+<option value="AL401">AL401 - Advanced Algorithms</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-2.5 text-[16px] text-outline pointer-events-none">expand_more</span>
+</div>
+<div class="relative">
+<select class="appearance-none bg-surface-container-lowest pl-3 pr-8 py-2 rounded-lg font-label-md text-label-md text-on-surface shadow-sm focus:outline-none cursor-pointer" id="statusSelect">
+<option value="all">All Statuses</option>
+<option value="not_submitted">Not Submitted</option>
+<option value="submitted">Submitted</option>
+<option value="graded">Graded</option>
+<option value="under_appeal">Under Appeal</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-2.5 text-[16px] text-outline pointer-events-none">expand_more</span>
+</div>
+<div class="relative">
+<select class="appearance-none bg-surface-container-lowest pl-3 pr-8 py-2 rounded-lg font-label-md text-label-md text-on-surface shadow-sm focus:outline-none cursor-pointer" id="sortSelect">
+<option value="nearest">Deadline: Nearest First</option>
+<option value="furthest">Deadline: Furthest First</option>
+<option value="score_high">Score: Highest First</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-2.5 text-[16px] text-outline pointer-events-none">sort</span>
+</div>
+<button class="p-2 bg-surface-container-high text-on-surface-variant hover:text-on-surface rounded-lg shadow-sm" id="resetFilters" title="Reset Filters">
+<span class="material-symbols-outlined text-[18px]">restart_alt</span>
+</button>
+</div>
+</div>
+<div class="overflow-x-auto w-full">
+<table class="w-full text-left font-body-md text-body-md select-text">
+<thead class="bg-surface-container text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider">
+<tr>
+<th class="py-3 px-space-md font-semibold" scope="col">Exam Name &amp; Course</th>
+<th class="py-3 px-space-md font-semibold" scope="col">Deadline / Window</th>
+<th class="py-3 px-space-md font-semibold" scope="col">Status</th>
+<th class="py-3 px-space-md font-semibold" scope="col">Score / AST Similarity</th>
+<th class="py-3 px-space-md font-semibold text-right" scope="col">Actions</th>
+</tr>
+</thead>
+<tbody id="examTableBody">
+<tr class="exam-row transition-colors hover:bg-surface-container-low/40" data-category="upcoming" data-course="CS202" data-deadline="2026-09-25T23:59" data-status="not_submitted">
+<td class="py-3.5 px-space-md align-middle">
+<div class="flex items-start gap-3">
+<div class="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-primary shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[18px]">code</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-headline-sm text-headline-sm text-on-surface hover:text-primary cursor-pointer leading-snug">Java OOP Final Practical Exam</span>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-code-body">CS202</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Object-Oriented Programming</span>
+<span class="text-outline-variant">•</span>
+<span class="font-label-sm text-label-sm text-outline font-code-body">120 mins</span>
+</div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-space-md align-middle whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-code-body text-code-body text-on-surface font-medium">25 Sep 2026, 23:59</span>
+<span class="font-label-sm text-label-sm text-error font-medium flex items-center gap-1 mt-0.5">
+<span class="material-symbols-outlined text-[14px]">alarm</span> 2 days remaining
+                </span>
+</div>
+</td>
+<td class="py-3.5 px-space-md align-middle whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-label-sm text-label-sm bg-surface-container-high text-on-surface-variant shadow-sm">
+<span class="h-1.5 w-1.5 rounded-full bg-outline"></span>
+                Not Submitted
+              </span>
+</td>
+<td class="py-3.5 px-space-md align-middle whitespace-nowrap">
+<div class="flex items-center gap-2 text-outline font-code-body text-body-sm">
+<span>--</span>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface-variant">No submission yet</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md align-middle text-right whitespace-nowrap">
+<div class="flex items-center justify-end gap-2">
+<button class="px-2.5 py-1.5 rounded-md font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors">
+                  View Guidelines
+                </button>
+<button class="px-3.5 py-1.5 rounded-md font-label-md text-label-md bg-primary-container text-on-primary hover:bg-primary shadow-sm flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-[16px]">play_circle</span>
+<span>Enter Exam Room</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="exam-row transition-colors hover:bg-surface-container-low/40 bg-surface-container-low/20" data-category="submitted" data-course="DB301" data-deadline="2026-09-20T17:00" data-status="submitted">
+<td class="py-3.5 px-space-md align-middle">
+<div class="flex items-start gap-3">
+<div class="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-secondary shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[18px]">database</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-headline-sm text-headline-sm text-on-surface hover:text-secondary cursor-pointer leading-snug">Database Practical Assignment</span>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-code-body">DB301</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Database Systems</span>
+<span class="text-outline-variant">•</span>
+<span class="font-label-sm text-label-sm text-outline font-code-body">PostgreSQL</span>
+</div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-space-md align-middle whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-code-body text-code-body text-on-surface">20 Sep 2026, 17:00</span>
+<span class="font-label-sm text-label-sm text-outline font-medium mt-0.5">Closed</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md align-middle whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-label-sm text-label-sm bg-secondary-fixed text-on-secondary-fixed-variant shadow-sm">
+<span class="h-1.5 w-1.5 rounded-full bg-secondary"></span>
+                Submitted
+              </span>
+</td>
+<td class="py-3.5 px-space-md align-middle whitespace-nowrap">
+<div class="flex items-center gap-2">
+<div class="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin shrink-0"></div>
+<span class="font-label-md text-label-md text-secondary font-medium">Under Automated Grading</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md align-middle text-right whitespace-nowrap">
+<div class="flex items-center justify-end gap-2">
+<button class="px-3.5 py-1.5 rounded-md font-label-md text-label-md bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors shadow-sm flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">inventory_2</span>
+<span>View Submission</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="exam-row transition-colors hover:bg-surface-container-low/40" data-category="completed" data-course="CS202" data-deadline="2026-09-18T14:30" data-status="graded">
+<td class="py-3.5 px-space-md align-middle">
+<div class="flex items-start gap-3">
+<div class="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-tertiary shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[18px]">verified_user</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-headline-sm text-headline-sm text-on-surface hover:text-primary cursor-pointer leading-snug">Java OOP Midterm Assessment</span>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-code-body">CS202</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Object-Oriented Programming</span>
+<span class="text-outline-variant">•</span>
+<span class="font-label-sm text-label-sm text-outline font-code-body">JUnit 5</span>
+</div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-space-md align-middle whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-code-body text-code-body text-on-surface">18 Sep 2026, 14:30</span>
+<span class="font-label-sm text-label-sm text-outline font-medium mt-0.5">Grading Finalized</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md align-middle whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-label-sm text-label-sm bg-tertiary-fixed text-on-tertiary-fixed-variant shadow-sm font-semibold">
+<span class="h-1.5 w-1.5 rounded-full bg-tertiary"></span>
+                Graded
+              </span>
+</td>
+<td class="py-3.5 px-space-md align-middle whitespace-nowrap">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm text-on-surface font-code-body">8.5 <span class="text-outline font-normal text-label-md">/ 10</span></span>
+<span class="text-outline-variant">•</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded bg-surface-container text-tertiary font-code-body">12% Normal</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md align-middle text-right whitespace-nowrap">
+<div class="flex items-center justify-end gap-2">
+<button class="px-3.5 py-1.5 rounded-md font-label-md text-label-md bg-primary-container text-on-primary hover:bg-primary shadow-sm flex items-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-[16px]">visibility</span>
+<span>View Result</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="exam-row transition-colors hover:bg-surface-container-low/40" data-category="upcoming" data-course="AL401" data-deadline="2026-10-02T10:00" data-status="not_submitted">
+<td class="py-3.5 px-space-md align-middle">
+<div class="flex items-start gap-3">
+<div class="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-primary shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[18px]">account_tree</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-headline-sm text-headline-sm text-on-surface hover:text-primary cursor-pointer leading-snug">Algorithms Midterm Retake</span>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-code-body">AL401</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Advanced Algorithms</span>
+<span class="text-outline-variant">•</span>
+<span class="font-label-sm text-label-sm text-outline font-code-body">Dynamic Programming</span>
+</div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-space-md align-middle whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-code-body text-code-body text-on-surface font-medium">02 Oct 2026, 10:00</span>
+<span class="font-label-sm text-label-sm text-secondary font-medium flex items-center gap-1 mt-0.5">
+<span class="material-symbols-outlined text-[14px]">calendar_today</span> 9 days remaining
+                </span>
+</div>
+</td>
+<td class="py-3.5 px-space-md align-middle whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-label-sm text-label-sm bg-surface-container-high text-on-surface-variant shadow-sm">
+<span class="h-1.5 w-1.5 rounded-full bg-outline"></span>
+                Not Submitted
+              </span>
+</td>
+<td class="py-3.5 px-space-md align-middle whitespace-nowrap">
+<div class="flex items-center gap-2 text-outline font-code-body text-body-sm">
+<span>--</span>
+<span class="text-outline-variant">/</span>
+<span class="text-on-surface-variant">Queue unopened</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md align-middle text-right whitespace-nowrap">
+<div class="flex items-center justify-end gap-2">
+<button class="px-3 py-1.5 rounded-md font-label-md text-label-md bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors shadow-sm flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">menu_book</span>
+<span>View Guidelines</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="exam-row transition-colors hover:bg-surface-container-low/40 bg-error-container/20" data-category="completed" data-course="CS202" data-deadline="2026-09-12T23:59" data-status="under_appeal">
+<td class="py-3.5 px-space-md align-middle">
+<div class="flex items-start gap-3">
+<div class="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-error shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[18px]">report_problem</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-headline-sm text-headline-sm text-on-surface hover:text-primary cursor-pointer leading-snug">Collections &amp; Lambda Mastery</span>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-code-body">CS202</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Object-Oriented Programming</span>
+<span class="text-outline-variant">•</span>
+<span class="font-label-sm text-label-sm text-outline font-code-body">Stream API</span>
+</div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-space-md align-middle whitespace-nowrap">
+<div class="flex flex-col">
+<span class="font-code-body text-code-body text-on-surface">12 Sep 2026, 23:59</span>
+<span class="font-label-sm text-label-sm text-error font-medium mt-0.5 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">flag</span> Formal Appeal Filed
+                </span>
+</div>
+</td>
+<td class="py-3.5 px-space-md align-middle whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-label-sm text-label-sm bg-surface-container text-error font-semibold shadow-sm">
+<span class="h-1.5 w-1.5 rounded-full bg-error animate-pulse"></span>
+                Under Appeal
+              </span>
+</td>
+<td class="py-3.5 px-space-md align-middle whitespace-nowrap">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm text-on-surface font-code-body">6.5 <span class="text-outline font-normal text-label-md">/ 10</span></span>
+<span class="text-outline-variant">•</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded bg-error-container text-on-error-container font-code-body font-semibold">82% High Flagged</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md align-middle text-right whitespace-nowrap">
+<div class="flex items-center justify-end gap-2">
+<button class="px-3.5 py-1.5 rounded-md font-label-md text-label-md bg-surface-container text-error hover:bg-error-container hover:text-on-error-container transition-colors shadow-sm flex items-center gap-1.5 font-semibold">
+<span class="material-symbols-outlined text-[16px]">gavel</span>
+<span>Track Appeal</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="hidden py-16 px-space-md flex-col items-center justify-center text-center" id="emptyState">
+<div class="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center text-outline mb-3">
+<span class="material-symbols-outlined text-[32px]">manage_search</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface">No assessments found</h3>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-sm mt-1">
+          No records matched your current query, course filters, or active tab selection.
+        </p>
+<button class="mt-4 px-4 py-2 bg-primary-container text-on-primary rounded-lg font-label-md text-label-md shadow-sm hover:bg-primary" id="resetAllEmpty">
+          Reset Search &amp; Filters
+        </button>
+</div>
+</div>
+<div class="px-space-md py-space-sm bg-surface-container-low/40 flex flex-col sm:flex-row items-center justify-between gap-2">
+<div class="flex items-center gap-2 text-on-surface-variant font-label-sm text-label-sm">
+<span>Showing <strong class="text-on-surface" id="displayedCount">5</strong> of <strong>5</strong> registered assessments</span>
+</div>
+<div class="flex items-center gap-1 text-on-surface-variant">
+<button class="p-1 rounded hover:bg-surface-container disabled:opacity-40" disabled="">
+<span class="material-symbols-outlined text-[18px]">first_page</span>
+</button>
+<button class="p-1 rounded hover:bg-surface-container disabled:opacity-40" disabled="">
+<span class="material-symbols-outlined text-[18px]">chevron_left</span>
+</button>
+<span class="px-2 py-0.5 text-label-sm font-label-sm font-code-body bg-surface-container-lowest rounded shadow-sm text-on-surface font-semibold">Page 1 of 1</span>
+<button class="p-1 rounded hover:bg-surface-container disabled:opacity-40" disabled="">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+<button class="p-1 rounded hover:bg-surface-container disabled:opacity-40" disabled="">
+<span class="material-symbols-outlined text-[18px]">last_page</span>
+</button>
+</div>
+</div>
+</div>
+<div class="mt-space-lg grid grid-cols-1 md:grid-cols-3 gap-space-md">
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex items-start gap-3">
+<span class="material-symbols-outlined text-primary text-[24px]">terminal</span>
+<div class="space-y-1">
+<h4 class="font-headline-sm text-headline-sm text-on-surface">Automated Testing Sandbox</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+          Live Java 21 &amp; Python 3.12 containers run test suites within 4.2 seconds under isolated AST inspection.
+        </p>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex items-start gap-3">
+<span class="material-symbols-outlined text-secondary text-[24px]">security</span>
+<div class="space-y-1">
+<h4 class="font-headline-sm text-headline-sm text-on-surface">Academic Integrity Auditing</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+          Structural AST tokens and token-frequency maps flag uncredited code similarities beyond 40% confidence threshold.
+        </p>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex items-start gap-3">
+<span class="material-symbols-outlined text-tertiary text-[24px]">schedule</span>
+<div class="space-y-1">
+<h4 class="font-headline-sm text-headline-sm text-on-surface">Late Submission Protocol</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+          Submissions within 15 minutes past deadline receive a 10% penalty. Git commits past 15 minutes trigger system lockout.
+        </p>
+</div>
+</div>
+</div>
+</div>
+<script>
+  (function initMyExamsView() {
+    const rows = Array.from(document.querySelectorAll('.exam-row'));
+    const searchInput = document.getElementById('searchInput');
+    const clearSearch = document.getElementById('clearSearch');
+    const courseSelect = document.getElementById('courseSelect');
+    const statusSelect = document.getElementById('statusSelect');
+    const sortSelect = document.getElementById('sortSelect');
+    const resetFiltersBtn = document.getElementById('resetFilters');
+    const resetAllEmptyBtn = document.getElementById('resetAllEmpty');
+    const tabButtons = Array.from(document.querySelectorAll('.tab-btn'));
+    const displayedCount = document.getElementById('displayedCount');
+    const emptyState = document.getElementById('emptyState');
+    const tableBody = document.getElementById('examTableBody');
+
+    let activeTab = 'all';
+
+    function applyFilters() {
+      const query = (searchInput.value || '').trim().toLowerCase();
+      const course = courseSelect.value;
+      const status = statusSelect.value;
+      let visibleCount = 0;
+
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        const rowCourse = row.getAttribute('data-course');
+        const rowStatus = row.getAttribute('data-status');
+        const rowCategory = row.getAttribute('data-category');
+
+        const matchesSearch = !query || text.includes(query);
+        const matchesCourse = course === 'all' || rowCourse === course;
+        const matchesStatus = status === 'all' || rowStatus === status;
+        const matchesTab = activeTab === 'all' || 
+          (activeTab === 'upcoming' && rowCategory === 'upcoming') ||
+          (activeTab === 'submitted' && (rowCategory === 'submitted' || rowStatus === 'submitted')) ||
+          (activeTab === 'completed' && (rowCategory === 'completed' || rowStatus === 'graded' || rowStatus === 'under_appeal'));
+
+        if (matchesSearch && matchesCourse && matchesStatus && matchesTab) {
+          row.classList.remove('hidden');
+          visibleCount++;
+        } else {
+          row.classList.add('hidden');
+        }
+      });
+
+      displayedCount.textContent = visibleCount;
+      if (visibleCount === 0) {
+        emptyState.classList.remove('hidden');
+        emptyState.classList.add('flex');
+      } else {
+        emptyState.classList.add('hidden');
+        emptyState.classList.remove('flex');
+      }
+
+      if (query.length > 0) {
+        clearSearch.classList.remove('hidden');
+      } else {
+        clearSearch.classList.add('hidden');
+      }
+
+      sortRows();
+    }
+
+    function sortRows() {
+      const sortVal = sortSelect.value;
+      const visibleRows = rows.filter(r => !r.classList.contains('hidden'));
+
+      visibleRows.sort((a, b) => {
+        const dA = new Date(a.getAttribute('data-deadline')).getTime();
+        const dB = new Date(b.getAttribute('data-deadline')).getTime();
+
+        if (sortVal === 'nearest') return dA - dB;
+        if (sortVal === 'furthest') return dB - dA;
+        if (sortVal === 'score_high') {
+          const scoreA = parseFloat(a.innerText.match(/(\d+\.?\d*)\s*\/\s*10/)?.[1] || 0);
+          const scoreB = parseFloat(b.innerText.match(/(\d+\.?\d*)\s*\/\s*10/)?.[1] || 0);
+          return scoreB - scoreA;
+        }
+        return 0;
+      });
+
+      visibleRows.forEach(r => tableBody.appendChild(r));
+    }
+
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabButtons.forEach(b => {
+          b.className = 'tab-btn px-4 py-2.5 rounded-t-lg font-label-md text-label-md transition-all flex items-center gap-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60';
+        });
+        btn.className = 'tab-btn px-4 py-2.5 rounded-t-lg font-label-md text-label-md transition-all flex items-center gap-2 bg-surface-container-lowest text-primary font-semibold shadow-sm';
+        activeTab = btn.getAttribute('data-tab');
+        applyFilters();
+      });
+    });
+
+    searchInput.addEventListener('input', applyFilters);
+    courseSelect.addEventListener('change', applyFilters);
+    statusSelect.addEventListener('change', applyFilters);
+    sortSelect.addEventListener('change', sortRows);
+
+    clearSearch.addEventListener('click', () => {
+      searchInput.value = '';
+      applyFilters();
+      searchInput.focus();
+    });
+
+    function resetAll() {
+      searchInput.value = '';
+      courseSelect.value = 'all';
+      statusSelect.value = 'all';
+      sortSelect.value = 'nearest';
+      activeTab = 'all';
+      tabButtons.forEach(b => {
+        b.className = 'tab-btn px-4 py-2.5 rounded-t-lg font-label-md text-label-md transition-all flex items-center gap-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60';
+      });
+      tabButtons[0].className = 'tab-btn px-4 py-2.5 rounded-t-lg font-label-md text-label-md transition-all flex items-center gap-2 bg-surface-container-lowest text-primary font-semibold shadow-sm';
+      applyFilters();
+    }
+
+    resetFiltersBtn.addEventListener('click', resetAll);
+    resetAllEmptyBtn.addEventListener('click', resetAll);
+
+    applyFilters();
+  })();
+</script></div></main></div></body></html>
