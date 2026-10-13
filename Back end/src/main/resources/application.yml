@@ -4,9 +4,11 @@ spring:
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:123456}
     driver-class-name: com.mysql.cj.jdbc.Driver
-  
+
   jpa:
     hibernate:
+      # 'validate' confirms the live schema matches entities.
+      # Flyway handles all DDL; Hibernate never auto-creates or drops tables.
       ddl-auto: validate
     show-sql: false
     open-in-view: false
@@ -16,7 +18,15 @@ spring:
         format_sql: true
 
   flyway:
-    enabled: false
+    # Flyway is now ENABLED. All migrations in db/migration run automatically on startup.
+    enabled: true
+    # baseline-on-migrate: true allows Flyway to run on an existing database that
+    # has not been managed by Flyway before (e.g. created manually or via ddl-auto).
+    baseline-on-migrate: true
+    # Baseline version must be lower than the earliest migration we want applied.
+    baseline-version: 0
+    # Locations of migration SQL files (default, listed explicitly for clarity).
+    locations: classpath:db/migration
 
 server:
   port: ${PORT:8080}

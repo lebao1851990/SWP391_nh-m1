@@ -1,0 +1,35 @@
+# ============================================================
+# application-docker.yml  –  overrides for Docker Compose env
+# ============================================================
+# When the backend container starts it receives SPRING_PROFILES_ACTIVE=docker.
+# These values override the defaults in application.yml.
+# All sensitive values are read from environment variables injected by
+# docker-compose.yml (sourced from the .env file).
+# ============================================================
+
+spring:
+  datasource:
+    # 'mysql' is the service hostname declared in docker-compose.yml
+    url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:plagiarism_system}?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+    username: ${DB_USERNAME:appuser}
+    password: ${DB_PASSWORD:apppassword}
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+server:
+  port: ${PORT:8080}
+
+app:
+  cors:
+    # In Docker, the frontend container name or host machine IP/domain is allowed.
+    # Override with actual frontend URL at runtime if needed.
+    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000}

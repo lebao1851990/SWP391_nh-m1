@@ -1,0 +1,48 @@
+# .dockerignore for the CodeAssess backend
+# Excludes files that should NOT be copied into the Docker build context.
+# This speeds up builds and prevents secrets from leaking into images.
+
+# Maven build output (the JAR is rebuilt inside the container)
+target/
+
+# IDE and editor metadata
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.classpath
+*.project
+*.factorypath
+
+# Git metadata
+.git/
+.gitignore
+.gitattributes
+
+# Environment files with real secrets (never bake these into an image)
+.env
+*.env
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test result artifacts
+test-results/
+surefire-reports/
+
+# Compiled Java (only the JAR matters)
+*.class
+
+# Local dev batch scripts (not needed inside Docker)
+*.bat
+*.cmd
+
+# Temporary / scratch files
+tmp/
+temp/
