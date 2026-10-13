@@ -1,0 +1,16 @@
+pair_id,program_a,program_b,category,transformation,ground_truth,hashes_a,hashes_b,shared_hashes,similarity_rate,predicted_flag,outcome
+pair_0019,Base1.java,Variant_1_F1_1.java,F1,transformation_F1,PLAGIARISM,16,15,9,40.91,false,FN
+pair_0020,Base1.java,Variant_1_F1_2.java,F1,transformation_F1,PLAGIARISM,16,15,9,40.91,false,FN
+pair_0021,Base1.java,Variant_1_F1_3.java,F1,transformation_F1,PLAGIARISM,16,15,9,40.91,false,FN
+pair_0040,Base2.java,Variant_2_F1_1.java,F1,transformation_F1,PLAGIARISM,16,15,9,40.91,false,FN
+pair_0041,Base2.java,Variant_2_F1_2.java,F1,transformation_F1,PLAGIARISM,16,15,9,40.91,false,FN
+pair_0042,Base2.java,Variant_2_F1_3.java,F1,transformation_F1,PLAGIARISM,16,15,9,40.91,false,FN
+pair_0061,Base3.java,Variant_3_F1_1.java,F1,transformation_F1,PLAGIARISM,16,15,9,40.91,false,FN
+pair_0062,Base3.java,Variant_3_F1_2.java,F1,transformation_F1,PLAGIARISM,16,15,9,40.91,false,FN
+pair_0063,Base3.java,Variant_3_F1_3.java,F1,transformation_F1,PLAGIARISM,16,15,9,40.91,false,FN
+pair_0082,Base4.java,Variant_4_F1_1.java,F1,transformation_F1,PLAGIARISM,16,15,9,40.91,false,FN
+pair_0083,Base4.java,Variant_4_F1_2.java,F1,transformation_F1,PLAGIARISM,16,15,9,40.91,false,FN
+pair_0084,Base4.java,Variant_4_F1_3.java,F1,transformation_F1,PLAGIARISM,16,15,9,40.91,false,FN
+pair_0103,Base5.java,Variant_5_F1_1.java,F1,transformation_F1,PLAGIARISM,16,15,9,40.91,false,FN
+pair_0104,Base5.java,Variant_5_F1_2.java,F1,transformation_F1,PLAGIARISM,16,15,9,40.91,false,FN
+pair_0105,Base5.java,Variant_5_F1_3.java,F1,transformation_F1,PLAGIARISM,16,15,9,40.91,false,FN

@@ -1,0 +1,35 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=MySQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    database-platform: org.hibernate.dialect.H2Dialect
+    open-in-view: false
+  flyway:
+    enabled: false
+
+server:
+  port: 0
+
+app:
+  cors:
+    allowed-origins: http://localhost:3000
+  ai:
+    provider: none
+    api-key:
+
+sandbox:
+  image: eclipse-temurin:21-jdk-alpine
+  timeout-seconds: 10
+  max-concurrent-executions: 4
+  memory-bytes: 536870912
+  cpu-period-micros: 100000
+  cpu-quota-micros: 50000
+  pids-limit: 50
+  max-source-bytes: 65536
+  max-output-bytes: 65536
+  tmpfs-size-bytes: 33554432

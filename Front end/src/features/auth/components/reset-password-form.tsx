@@ -109,9 +109,9 @@ export function ResetPasswordForm() {
           </div>
         )}
 
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)} noValidate>
+        <form className="flex flex-col gap-4" onSubmit={(e) => e.preventDefault()} noValidate>
           {/* Password Field */}
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5 opacity-60">
             <label className="text-[13px] font-medium text-foreground" htmlFor="password">
               New Password
             </label>
@@ -121,31 +121,16 @@ export function ResetPasswordForm() {
               </span>
               <input
                 id="password"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="new-password"
+                type="password"
+                disabled
                 placeholder="Enter new password"
-                className={`w-full pl-10 pr-10 py-2 bg-card text-foreground text-sm rounded-lg border ${errors.password ? 'border-destructive focus:ring-destructive' : 'border-border focus:ring-primary'} shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:border-transparent transition-all`}
-                {...register('password')}
+                className="w-full pl-10 pr-10 py-2 bg-muted text-muted-foreground text-sm rounded-lg border border-border shadow-sm cursor-not-allowed"
               />
-              <button
-                type="button"
-                title="Toggle password view"
-                className="absolute right-2 p-1 text-muted-foreground hover:text-foreground rounded transition-colors flex items-center justify-center"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
             </div>
-            {errors.password && (
-              <p className="text-xs text-destructive flex items-center gap-1 mt-0.5">
-                <AlertCircle className="w-3 h-3" />
-                <span>{errors.password.message}</span>
-              </p>
-            )}
           </div>
 
           {/* Confirm Password Field */}
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5 opacity-60">
             <label className="text-[13px] font-medium text-foreground" htmlFor="confirmPassword">
               Confirm Password
             </label>
@@ -155,45 +140,29 @@ export function ResetPasswordForm() {
               </span>
               <input
                 id="confirmPassword"
-                type={showConfirm ? 'text' : 'password'}
-                autoComplete="new-password"
+                type="password"
+                disabled
                 placeholder="Confirm new password"
-                className={`w-full pl-10 pr-10 py-2 bg-card text-foreground text-sm rounded-lg border ${errors.confirmPassword ? 'border-destructive focus:ring-destructive' : 'border-border focus:ring-primary'} shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:border-transparent transition-all`}
-                {...register('confirmPassword')}
+                className="w-full pl-10 pr-10 py-2 bg-muted text-muted-foreground text-sm rounded-lg border border-border shadow-sm cursor-not-allowed"
               />
-              <button
-                type="button"
-                title="Toggle confirm view"
-                className="absolute right-2 p-1 text-muted-foreground hover:text-foreground rounded transition-colors flex items-center justify-center"
-                onClick={() => setShowConfirm(!showConfirm)}
-              >
-                {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
             </div>
-            {errors.confirmPassword && (
-              <p className="text-xs text-destructive flex items-center gap-1 mt-0.5">
-                <AlertCircle className="w-3 h-3" />
-                <span>{errors.confirmPassword.message}</span>
-              </p>
-            )}
+          </div>
+
+          <div className="mt-2 p-4 rounded-lg bg-surface-container-low border border-outline-variant/30 text-center flex flex-col items-center gap-2">
+            <AlertCircle className="w-6 h-6 text-outline" />
+            <span className="font-semibold text-on-surface text-sm">Password Recovery Not Configured</span>
+            <span className="text-xs text-on-surface-variant">
+              This feature is currently unavailable in this environment. Please contact your system administrator if you need to reset your password.
+            </span>
           </div>
 
           <button
-            type="submit"
-            disabled={mutation.isPending}
-            className="w-full mt-2 py-2.5 px-4 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-base shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+            type="button"
+            disabled
+            className="w-full mt-2 py-2.5 px-4 rounded-lg bg-surface-container-highest text-on-surface-variant font-semibold text-base shadow-sm flex items-center justify-center gap-2 cursor-not-allowed opacity-70"
           >
-            {mutation.isPending ? (
-              <>
-                <span>Resetting...</span>
-                <RefreshCcw className="w-5 h-5 animate-spin" />
-              </>
-            ) : (
-              <>
-                <span>Save Password</span>
-                <ArrowRight className="w-5 h-5" />
-              </>
-            )}
+            <span>Save Password</span>
+            <ArrowRight className="w-5 h-5" />
           </button>
         </form>
       </div>

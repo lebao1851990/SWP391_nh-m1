@@ -50,11 +50,11 @@ export function AiAnalysisModal({
           )}
 
           {status === 'error' && (
-            <div className="flex flex-col items-center justify-center py-10 gap-space-sm bg-error-container/20 rounded-xl border border-error/20">
-              <span className="material-symbols-outlined text-[40px] text-error">error</span>
-              <span className="font-headline-sm text-on-surface font-semibold text-center">Integration Pending</span>
-              <span className="font-body-sm text-on-surface-variant text-center max-w-md">
-                {errorMessage || "The backend AI service is currently unavailable. This is an advisory feature only."}
+            <div className="flex flex-col items-center justify-center py-10 gap-space-sm bg-surface-container-low rounded-xl border border-outline-variant/30">
+              <span className="material-symbols-outlined text-[40px] text-outline">smart_toy</span>
+              <span className="font-headline-sm text-on-surface font-semibold text-center">AI Assistant Not Configured</span>
+              <span className="font-body-sm text-on-surface-variant text-center max-w-md mt-2">
+                AI-assisted analysis is currently unavailable. This feature requires an active AI provider configuration which has not been set up in this environment.
               </span>
             </div>
           )}

@@ -81,9 +81,9 @@ export function ForgotPasswordForm() {
           </div>
         )}
 
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)} noValidate>
-          {/* Identifier Field */}
-          <div className="flex flex-col gap-1.5">
+        <form className="flex flex-col gap-4" onSubmit={(e) => e.preventDefault()} noValidate>
+          {/* Identifier Field (Disabled) */}
+          <div className="flex flex-col gap-1.5 opacity-60">
             <label className="text-[13px] font-medium text-foreground" htmlFor="identity">
               University Email or Student/Staff ID
             </label>
@@ -91,42 +91,34 @@ export function ForgotPasswordForm() {
               <input
                 id="identity"
                 type="text"
-                autoComplete="username"
+                disabled
                 placeholder="e.g., student@fpt.edu.vn"
-                className={`w-full px-3 py-2 bg-card text-foreground text-sm rounded-lg border ${errors.identity ? 'border-destructive focus:ring-destructive' : 'border-border focus:ring-primary'} shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:border-transparent transition-all`}
-                {...register('identity')}
+                className="w-full px-3 py-2 bg-muted text-muted-foreground text-sm rounded-lg border border-border shadow-sm cursor-not-allowed"
               />
             </div>
-            {errors.identity && (
-              <p className="text-xs text-destructive flex items-center gap-1 mt-0.5">
-                <AlertCircle className="w-3 h-3" />
-                <span>{errors.identity.message}</span>
-              </p>
-            )}
+          </div>
+
+          <div className="mt-2 p-4 rounded-lg bg-surface-container-low border border-outline-variant/30 text-center flex flex-col items-center gap-2">
+            <AlertCircle className="w-6 h-6 text-outline" />
+            <span className="font-semibold text-on-surface text-sm">Password Recovery Not Configured</span>
+            <span className="text-xs text-on-surface-variant">
+              This feature is currently unavailable in this environment. Please contact your system administrator if you need to reset your password.
+            </span>
           </div>
 
           <button
-            type="submit"
-            disabled={mutation.isPending}
-            className="w-full mt-2 py-2.5 px-4 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-base shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+            type="button"
+            disabled
+            className="w-full mt-2 py-2.5 px-4 rounded-lg bg-surface-container-highest text-on-surface-variant font-semibold text-base shadow-sm flex items-center justify-center gap-2 cursor-not-allowed opacity-70"
           >
-            {mutation.isPending ? (
-              <>
-                <span>Processing...</span>
-                <RefreshCcw className="w-5 h-5 animate-spin" />
-              </>
-            ) : (
-              <>
-                <span>Send Instructions</span>
-                <ArrowRight className="w-5 h-5" />
-              </>
-            )}
+            <span>Send Instructions</span>
+            <ArrowRight className="w-5 h-5" />
           </button>
 
           <div className="mt-4 text-center">
             <Link
               href="/login"
-              className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center justify-center gap-1"
+              className="text-sm font-medium text-primary hover:text-primary/80 transition-colors flex items-center justify-center gap-1"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to Login

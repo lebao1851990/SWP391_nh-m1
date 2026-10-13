@@ -15,6 +15,7 @@
     <description>Backend API for CodeAssess Plagiarism Detection System</description>
     <properties>
         <java.version>17</java.version>
+        <docker-java.version>3.4.1</docker-java.version>
     </properties>
     <dependencies>
         <!-- Spring Boot Starters -->
@@ -60,6 +61,18 @@
             <groupId>com.github.javaparser</groupId>
             <artifactId>javaparser-core</artifactId>
             <version>3.25.9</version>
+        </dependency>
+
+        <!-- Docker Java Client (sandbox feature) -->
+        <dependency>
+            <groupId>com.github.docker-java</groupId>
+            <artifactId>docker-java-core</artifactId>
+            <version>${docker-java.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.docker-java</groupId>
+            <artifactId>docker-java-transport-zerodep</artifactId>
+            <version>${docker-java.version}</version>
         </dependency>
 
         <!-- Testing -->
