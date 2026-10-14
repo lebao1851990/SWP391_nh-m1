@@ -2,7 +2,6 @@ package com.codeassess.sandbox.config;
 
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
-import com.github.dockerjava.core.DockerClientConfig;
 import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.transport.DockerHttpClient;
 import com.github.dockerjava.zerodep.ZerodepDockerHttpClient;
@@ -18,13 +17,18 @@ import java.time.Duration;
  * <p>The client connects to the local Docker daemon only. It does NOT mount the
  * Docker socket into any student container — the socket is used exclusively by
  * the host-side JVM to orchestrate container lifecycle.
+ *
+ * <p>Note: previously named {@code DockerClientConfig}, which conflicted with
+ * the imported {@code com.github.dockerjava.core.DockerClientConfig} type,
+ * causing a "already defined in this compilation unit" error that broke
+ * the entire compilation (including Lombok annotation processing).
  */
 @Configuration
-public class DockerClientConfig {
+public class DockerClientConfiguration {
 
     @Bean
     public DockerClient dockerClient() {
-        DockerClientConfig config = DefaultDockerClientConfig
+        com.github.dockerjava.core.DockerClientConfig config = DefaultDockerClientConfig
                 .createDefaultConfigBuilder()
                 .build();
 
@@ -39,4 +43,3 @@ public class DockerClientConfig {
         return DockerClientImpl.getInstance(config, httpClient);
     }
 }
-

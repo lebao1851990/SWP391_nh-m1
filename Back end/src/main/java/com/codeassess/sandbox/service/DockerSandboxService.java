@@ -17,7 +17,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.Semaphore;
@@ -60,7 +59,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * </ol>
  */
 @Service
-@RequiredArgsConstructor
 public class DockerSandboxService {
 
     private static final Logger log = LoggerFactory.getLogger(DockerSandboxService.class);
@@ -89,13 +87,21 @@ public class DockerSandboxService {
             "if ! javac -d " + CLASS_DIR + " " + SOURCE_FILE + " 2>/tmp/sandbox/compile.err; then " +
             "  cat /tmp/sandbox/compile.err; exit 1; " +
             "fi; " +
+            "set +e; " +
             "java -cp " + CLASS_DIR + " " +
             "-Xmx256m -Xms32m " +
             "-Djava.security.manager=disallow " +
-            "Main";
+            "Main; " +
+            "ec=$?; " +
+            "[ $ec -eq 1 ] && exit 2 || exit $ec";
 
     private final DockerClient dockerClient;
     private final SandboxProperties props;
+
+    public DockerSandboxService(DockerClient dockerClient, SandboxProperties props) {
+        this.dockerClient = dockerClient;
+        this.props = props;
+    }
 
     // Lazily initialised so that unit tests that mock DockerClient do not fail
     // due to configuration-time property reads.
@@ -183,7 +189,7 @@ public class DockerSandboxService {
 
             // ── Collect output (bounded) ───────────────────────────────────
             OutputCollector collector = new OutputCollector(props.getMaxOutputBytes());
-            try (InputStream logStream = dockerClient.logContainerCmd(containerId)
+            try (RawLogResultCallback logCallback = dockerClient.logContainerCmd(containerId)
                     .withStdOut(true)
                     .withStdErr(true)
                     .withFollowStream(true)
@@ -316,7 +322,7 @@ public class DockerSandboxService {
 
     private void stopContainer(String containerId) {
         try {
-            dockerClient.stopContainerCmd(containerId).withTimeout(2).exec();
+            dockerClient.stopContainerCmd(containerId).withTimeout(1).exec();
         } catch (NotModifiedException ignored) {
             // Container already stopped — this is fine
         } catch (Exception e) {
