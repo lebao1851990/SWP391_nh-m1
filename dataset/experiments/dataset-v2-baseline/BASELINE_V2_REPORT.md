@@ -65,7 +65,7 @@ The table below breaks down detector performance across all 7 plagiarism transfo
 | **E1** | Dead code insertion | 15 | 15 | 0 | 0 | 0 | **100.00%** | 82.93% | 93.62% | 89.49% | 90.16% |
 | **E3** | Block restructuring | 15 | 15 | 0 | 0 | 0 | **100.00%** | 87.18% | 90.74% | 89.70% | 90.32% |
 | **F1** | Control flow transformation | 15 | 15 | 0 | 0 | 0 | **100.00%** | 78.26% | 92.45% | 85.19% | 86.49% |
-| **G** | Unrelated negative pairs | 430 | 0 | 430 | 0 | 0 | **N/A** | 7.61% | 22.39% | 13.42% | 12.50% |
+| **G** | Unrelated negative pairs | 430 | 0 | 430 | 0 | 0 | **N/A** | 7.61% | 22.39% | 13.42% | 12.07% |
 
 ### Key Observations:
 1. **Identifier Invariance (Categories A, B, C):**
@@ -94,8 +94,9 @@ Max:  22.39%                                Max: 100.00%
                     Official Threshold: 70.00%
 ```
 
-- **Separation Safety Gap:** Exactly **51.29 percentage points** ($73.68\% - 22.39\%$).
-- **Zero Accidental Flags:** The highest scoring negative pair scored only **22.39%**, leaving a safety cushion of **47.61%** below the 70.00% threshold.
+- **Separation Safety Gap (All Categories):** Exactly **51.29 percentage points** ($73.68\% - 22.39\%$).
+- **F1 Control-Flow Specific Gap:** Category F1 minimum similarity is **78.26%**, providing a safety margin of **8.26 percentage points** above the 70.00% threshold, and a **55.87 percentage points** boundary gap ($78.26\% - 22.39\%$) against the highest negative pair.
+- **Zero Accidental Flags:** The highest scoring negative pair scored only **22.39%**, leaving a safety cushion of **47.61 percentage points** below the 70.00% threshold.
 
 ---
 
