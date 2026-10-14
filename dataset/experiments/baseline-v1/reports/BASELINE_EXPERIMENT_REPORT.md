@@ -1,7 +1,7 @@
 # Baseline Experiment Report — AST Plagiarism Detection Engine
 ## SWP391 RBL — Milestone 2: Module 4 (AST Plagiarism & Code Analytics Engine)
 
-- **Date of Execution:** 2026-10-12 10:22:11
+- **Date of Execution:** 2026-10-14 13:11:59
 - **Environment:** Java 21 LTS (`jdk-21.0.12.1`), Windows 11
 - **Dataset:** Dataset v1.0 (5 base programs, 105 generated variants, 110 total Java files, 535 pairs)
 - **Production Pipeline:** Reused exact production classes (`com.codeassess.plagiarism.*`)
@@ -124,9 +124,9 @@ Note: The 70.00% threshold remains the official baseline result. The table below
 
 | Stage | Items Processed | Execution Time | Average Throughput |
 | :--- | :---: | :---: | :---: |
-| **AST Parsing & Fingerprinting** | 110 programs | 438 ms | 3.98 ms / program |
-| **Pair Similarity Evaluation** | 535 pairs | 19 ms | 0.036 ms / pair |
-| **Total Pipeline Execution** | 535 pairs | 457 ms | - |
+| **AST Parsing & Fingerprinting** | 110 programs | 431 ms | 3.92 ms / program |
+| **Pair Similarity Evaluation** | 535 pairs | 13 ms | 0.024 ms / pair |
+| **Total Pipeline Execution** | 535 pairs | 444 ms | - |
 
 ---
 

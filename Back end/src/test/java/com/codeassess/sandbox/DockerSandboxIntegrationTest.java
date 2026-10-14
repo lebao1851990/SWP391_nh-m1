@@ -9,7 +9,7 @@ import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientConfig;
 import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.transport.DockerHttpClient;
-import com.github.dockerjava.zerodep.ZeroDepDockerHttpClient;
+import com.github.dockerjava.zerodep.ZerodepDockerHttpClient;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
@@ -62,7 +62,7 @@ class DockerSandboxIntegrationTest {
     @BeforeAll
     static void setUpDockerClient() {
         DockerClientConfig config = DefaultDockerClientConfig.createDefaultConfigBuilder().build();
-        DockerHttpClient http = new ZeroDepDockerHttpClient.Builder()
+        DockerHttpClient http = new ZerodepDockerHttpClient.Builder()
                 .dockerHost(config.getDockerHost())
                 .sslConfig(config.getSSLConfig())
                 .connectionTimeout(Duration.ofSeconds(10))
@@ -327,9 +327,6 @@ class DockerSandboxIntegrationTest {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 9. Oversized source rejected before Docker
-    // ═══════════════════════════════════════════════════════════════════════
-
     @Test
     @Order(9)
     void oversizedSource_rejectedBeforeDocker() {
@@ -337,5 +334,99 @@ class DockerSandboxIntegrationTest {
         assertThatThrownBy(() -> service.execute(oversized))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("65536 bytes");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 10. Container cleanup after success and failure
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Test
+    @Order(10)
+    void containerCleanup_removedAfterSuccessAndFailure() {
+        int initialCount = dockerClient.listContainersCmd().withShowAll(true).exec().size();
+
+        // 1. Successful execution
+        SandboxResult successResult = service.execute(
+                "public class Main { public static void main(String[] a){ System.out.println(\"cleanup ok\"); } }");
+        assertThat(successResult.getStatus()).isEqualTo(SandboxResult.Status.SUCCESS);
+        int afterSuccessCount = dockerClient.listContainersCmd().withShowAll(true).exec().size();
+        assertThat(afterSuccessCount).isEqualTo(initialCount);
+
+        // 2. Compilation failure execution
+        SandboxResult compileFailResult = service.execute("public class Main { invalid syntax");
+        assertThat(compileFailResult.getStatus()).isEqualTo(SandboxResult.Status.COMPILE_ERROR);
+        int afterCompileFailCount = dockerClient.listContainersCmd().withShowAll(true).exec().size();
+        assertThat(afterCompileFailCount).isEqualTo(initialCount);
+
+        // 3. Runtime failure execution
+        SandboxResult runtimeFailResult = service.execute(
+                "public class Main { public static void main(String[] a){ throw new RuntimeException(\"cleanup error\"); } }");
+        assertThat(runtimeFailResult.getStatus()).isEqualTo(SandboxResult.Status.RUNTIME_ERROR);
+        int afterRuntimeFailCount = dockerClient.listContainersCmd().withShowAll(true).exec().size();
+        assertThat(afterRuntimeFailCount).isEqualTo(initialCount);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 11. Unauthorized write outside /tmp fails (Read-only rootfs)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Test
+    @Order(11)
+    void unauthorizedHostWrite_failsDueToReadonlyRootfs() {
+        String src = "import java.io.File; import java.io.FileWriter;\n" +
+                "public class Main {\n" +
+                "    public static void main(String[] args) {\n" +
+                "        try {\n" +
+                "            new FileWriter(new File(\"/etc/malicious.txt\")).write(\"pwned\");\n" +
+                "            System.out.println(\"WRITE_SUCCESS\");\n" +
+                "        } catch (Exception e) {\n" +
+                "            System.out.println(\"WRITE_BLOCKED: \" + e.getMessage());\n" +
+                "        }\n" +
+                "    }\n" +
+                "}\n";
+
+        SandboxResult result = service.execute(src);
+
+        assertThat(result.getStatus()).isEqualTo(SandboxResult.Status.SUCCESS);
+        assertThat(result.getStdout()).doesNotContain("WRITE_SUCCESS");
+        assertThat(result.getStdout()).contains("WRITE_BLOCKED");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 12. Thread/PID explosion contained by cgroup pids-limit
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Test
+    @Order(12)
+    void pidLimit_containedByCgroup() {
+        SandboxProperties pidProps = new SandboxProperties();
+        pidProps.setImage(props.getImage());
+        pidProps.setTimeoutSeconds(5);
+        pidProps.setMaxConcurrentExecutions(4);
+        pidProps.setMemoryBytes(props.getMemoryBytes());
+        pidProps.setCpuPeriodMicros(props.getCpuPeriodMicros());
+        pidProps.setCpuQuotaMicros(props.getCpuQuotaMicros());
+        pidProps.setPidsLimit(15L);
+
+        pidProps.setMaxSourceBytes(props.getMaxSourceBytes());
+        pidProps.setMaxOutputBytes(props.getMaxOutputBytes());
+        pidProps.setTmpfsSizeBytes(props.getTmpfsSizeBytes());
+
+        DockerSandboxService pidSvc = new DockerSandboxService(dockerClient, pidProps);
+
+        String src = "public class Main {\n" +
+                "    public static void main(String[] args) {\n" +
+                "        for (int i = 0; i < 100; i++) {\n" +
+                "            new Thread(() -> { while(true) { try { Thread.sleep(1000); } catch (Exception e) {} } }).start();\n" +
+                "        }\n" +
+                "    }\n" +
+                "}\n";
+
+        SandboxResult result = pidSvc.execute(src);
+
+        assertThat(result.getStatus()).isIn(SandboxResult.Status.RUNTIME_ERROR, SandboxResult.Status.TIMEOUT);
+        if (result.getStatus() == SandboxResult.Status.RUNTIME_ERROR) {
+            assertThat(result.getStderr()).containsAnyOf("OutOfMemoryError", "thread", "Resource temporarily unavailable");
+        }
     }
 }

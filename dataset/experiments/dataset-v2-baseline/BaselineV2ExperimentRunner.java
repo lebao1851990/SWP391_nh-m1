@@ -217,7 +217,9 @@ public class BaselineV2ExperimentRunner {
             double min = sims.get(0);
             double max = sims.get(sims.size() - 1);
             double mean = sims.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
-            double median = sims.get(sims.size() / 2);
+            double median = sims.size() % 2 == 0 ?
+                    (sims.get(sims.size() / 2 - 1) + sims.get(sims.size() / 2)) / 2.0 :
+                    sims.get(sims.size() / 2);
 
             map.put(cat, new CategoryMetric(cat, list.size(), tp, tn, fp, fn, min, max, mean, median));
         }
