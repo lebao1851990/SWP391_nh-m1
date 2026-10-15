@@ -11,12 +11,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import com.codeassess.common.exception.GlobalExceptionHandler;
-import com.codeassess.security.CustomUserDetailsService;
-import com.codeassess.security.SecurityConfig;
-import com.codeassess.config.CorsConfig;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.context.annotation.Import;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -44,8 +40,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>DockerSandboxService is mocked — no real Docker interaction.
  */
-@WebMvcTest(SandboxController.class)
-@Import({SecurityConfig.class, CorsConfig.class, GlobalExceptionHandler.class})
+@SpringBootTest
+@AutoConfigureMockMvc
 class SandboxControllerTest {
 
     @Autowired
@@ -56,9 +52,6 @@ class SandboxControllerTest {
 
     @MockBean
     private DockerSandboxService sandboxService;
-
-    @MockBean
-    private CustomUserDetailsService customUserDetailsService;
 
     private static final String ENDPOINT = "/api/student/sandbox/execute";
 

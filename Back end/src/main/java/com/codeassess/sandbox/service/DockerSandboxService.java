@@ -11,7 +11,6 @@ import com.github.dockerjava.api.exception.NotModifiedException;
 import com.github.dockerjava.api.model.Capability;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.LogConfig;
-import com.github.dockerjava.api.model.Ulimit;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,48 +65,33 @@ public class DockerSandboxService {
 
     // Relative source and class paths inside /tmp (the writable tmpfs)
     private static final String TMP_DIR        = "/tmp/sandbox";
+    private static final String SOURCE_FILE    = TMP_DIR + "/Main.java";
     private static final String CLASS_DIR      = TMP_DIR + "/classes";
-
-    private static final java.util.regex.Pattern PUBLIC_CLASS_PATTERN =
-            java.util.regex.Pattern.compile("\\bpublic\\s+(?:final\\s+)?class\\s+([A-Za-z0-9_$]+)");
-
-    static String extractMainClassName(String sourceCode) {
-        if (sourceCode != null) {
-            java.util.regex.Matcher matcher = PUBLIC_CLASS_PATTERN.matcher(sourceCode);
-            if (matcher.find()) {
-                String name = matcher.group(1);
-                if (name != null && name.matches("^[A-Za-z0-9_$]+$")) {
-                    return name;
-                }
-            }
-        }
-        return "Main";
-    }
 
     // Shell script written as a single argument — NOT string-concatenated with source code.
     // Source is transferred via base64 to avoid any shell injection.
     // Steps:
     //  1. mkdir -p both dirs
-    //  2. decode the base64 source into <ClassName>.java
+    //  2. decode the base64 source into Main.java
     //  3. compile with javac  (exit 1 on compile error → special marker)
     //  4. run the compiled class (exit 2+ on runtime error)
     // Exit codes:
     //   0  = success
-    //   1  = compile error  (javac returned non-zero; compiler output routed to stderr)
+    //   1  = compile error  (javac returned non-zero; combined stdout/stderr captured)
     //   *  = runtime error (java process exited non-zero)
     private static final String SCRIPT_TEMPLATE =
             "set -e; " +
             "mkdir -p " + TMP_DIR + " " + CLASS_DIR + "; " +
-            // %1$s is the class name, %2$s is the base64-encoded source
-            "echo '%2$s' | base64 -d > " + TMP_DIR + "/%1$s.java; " +
-            "if ! javac -d " + CLASS_DIR + " " + TMP_DIR + "/%1$s.java 2>/tmp/sandbox/compile.err; then " +
-            "  cat /tmp/sandbox/compile.err >&2; exit 1; " +
+            // %s will be replaced by the base64-encoded source — no shell interpretation possible
+            "echo '%s' | base64 -d > " + SOURCE_FILE + "; " +
+            "if ! javac -d " + CLASS_DIR + " " + SOURCE_FILE + " 2>/tmp/sandbox/compile.err; then " +
+            "  cat /tmp/sandbox/compile.err; exit 1; " +
             "fi; " +
             "set +e; " +
             "java -cp " + CLASS_DIR + " " +
             "-Xmx256m -Xms32m " +
             "-Djava.security.manager=disallow " +
-            "%1$s; " +
+            "Main; " +
             "ec=$?; " +
             "[ $ec -eq 1 ] && exit 2 || exit $ec";
 
@@ -178,8 +162,7 @@ public class DockerSandboxService {
         String base64Source = java.util.Base64.getEncoder()
                 .encodeToString(sourceCode.getBytes(StandardCharsets.UTF_8));
 
-        String mainClassName = extractMainClassName(sourceCode);
-        String script = String.format(SCRIPT_TEMPLATE, mainClassName, base64Source);
+        String script = String.format(SCRIPT_TEMPLATE, base64Source);
 
         String containerId = null;
         long startMs = System.currentTimeMillis();
@@ -259,11 +242,7 @@ public class DockerSandboxService {
 
             } catch (Exception e) {
                 timeoutThread.interrupt();
-                boolean isInterrupted = timedOut.get()
-                        || Thread.currentThread().isInterrupted()
-                        || e instanceof InterruptedException
-                        || (e.getCause() instanceof InterruptedException);
-                if (isInterrupted) {
+                if (timedOut.get()) {
                     return SandboxResult.builder()
                             .status(SandboxResult.Status.TIMEOUT)
                             .stdout("")
@@ -310,12 +289,6 @@ public class DockerSandboxService {
                 .withPidsLimit(props.getPidsLimit())
                 // Drop ALL Linux capabilities
                 .withCapDrop(Capability.ALL)
-                // Init process reaps orphan child processes and forwards signals
-                .withInit(true)
-                // Network isolation mode
-                .withNetworkMode("none")
-                // Prevent core dumps containing sensitive process memory
-                .withUlimits(List.of(new Ulimit("core", 0L, 0L)))
                 // No-new-privileges prevents privilege escalation via setuid binaries
                 .withSecurityOpts(List.of("no-new-privileges:true"))
                 // Read-only root filesystem; /tmp is writable tmpfs
@@ -353,27 +326,16 @@ public class DockerSandboxService {
         } catch (NotModifiedException ignored) {
             // Container already stopped — this is fine
         } catch (Exception e) {
-            String shortId = containerId != null ? containerId.substring(0, Math.min(12, containerId.length())) : "unknown";
-            log.warn("Could not stop container {} cleanly: {}", shortId, e.getMessage());
-            try {
-                dockerClient.killContainerCmd(containerId).exec();
-            } catch (Exception ignored) {
-                // Ignore kill failure if container already exited
-            }
+            log.warn("Could not stop container {} cleanly: {}", containerId.substring(0, 12), e.getMessage());
         }
     }
 
     private void removeContainer(String containerId) {
         try {
-            dockerClient.removeContainerCmd(containerId)
-                    .withForce(true)
-                    .withRemoveVolumes(true)
-                    .exec();
-            String shortId = containerId != null ? containerId.substring(0, Math.min(12, containerId.length())) : "unknown";
-            log.debug("Removed sandbox container: {}", shortId);
+            dockerClient.removeContainerCmd(containerId).withForce(true).exec();
+            log.debug("Removed sandbox container: {}", containerId.substring(0, 12));
         } catch (Exception e) {
-            String shortId = containerId != null ? containerId.substring(0, Math.min(12, containerId.length())) : "unknown";
-            log.warn("Could not remove container {}: {}", shortId, e.getMessage());
+            log.warn("Could not remove container {}: {}", containerId.substring(0, 12), e.getMessage());
         }
     }
 

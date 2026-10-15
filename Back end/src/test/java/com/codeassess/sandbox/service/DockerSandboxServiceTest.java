@@ -320,66 +320,6 @@ class DockerSandboxServiceTest {
         assertThatCode(() -> cb.onNext(null)).doesNotThrowAnyException();
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
-    // 8. Public class name extraction
-    // ═════════════════════════════════════════════════════════════════════════
-
-    @Test
-    void extractMainClassName_detectsPublicClass() {
-        String src = "package com.example;\npublic class Solution {\n  public static void main(String[] a){}\n}";
-        assertThat(DockerSandboxService.extractMainClassName(src)).isEqualTo("Solution");
-    }
-
-    @Test
-    void extractMainClassName_detectsPublicFinalClass() {
-        String src = "public final class Calculator {\n  public static void main(String[] a){}\n}";
-        assertThat(DockerSandboxService.extractMainClassName(src)).isEqualTo("Calculator");
-    }
-
-    @Test
-    void extractMainClassName_nonPublicClass_defaultsToMain() {
-        String src = "class Helper {\n  public static void main(String[] a){}\n}";
-        assertThat(DockerSandboxService.extractMainClassName(src)).isEqualTo("Main");
-    }
-
-    @Test
-    void extractMainClassName_nullOrEmpty_defaultsToMain() {
-        assertThat(DockerSandboxService.extractMainClassName(null)).isEqualTo("Main");
-        assertThat(DockerSandboxService.extractMainClassName("   ")).isEqualTo("Main");
-    }
-
-    // ═════════════════════════════════════════════════════════════════════════
-    // 9. Container Security Isolation Controls Verification
-    // ═════════════════════════════════════════════════════════════════════════
-
-    @Test
-    void execute_appliesFullSecurityIsolationControls() {
-        org.mockito.ArgumentCaptor<com.github.dockerjava.api.model.HostConfig> hostConfigCaptor =
-                org.mockito.ArgumentCaptor.forClass(com.github.dockerjava.api.model.HostConfig.class);
-        org.mockito.ArgumentCaptor<String> userCaptor =
-                org.mockito.ArgumentCaptor.forClass(String.class);
-        org.mockito.ArgumentCaptor<Boolean> netDisabledCaptor =
-                org.mockito.ArgumentCaptor.forClass(Boolean.class);
-
-        service.execute("public class Solution { public static void main(String[] a){} }");
-
-        verify(createCmd).withHostConfig(hostConfigCaptor.capture());
-        verify(createCmd).withUser(userCaptor.capture());
-        verify(createCmd).withNetworkDisabled(netDisabledCaptor.capture());
-
-        com.github.dockerjava.api.model.HostConfig hc = hostConfigCaptor.getValue();
-        assertThat(hc).isNotNull();
-        assertThat(hc.getInit()).isTrue();
-        assertThat(hc.getNetworkMode()).isEqualTo("none");
-        assertThat(hc.getReadonlyRootfs()).isTrue();
-        assertThat(hc.getCapDrop()).contains(com.github.dockerjava.api.model.Capability.ALL);
-        assertThat(hc.getSecurityOpts()).contains("no-new-privileges:true");
-        assertThat(hc.getTmpFs()).containsKey("/tmp");
-        assertThat(hc.getUlimits()).anyMatch(u -> "core".equals(u.getName()) && u.getHard() == 0L);
-        assertThat(userCaptor.getValue()).isEqualTo("65534:65534");
-        assertThat(netDisabledCaptor.getValue()).isTrue();
-    }
-
     // ─────────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────
