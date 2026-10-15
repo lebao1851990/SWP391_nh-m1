@@ -11,6 +11,7 @@ import com.github.dockerjava.api.exception.NotModifiedException;
 import com.github.dockerjava.api.model.Capability;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.LogConfig;
+import com.github.dockerjava.api.model.Ulimit;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -309,6 +310,12 @@ public class DockerSandboxService {
                 .withPidsLimit(props.getPidsLimit())
                 // Drop ALL Linux capabilities
                 .withCapDrop(Capability.ALL)
+                // Init process reaps orphan child processes and forwards signals
+                .withInit(true)
+                // Network isolation mode
+                .withNetworkMode("none")
+                // Prevent core dumps containing sensitive process memory
+                .withUlimits(List.of(new Ulimit("core", 0L, 0L)))
                 // No-new-privileges prevents privilege escalation via setuid binaries
                 .withSecurityOpts(List.of("no-new-privileges:true"))
                 // Read-only root filesystem; /tmp is writable tmpfs
