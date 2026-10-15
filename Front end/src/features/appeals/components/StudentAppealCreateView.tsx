@@ -4,7 +4,7 @@ import { AppLink as Link } from '@/components/ui/app-link';
 import { useSearchParams } from 'next/navigation';
 import { useAppRouter as useRouter } from '@/hooks/use-app-router';
 import { AxiosError } from 'axios';
-import { useCreateAppeal } from '../hooks';
+import { useCreateAppeal, useStudentAppeals } from '../hooks';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createAppealSchema, AppealFormData } from '../schemas';
@@ -14,8 +14,10 @@ export function StudentAppealCreateView() {
   const searchParams = useSearchParams();
   const submissionId = searchParams?.get('submissionId') || '';
 
-
+  const { data: appeals, isLoading: isLoadingAppeals } = useStudentAppeals();
   const createAppeal = useCreateAppeal();
+
+  const existingPendingAppeal = appeals?.find(a => a.submissionId === submissionId && a.status === 'PENDING');
 
   const [showConfirm, setShowConfirm] = useState(false);
   const [formData, setFormData] = useState<AppealFormData | null>(null);
@@ -127,6 +129,20 @@ export function StudentAppealCreateView() {
         </aside>
 
         <main className="lg:col-span-8">
+          {existingPendingAppeal ? (
+            <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/20 p-space-lg flex flex-col items-center justify-center text-center">
+              <span className="material-symbols-outlined text-[48px] text-primary mb-4">pending_actions</span>
+              <h2 className="font-headline-md text-headline-md text-on-surface">Appeal Currently Under Review</h2>
+              <p className="mt-2 text-on-surface-variant font-body-md max-w-md">
+                You already have a pending appeal for this submission. The Faculty Examination Board is currently reviewing your case. You will be notified once a decision has been made.
+              </p>
+              <Link href="/student/appeals">
+                <button className="mt-6 px-6 py-2 bg-primary-container text-on-primary font-label-md rounded shadow-sm hover:bg-primary transition-colors">
+                  View My Appeals
+                </button>
+              </Link>
+            </div>
+          ) : (
           <form className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/20 p-space-lg space-y-space-xl" onSubmit={handleSubmit(onValid)}>
             <div className="space-y-space-sm">
               <div className="flex items-center justify-between">
@@ -196,6 +212,7 @@ export function StudentAppealCreateView() {
               </button>
             </div>
           </form>
+          )}
         </main>
       </div>
 

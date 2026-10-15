@@ -83,7 +83,7 @@ export function TeacherPlagiarismCompareView({ recordId }: { recordId: string })
                   <span className="text-outline">/</span>
                   <span className="text-on-surface font-semibold">Code Comparison</span>
                 </nav>
-                <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">Source Code Diff Analysis</h1>
+                <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">AST Evidence Comparison</h1>
                 <p className="font-body-md text-body-md text-on-surface-variant">Comparing {detailData?.examName || 'Exam'} - Record #{data.pairId}</p>
               </div>
               <div className="flex items-center gap-space-sm self-start md:self-auto">
@@ -94,7 +94,7 @@ export function TeacherPlagiarismCompareView({ recordId }: { recordId: string })
             </div>
 
             <div className="flex flex-col space-y-space-sm">
-              <h2 className="font-headline-sm text-headline-sm text-on-surface">Matched AST Structures</h2>
+              <h2 className="font-headline-sm text-headline-sm text-on-surface">Matching Evidence</h2>
               <div className="space-y-space-xs">
                 {data.matches && data.matches.length > 0 ? (
                   data.matches.map((match, idx) => (
@@ -118,7 +118,7 @@ export function TeacherPlagiarismCompareView({ recordId }: { recordId: string })
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <h2 className="font-headline-md text-headline-md text-on-surface">Source Code Comparison</h2>
-                  <p className="font-body-sm text-body-sm text-on-surface-variant">Side-by-side diff of Student A and Student B submissions</p>
+                  <p className="font-body-sm text-body-sm text-on-surface-variant">Side-by-side view with AST match highlighting</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-space-md w-full">

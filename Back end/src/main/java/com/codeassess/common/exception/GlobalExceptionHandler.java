@@ -71,6 +71,12 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(503, "SERVICE_UNAVAILABLE", ex.getMessage()));
     }
 
+    @ExceptionHandler(com.codeassess.sandbox.exception.SandboxException.class)
+    public ResponseEntity<ErrorResponse> handleSandboxException(com.codeassess.sandbox.exception.SandboxException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ErrorResponse(503, "SANDBOX_UNAVAILABLE", ex.getMessage()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneralException(Exception ex) {
         ex.printStackTrace();

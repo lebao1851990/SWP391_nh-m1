@@ -102,7 +102,7 @@ export function TeacherPlagiarismDetailView({ recordId }: { recordId: string }) 
                 <div className="flex items-center justify-between mb-space-sm">
                   <div className="flex items-center gap-space-xs">
                     <span className="material-symbols-outlined text-primary text-[20px]">scatter_plot</span>
-                    <h3 className="font-headline-sm text-headline-sm text-on-surface">Subtree Isomorphism Cluster Map</h3>
+                    <h3 className="font-headline-sm text-headline-sm text-on-surface">AST Fingerprint Matches</h3>
                   </div>
                   <div className="flex items-center gap-space-sm">
                     <button 
@@ -116,7 +116,7 @@ export function TeacherPlagiarismDetailView({ recordId }: { recordId: string }) 
                   </div>
                 </div>
                 <p className="font-body-sm text-body-sm text-on-surface-variant">
-                  Live cluster detected between <strong className="text-on-surface font-medium">{pair.studentAId}</strong> and <strong className="text-on-surface font-medium">{pair.studentBId}</strong> in <span className="font-mono bg-surface-container px-1 py-0.5 rounded">{className}</span>.
+                  Similarity match detected between <strong className="text-on-surface font-medium">{pair.studentAId}</strong> and <strong className="text-on-surface font-medium">{pair.studentBId}</strong> in <span className="font-mono bg-surface-container px-1 py-0.5 rounded">{className}</span>.
                 </p>
                 
                 <div className="mt-space-md h-48 bg-surface-container-low rounded-lg relative overflow-hidden flex items-center justify-center p-4">
@@ -146,11 +146,11 @@ export function TeacherPlagiarismDetailView({ recordId }: { recordId: string }) 
                 <div className="flex items-center justify-between mb-space-xs">
                   <div className="flex items-center gap-1.5">
                     <span className="material-symbols-outlined text-primary text-[18px]">neurology</span>
-                    <h3 className="font-headline-sm text-headline-sm text-on-surface">AST Diagnostics</h3>
+                    <h3 className="font-headline-sm text-headline-sm text-on-surface">AST Evidence Metrics</h3>
                   </div>
                   <span className="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-tertiary-fixed text-on-tertiary-fixed font-semibold">SYNCHRONIZED</span>
                 </div>
-                <p className="font-body-sm text-body-sm text-on-surface-variant">Active sandbox execution & syntax tree parity audit metrics.</p>
+                <p className="font-body-sm text-body-sm text-on-surface-variant">Similarity metrics based on AST Winnowing and Jaccard comparison.</p>
                 <div className="mt-space-md space-y-space-sm">
                   <div className="p-space-xs rounded bg-surface-container-low flex items-center justify-between">
                     <span className="font-body-sm text-body-sm text-on-surface-variant">Similarity Match</span>

@@ -1,0 +1,6 @@
+# Bytecode and compiled binaries
+*.class
+
+# Machine-specific environment/build cache
+Back end/classpath.txt
+/Back end/classpath.txt

@@ -48,3 +48,23 @@ app:
   ai:
     provider: ${AI_PROVIDER:none}
     api-key: ${AI_API_KEY:}
+
+sandbox:
+  image: eclipse-temurin:21-jdk-alpine
+  # Wall-clock timeout for compile + run combined (seconds)
+  timeout-seconds: 10
+  # Hard cap on concurrent sandboxed executions
+  max-concurrent-executions: 4
+  # Memory limit per container (bytes)
+  memory-bytes: 536870912        # 512 MiB
+  # CPU throttle: quota / period = 0.5 CPU
+  cpu-period-micros: 100000
+  cpu-quota-micros: 50000
+  # Maximum process count inside container
+  pids-limit: 50
+  # Maximum accepted source code size (bytes, UTF-8 encoded)
+  max-source-bytes: 65536
+  # Maximum bytes captured from stdout / stderr each
+  max-output-bytes: 65536
+  # tmpfs size for /tmp inside container (bytes)
+  tmpfs-size-bytes: 33554432     # 32 MiB

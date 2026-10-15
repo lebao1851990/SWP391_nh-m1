@@ -1,0 +1,4 @@
+metric,pair_id,similarity_rate,details
+LOWEST_POSITIVE,pair_0074,73.68,"SinglyLinkedList.java vs SinglyLinkedList_D_2.java (Cat: D, Trans: transformation_D_2)"
+HIGHEST_NEGATIVE,pair_0415,22.39,"PalindromeChecker.java vs SinglyLinkedList_D_3.java (Cat: G, Trans: unrelated_variant)"
+SEPARATION_GAP,N/A,51.29,"Separation between lowest positive and highest negative"
