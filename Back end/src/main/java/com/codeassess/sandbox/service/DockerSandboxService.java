@@ -258,7 +258,11 @@ public class DockerSandboxService {
 
             } catch (Exception e) {
                 timeoutThread.interrupt();
-                if (timedOut.get()) {
+                boolean isInterrupted = timedOut.get()
+                        || Thread.currentThread().isInterrupted()
+                        || e instanceof InterruptedException
+                        || (e.getCause() instanceof InterruptedException);
+                if (isInterrupted) {
                     return SandboxResult.builder()
                             .status(SandboxResult.Status.TIMEOUT)
                             .stdout("")
@@ -342,16 +346,27 @@ public class DockerSandboxService {
         } catch (NotModifiedException ignored) {
             // Container already stopped — this is fine
         } catch (Exception e) {
-            log.warn("Could not stop container {} cleanly: {}", containerId.substring(0, 12), e.getMessage());
+            String shortId = containerId != null ? containerId.substring(0, Math.min(12, containerId.length())) : "unknown";
+            log.warn("Could not stop container {} cleanly: {}", shortId, e.getMessage());
+            try {
+                dockerClient.killContainerCmd(containerId).exec();
+            } catch (Exception ignored) {
+                // Ignore kill failure if container already exited
+            }
         }
     }
 
     private void removeContainer(String containerId) {
         try {
-            dockerClient.removeContainerCmd(containerId).withForce(true).exec();
-            log.debug("Removed sandbox container: {}", containerId.substring(0, 12));
+            dockerClient.removeContainerCmd(containerId)
+                    .withForce(true)
+                    .withRemoveVolumes(true)
+                    .exec();
+            String shortId = containerId != null ? containerId.substring(0, Math.min(12, containerId.length())) : "unknown";
+            log.debug("Removed sandbox container: {}", shortId);
         } catch (Exception e) {
-            log.warn("Could not remove container {}: {}", containerId.substring(0, 12), e.getMessage());
+            String shortId = containerId != null ? containerId.substring(0, Math.min(12, containerId.length())) : "unknown";
+            log.warn("Could not remove container {}: {}", shortId, e.getMessage());
         }
     }
 
