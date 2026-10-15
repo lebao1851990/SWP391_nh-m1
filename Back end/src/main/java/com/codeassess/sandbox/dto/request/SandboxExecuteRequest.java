@@ -1,6 +1,7 @@
 package com.codeassess.sandbox.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,9 +10,9 @@ import lombok.NoArgsConstructor;
 /**
  * Request body for {@code POST /api/student/sandbox/execute}.
  *
- * <p>UTF-8 byte-length enforcement (max 65,536 bytes) is applied in
- * {@link com.codeassess.sandbox.service.DockerSandboxService}, not here,
- * because Bean Validation {@code @Size} counts characters, not encoded bytes.
+ * <p>Validates that sourceCode is not blank and does not exceed 65,536 characters.
+ * UTF-8 byte-length enforcement (max 65,536 bytes) is additionally verified in
+ * {@link com.codeassess.sandbox.service.DockerSandboxService}.
  */
 @Data
 @Builder
@@ -20,5 +21,6 @@ import lombok.NoArgsConstructor;
 public class SandboxExecuteRequest {
 
     @NotBlank(message = "sourceCode must not be blank")
+    @Size(max = 65536, message = "sourceCode exceeds the maximum allowed size of 65536 characters")
     private String sourceCode;
 }
