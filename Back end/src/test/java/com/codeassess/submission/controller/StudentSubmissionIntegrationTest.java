@@ -9,6 +9,7 @@ import com.codeassess.user.entity.User;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -19,6 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -195,6 +197,14 @@ class StudentSubmissionIntegrationTest {
                 .andExpect(jsonPath("$.id").value("sub-001"))
                 .andExpect(jsonPath("$.examId").value(EXAM_ID))
                 .andExpect(jsonPath("$.status").value("PENDING"));
+
+        ArgumentCaptor<String> examIdCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> studentIdCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<SubmissionCreateRequest> requestCaptor = ArgumentCaptor.forClass(SubmissionCreateRequest.class);
+        Mockito.verify(studentSubmissionService).submitCode(examIdCaptor.capture(), studentIdCaptor.capture(), requestCaptor.capture());
+        assertThat(examIdCaptor.getValue()).isEqualTo(EXAM_ID);
+        assertThat(studentIdCaptor.getValue()).isEqualTo("student-001");
+        assertThat(requestCaptor.getValue().getSourceCode()).isEqualTo("public class Test {}");
     }
 
     // ===================================================================
