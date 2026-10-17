@@ -15,8 +15,27 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT_MS:2000}ms
+
   flyway:
     enabled: false
+
+queue:
+  plagiarism:
+    enabled: ${QUEUE_PLAGIARISM_ENABLED:true}
+    stream-name: ${QUEUE_PLAGIARISM_STREAM:codeassess:jobs:plagiarism}
+    consumer-group: ${QUEUE_PLAGIARISM_GROUP:plagiarism-worker-group}
+    max-retries: 3
+    publish-timeout-ms: 2000
+  bullmq:
+    enabled: ${BULLMQ_ENABLED:true}
+    producer-url: ${BULLMQ_PRODUCER_URL:http://localhost:3001}
+    timeout-ms: ${BULLMQ_TIMEOUT_MS:3000}
 
 server:
   port: ${PORT:8080}
@@ -33,11 +52,21 @@ plagiarism:
   window-size: 4
 
 app:
+  internal:
+    api-secret: ${INTERNAL_API_SECRET:codeassess-internal-secret-2026}
   cors:
     allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000}
   ai:
     provider: ${AI_PROVIDER:none}
     api-key: ${AI_API_KEY:}
+    model: ${AI_MODEL:gpt-4o-mini}
+    timeout-seconds: ${AI_TIMEOUT_SECONDS:30}
+    base-url: ${AI_BASE_URL:https://api.openai.com/v1}
+    gemini:
+      api-key: ${GEMINI_API_KEY:}
+      model: ${GEMINI_MODEL:gemini-2.5-flash}
+      timeout-seconds: ${GEMINI_TIMEOUT_SECONDS:30}
+      base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta}
 
 sandbox:
   image: eclipse-temurin:21-jdk-alpine
