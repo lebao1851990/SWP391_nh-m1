@@ -1,10 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStudentExam, useSubmitExam } from '../hooks/use-student-exams';
 import { AxiosError } from 'axios';
 import { AppLink as Link } from '@/components/ui/app-link';
+import { 
+  ArrowLeft, 
+  Code2, 
+  Send, 
+  AlertCircle, 
+  Clock, 
+  BookOpen, 
+  Lock, 
+  FileCheck, 
+  CheckCircle2, 
+  Loader2, 
+  FileCode2,
+  HelpCircle,
+  ShieldAlert
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 interface StudentExamDetailViewProps {
   examId: string;
@@ -17,11 +33,13 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
   
   const [sourceCode, setSourceCode] = useState('');
   const [localError, setLocalError] = useState('');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-space-lg py-space-lg flex justify-center items-center h-64">
-        <div className="text-on-surface-variant font-label-md">Loading exam details...</div>
+      <div className="flex flex-col h-72 items-center justify-center gap-3">
+        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        <p className="text-on-surface-variant font-label-md text-xs">Loading exam specifications...</p>
       </div>
     );
   }
@@ -30,116 +48,181 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
     const status = (error as AxiosError)?.response?.status;
     if (status === 403) {
       return (
-        <div className="max-w-7xl mx-auto px-space-lg py-space-lg text-center">
-          <span className="material-symbols-outlined text-error text-[48px]">lock</span>
-          <h2 className="font-headline-md text-headline-md text-on-surface mt-4">Forbidden</h2>
-          <p className="font-body-md text-on-surface-variant">You do not have permission to access this exam.</p>
+        <div className="max-w-xl mx-auto my-12 p-8 rounded-2xl bg-surface-container-lowest border border-outline-variant/40 shadow-lg text-center flex flex-col items-center gap-3">
+          <div className="p-3 rounded-full bg-rose-50 text-rose-600">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h2 className="font-headline-md text-headline-md text-on-surface">Access Restricted</h2>
+          <p className="font-body-md text-on-surface-variant text-xs">You are not enrolled in the class assigned to this assessment.</p>
+          <Link href="/student/exams" className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium">
+            Back to Assessments
+          </Link>
         </div>
       );
     }
     if (status === 404) {
       return (
-        <div className="max-w-7xl mx-auto px-space-lg py-space-lg text-center">
-          <span className="material-symbols-outlined text-outline text-[48px]">search_off</span>
-          <h2 className="font-headline-md text-headline-md text-on-surface mt-4">Exam Not Found</h2>
-          <p className="font-body-md text-on-surface-variant">This exam does not exist or you are not enrolled.</p>
+        <div className="max-w-xl mx-auto my-12 p-8 rounded-2xl bg-surface-container-lowest border border-outline-variant/40 shadow-lg text-center flex flex-col items-center gap-3">
+          <div className="p-3 rounded-full bg-amber-50 text-amber-600">
+            <AlertCircle className="w-8 h-8" />
+          </div>
+          <h2 className="font-headline-md text-headline-md text-on-surface">Assessment Not Found</h2>
+          <p className="font-body-md text-on-surface-variant text-xs">This assessment does not exist or has been archived.</p>
+          <Link href="/student/exams" className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium">
+            Back to Assessments
+          </Link>
         </div>
       );
     }
     return (
-      <div className="max-w-7xl mx-auto px-space-lg py-space-lg text-center">
-        <span className="material-symbols-outlined text-error text-[48px]">error</span>
-        <h2 className="font-headline-md text-headline-md text-on-surface mt-4">Error Loading Exam</h2>
-        <p className="font-body-md text-on-surface-variant">{(error as Error).message}</p>
+      <div className="max-w-xl mx-auto my-12 p-8 rounded-2xl bg-surface-container-lowest border border-rose-200/60 shadow-lg text-center flex flex-col items-center gap-3">
+        <div className="p-3 rounded-full bg-rose-50 text-rose-600">
+          <AlertCircle className="w-8 h-8" />
+        </div>
+        <h2 className="font-headline-md text-headline-md text-on-surface">Error Loading Assessment</h2>
+        <p className="font-body-md text-on-surface-variant text-xs">{(error as Error).message}</p>
+        <button onClick={() => window.location.reload()} className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium">
+          Retry
+        </button>
       </div>
     );
   }
 
   if (!exam) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const isClosed = exam.status === 'completed' || exam.status === 'missed';
+  const lineCount = sourceCode ? sourceCode.split('\n').length : 0;
+  const charCount = sourceCode.length;
+
+  const handlePreSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!sourceCode.trim()) {
       setLocalError('Source code cannot be empty.');
       return;
     }
     setLocalError('');
-    
+    setShowConfirmModal(true);
+  };
+
+  const handleFinalSubmit = () => {
+    setShowConfirmModal(false);
     submitExam.mutate(
       { examId, sourceCode },
       {
-        onSuccess: () => {
-          // Navigate back to the exams list or dashboard
-          router.push('/student/exams');
+        onSuccess: (data: { id?: string }) => {
+          toast.success('Source code submitted successfully! Running sandbox tests...');
+          if (data && data.id) {
+            router.push(`/student/submissions/${data.id}`);
+          } else {
+            router.push('/student/submissions');
+          }
         },
+        onError: (err: unknown) => {
+          const msg = (err as AxiosError<{message?: string}>)?.response?.data?.message || (err as Error)?.message || 'Submission failed';
+          setLocalError(msg);
+          toast.error(msg);
+        }
       }
     );
   };
 
-  const isClosed = exam.status === 'completed' || exam.status === 'missed';
-
   return (
     <div className="max-w-7xl mx-auto px-space-lg py-space-lg">
       <div className="flex flex-col w-full space-y-space-lg">
-        {/* Top Navigation & Action Bar */}
+        {/* Header Breadcrumbs & Status Bar */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-space-md">
           <div className="space-y-1.5">
-            <nav className="flex items-center gap-2 text-on-surface-variant font-label-sm text-label-sm">
-              <Link className="hover:text-primary transition-colors flex items-center gap-1" href="/student/exams">
-                <span className="material-symbols-outlined text-[14px]">home</span>
-                Exams
+            <nav className="flex items-center gap-2 text-on-surface-variant text-xs">
+              <Link className="hover:text-primary transition-colors flex items-center gap-1 font-medium" href="/student/exams">
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Assessments</span>
               </Link>
               <span className="text-outline-variant">/</span>
-              <span className="text-primary font-semibold">{exam.title}</span>
+              <span className="text-primary font-semibold truncate max-w-[200px]">{exam.title}</span>
             </nav>
             
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">{exam.title}</h1>
-              <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-semibold ${
+              <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                 exam.status === 'active' 
-                  ? 'bg-tertiary-fixed text-on-tertiary-fixed' 
-                  : 'bg-surface-container-high text-on-surface-variant'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                  : 'bg-surface-container text-on-surface-variant'
               }`}>
                 {exam.status === 'active' && (
                   <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-tertiary opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-tertiary"></span>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                   </span>
                 )}
-                {exam.status.toUpperCase()}
+                <span>{exam.status.toUpperCase()}</span>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 pt-1 font-label-sm text-label-sm text-on-surface-variant">
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container font-medium text-on-surface">
-                <span className="material-symbols-outlined text-[15px] text-primary">menu_book</span>
-                Course Class: {exam.courseClassCode}
+            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-on-surface-variant">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container font-mono font-medium text-on-surface border border-outline-variant/30">
+                <BookOpen className="w-3.5 h-3.5 text-primary" />
+                <span>Class: {exam.courseClassCode || 'SE-PRACTICAL'}</span>
               </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container-high text-on-surface">
-                <span className="material-symbols-outlined text-[15px] text-outline">schedule</span>
-                Deadline: {new Date(exam.endTime).toLocaleString()}
-                {isClosed && <span className="text-error font-medium ml-1">(Closed)</span>}
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container-high text-on-surface border border-outline-variant/30">
+                <Clock className="w-3.5 h-3.5 text-outline" />
+                <span>Deadline: {new Date(exam.endTime).toLocaleString()}</span>
+                {isClosed && <span className="text-rose-600 font-semibold ml-1">(Closed)</span>}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Submission Form */}
-        <div className="bg-surface-container-lowest p-space-md rounded-xl shadow-sm border border-outline-variant">
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-[20px]">code</span>
-              <h2 className="font-headline-sm text-headline-sm text-on-surface">Source Code Submission</h2>
+        {/* Closed Exam Alert Banner */}
+        {isClosed && (
+          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+            <div>
+              <p className="font-semibold">Assessment Window Concluded</p>
+              <p className="text-amber-700 mt-0.5">The deadline for this assessment has passed. Submissions are closed.</p>
             </div>
-            
-            <p className="font-body-sm text-body-sm text-on-surface-variant">
-              {exam.description}
-            </p>
+          </div>
+        )}
 
-            <div className="relative">
+        {/* Exam Description Card */}
+        {exam.description && (
+          <div className="p-space-md rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs">
+            <h3 className="font-label-sm font-semibold text-outline uppercase tracking-wider mb-1">Problem Statement &amp; Requirements</h3>
+            <p className="text-xs text-on-surface leading-relaxed whitespace-pre-wrap">{exam.description}</p>
+          </div>
+        )}
+
+        {/* Submission IDE Card */}
+        <div className="bg-surface-container-lowest p-space-md rounded-2xl border border-outline-variant/40 shadow-xs">
+          <form onSubmit={handlePreSubmit} className="flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b border-outline-variant/30 pb-3">
+              <div className="flex items-center gap-2">
+                <Code2 className="w-5 h-5 text-primary" />
+                <h2 className="font-headline-sm text-headline-sm text-on-surface">Source Code Workspace</h2>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-outline font-mono">
+                <span>{lineCount} lines</span>
+                <span>•</span>
+                <span>{charCount} chars</span>
+                <span>•</span>
+                <span className="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-semibold">Java 17</span>
+              </div>
+            </div>
+
+            {/* Code Textarea with IDE Styling */}
+            <div className="relative rounded-xl border border-outline-variant/60 bg-slate-950 overflow-hidden shadow-inner focus-within:ring-2 focus-within:ring-primary/40 focus-within:border-primary transition-all">
+              <div className="px-4 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400 font-mono">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></span>
+                  <span className="ml-2 text-slate-300">Solution.java</span>
+                </div>
+                <span>UTF-8</span>
+              </div>
+
               <textarea 
-                className="w-full h-96 p-4 bg-surface-container font-code-body text-code-body text-on-surface rounded-lg border border-outline focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-y"
-                placeholder="Paste your source code here..."
+                className="w-full h-96 p-4 bg-transparent font-mono text-xs text-slate-100 placeholder:text-slate-600 outline-none resize-y leading-relaxed"
+                placeholder="// Enter your Java solution here...&#10;public class Solution {&#10;    public static void main(String[] args) {&#10;        // Code goes here&#10;    }&#10;}"
                 value={sourceCode}
                 onChange={(e) => setSourceCode(e.target.value)}
                 disabled={submitExam.isPending || isClosed}
@@ -148,49 +231,104 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
             </div>
 
             {localError && (
-              <div className="flex items-center gap-2 text-error font-label-sm text-label-sm">
-                <span className="material-symbols-outlined text-[16px]">warning</span>
-                {localError}
+              <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2 text-xs">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{localError}</span>
               </div>
             )}
 
-            {submitExam.isError && (
-              <div className="flex items-center gap-2 text-error font-label-sm text-label-sm p-3 bg-error-container rounded">
-                <span className="material-symbols-outlined text-[16px]">error</span>
-                {(submitExam.error as AxiosError<{message?: string}>)?.response?.data?.message || submitExam.error.message}
+            <div className="flex items-center justify-between pt-2">
+              <div className="text-xs text-outline flex items-center gap-1.5">
+                <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
+                <span>Submissions are audited for AST syntax duplication and run in Docker sandbox.</span>
               </div>
-            )}
 
-            <div className="flex justify-end gap-3 mt-4">
-              <button 
-                type="button"
-                className="px-4 py-2 font-label-md text-label-md rounded border border-outline hover:bg-surface-container transition-colors"
-                onClick={() => router.push('/student/exams')}
-                disabled={submitExam.isPending}
-              >
-                Cancel
-              </button>
-              
-              <button 
-                type="submit"
-                className="flex items-center gap-2 px-6 py-2 bg-primary text-on-primary rounded font-label-md text-label-md hover:bg-primary-container transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={submitExam.isPending || isClosed || !sourceCode.trim()}
-              >
-                {submitExam.isPending ? (
-                  <>
-                    <span className="material-symbols-outlined text-[18px] animate-spin">refresh</span>
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-[18px]">send</span>
-                    Submit Code
-                  </>
-                )}
-              </button>
+              <div className="flex items-center gap-3">
+                <button 
+                  type="button"
+                  className="px-4 py-2 text-xs rounded-lg border border-outline-variant/40 hover:bg-surface-container transition-colors cursor-pointer"
+                  onClick={() => router.push('/student/exams')}
+                  disabled={submitExam.isPending}
+                >
+                  Cancel
+                </button>
+                
+                <button 
+                  type="submit"
+                  className="flex items-center gap-2 px-6 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+                  disabled={submitExam.isPending || isClosed || !sourceCode.trim()}
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Submit Code Artifact</span>
+                </button>
+              </div>
             </div>
           </form>
         </div>
+
+        {/* Confirmation Modal */}
+        {showConfirmModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+            <div className="bg-surface-container-lowest rounded-2xl max-w-md w-full p-6 shadow-2xl border border-outline-variant/40 flex flex-col gap-4 animate-in zoom-in-95 duration-150">
+              <div className="flex items-center gap-3 text-on-surface">
+                <div className="p-2.5 rounded-full bg-blue-50 text-blue-600">
+                  <FileCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-headline-sm text-headline-sm font-semibold">Confirm Final Submission</h3>
+                  <p className="text-xs text-on-surface-variant">Are you ready to submit your code for grading?</p>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-surface-container-low border border-outline-variant/30 text-xs text-on-surface-variant space-y-1">
+                <div className="flex justify-between">
+                  <span>Lines of code:</span>
+                  <span className="font-mono font-semibold text-on-surface">{lineCount}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Character count:</span>
+                  <span className="font-mono font-semibold text-on-surface">{charCount}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Language target:</span>
+                  <span className="font-mono font-semibold text-on-surface">Java 17 (OpenJDK)</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-outline leading-relaxed">
+                Once submitted, your code will be immediately queued for Docker sandbox execution and AST plagiarism tokenization.
+              </p>
+
+              <div className="flex justify-end gap-3 pt-2 border-t border-outline-variant/30">
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmModal(false)}
+                  className="px-4 py-2 text-xs rounded-lg border border-outline-variant/40 hover:bg-surface-container transition-colors cursor-pointer"
+                >
+                  Revise Code
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFinalSubmit}
+                  disabled={submitExam.isPending}
+                  className="px-5 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors cursor-pointer shadow-sm flex items-center gap-2"
+                >
+                  {submitExam.isPending ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Submitting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Confirm &amp; Grade</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

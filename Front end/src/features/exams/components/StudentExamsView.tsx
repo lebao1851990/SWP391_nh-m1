@@ -1,16 +1,33 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useStudentExams } from '../hooks/use-student-exams';
 import { useStudentSubmissions } from '../../submissions/hooks';
 import { AppLink as Link } from '@/components/ui/app-link';
+import { 
+  Search, 
+  X, 
+  ChevronDown, 
+  Terminal, 
+  FileCode2, 
+  Calendar, 
+  CheckCircle2, 
+  Clock, 
+  ExternalLink,
+  AlertCircle
+} from 'lucide-react';
 
 export function StudentExamsView() {
   const { data: exams, isLoading: isLoadingExams, isError: isErrorExams } = useStudentExams();
   const { data: submissions, isLoading: isLoadingSubmissions } = useStudentSubmissions();
 
   const [activeTab, setActiveTab] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return new URLSearchParams(window.location.search).get('search') || '';
+    }
+    return '';
+  });
   const [statusFilter, setStatusFilter] = useState('all');
   const [now] = useState(() => Date.now());
   
@@ -56,74 +73,130 @@ export function StudentExamsView() {
   }, [correlatedExams]);
 
   if (isLoadingExams || isLoadingSubmissions) {
-    return <div className="p-8 text-center text-on-surface-variant font-label-md">Loading assessments...</div>;
+    return (
+      <div className="flex flex-col h-72 items-center justify-center gap-3">
+        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        <p className="text-on-surface-variant font-label-md text-xs">Loading course assessments...</p>
+      </div>
+    );
   }
 
   if (isErrorExams) {
-    return <div className="p-8 text-center text-error font-label-md">Failed to load assessments.</div>;
+    return (
+      <div className="max-w-xl mx-auto my-12 p-6 rounded-2xl bg-surface-container-lowest border border-rose-200/60 shadow-lg flex flex-col items-center text-center gap-3">
+        <div className="p-3 rounded-full bg-rose-50 text-rose-600">
+          <AlertCircle className="w-8 h-8" />
+        </div>
+        <h2 className="font-headline-md text-headline-md text-on-surface">Failed to Load Assessments</h2>
+        <p className="font-body-md text-on-surface-variant text-xs">Please verify your enrollment status or try again.</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-all cursor-pointer"
+        >
+          Retry
+        </button>
+      </div>
+    );
   }
-
-  console.log('Rendering exams:', filteredExams.length);
 
   return (
     <div className="w-full max-w-7xl mx-auto px-space-lg py-space-lg">
       <div className="flex flex-col w-full">
+        {/* Page Header */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-space-md mb-space-lg">
           <div className="space-y-1">
-            <h1 className="font-display-lg text-display-lg text-on-surface tracking-tight">My Exams</h1>
-            <p className="font-body-md text-body-md text-on-surface-variant max-w-2xl">
-              View your upcoming assessments, submitted programming tasks, and completed evaluation results.
+            <h1 className="font-display-lg text-display-lg text-on-surface tracking-tight">Enrolled Assessments</h1>
+            <p className="font-body-md text-body-md text-on-surface-variant max-w-2xl text-xs sm:text-sm">
+              View your upcoming programming exams, submit source code artifacts, and inspect evaluation feedback.
             </p>
           </div>
         </div>
 
-        <div className="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden flex flex-col">
-          <div className="px-space-md pt-space-md bg-surface-container-low/50 flex flex-col lg:flex-row lg:items-center justify-between gap-space-md">
-            <div className="flex items-center gap-1 overflow-x-auto pb-space-xs lg:pb-0">
+        {/* Card Container */}
+        <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 shadow-xs overflow-hidden flex flex-col">
+          {/* Tabs */}
+          <div className="px-space-md pt-space-md bg-surface-container-low/40 border-b border-outline-variant/30 flex flex-col lg:flex-row lg:items-center justify-between gap-space-md">
+            <div className="flex items-center gap-1 overflow-x-auto pb-space-xs lg:pb-0 text-xs">
               <button 
-                className={`tab-btn px-4 py-2.5 rounded-t-lg font-label-md text-label-md transition-all flex items-center gap-2 ${activeTab === 'all' ? 'bg-surface-container-lowest text-primary font-semibold shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60'}`}
+                className={`px-4 py-2.5 rounded-t-lg font-medium transition-all flex items-center gap-2 cursor-pointer ${
+                  activeTab === 'all' 
+                    ? 'bg-surface-container-lowest text-primary font-semibold border-b-2 border-primary shadow-xs' 
+                    : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+                }`}
                 onClick={() => setActiveTab('all')}
               >
                 <span>All Assessments</span>
-                <span className={`px-1.5 py-0.5 rounded-full text-label-sm font-code-body ${activeTab === 'all' ? 'bg-primary-fixed text-on-primary-fixed' : 'bg-surface-container-high text-on-surface-variant'}`}>{stats.all}</span>
+                <span className={`px-1.5 py-0.2 rounded-full font-mono text-[11px] ${
+                  activeTab === 'all' ? 'bg-primary-fixed text-on-primary-fixed font-bold' : 'bg-surface-container text-on-surface-variant'
+                }`}>
+                  {stats.all}
+                </span>
               </button>
+
               <button 
-                className={`tab-btn px-4 py-2.5 rounded-t-lg font-label-md text-label-md transition-all flex items-center gap-2 ${activeTab === 'upcoming' ? 'bg-surface-container-lowest text-primary font-semibold shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60'}`}
+                className={`px-4 py-2.5 rounded-t-lg font-medium transition-all flex items-center gap-2 cursor-pointer ${
+                  activeTab === 'upcoming' 
+                    ? 'bg-surface-container-lowest text-primary font-semibold border-b-2 border-primary shadow-xs' 
+                    : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+                }`}
                 onClick={() => setActiveTab('upcoming')}
               >
                 <span>Upcoming</span>
-                <span className={`px-1.5 py-0.5 rounded-full text-label-sm font-code-body ${activeTab === 'upcoming' ? 'bg-primary-fixed text-on-primary-fixed' : 'bg-surface-container-high text-on-surface-variant'}`}>{stats.upcoming}</span>
+                <span className={`px-1.5 py-0.2 rounded-full font-mono text-[11px] ${
+                  activeTab === 'upcoming' ? 'bg-primary-fixed text-on-primary-fixed font-bold' : 'bg-surface-container text-on-surface-variant'
+                }`}>
+                  {stats.upcoming}
+                </span>
               </button>
+
               <button 
-                className={`tab-btn px-4 py-2.5 rounded-t-lg font-label-md text-label-md transition-all flex items-center gap-2 ${activeTab === 'submitted' ? 'bg-surface-container-lowest text-primary font-semibold shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60'}`}
+                className={`px-4 py-2.5 rounded-t-lg font-medium transition-all flex items-center gap-2 cursor-pointer ${
+                  activeTab === 'submitted' 
+                    ? 'bg-surface-container-lowest text-primary font-semibold border-b-2 border-primary shadow-xs' 
+                    : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+                }`}
                 onClick={() => setActiveTab('submitted')}
               >
                 <span>Submitted</span>
-                <span className={`px-1.5 py-0.5 rounded-full text-label-sm font-code-body ${activeTab === 'submitted' ? 'bg-primary-fixed text-on-primary-fixed' : 'bg-surface-container-high text-on-surface-variant'}`}>{stats.submitted}</span>
+                <span className={`px-1.5 py-0.2 rounded-full font-mono text-[11px] ${
+                  activeTab === 'submitted' ? 'bg-primary-fixed text-on-primary-fixed font-bold' : 'bg-surface-container text-on-surface-variant'
+                }`}>
+                  {stats.submitted}
+                </span>
               </button>
+
               <button 
-                className={`tab-btn px-4 py-2.5 rounded-t-lg font-label-md text-label-md transition-all flex items-center gap-2 ${activeTab === 'completed' ? 'bg-surface-container-lowest text-primary font-semibold shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60'}`}
+                className={`px-4 py-2.5 rounded-t-lg font-medium transition-all flex items-center gap-2 cursor-pointer ${
+                  activeTab === 'completed' 
+                    ? 'bg-surface-container-lowest text-primary font-semibold border-b-2 border-primary shadow-xs' 
+                    : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+                }`}
                 onClick={() => setActiveTab('completed')}
               >
                 <span>Completed</span>
-                <span className={`px-1.5 py-0.5 rounded-full text-label-sm font-code-body ${activeTab === 'completed' ? 'bg-primary-fixed text-on-primary-fixed' : 'bg-surface-container-high text-on-surface-variant'}`}>{stats.completed}</span>
+                <span className={`px-1.5 py-0.2 rounded-full font-mono text-[11px] ${
+                  activeTab === 'completed' ? 'bg-primary-fixed text-on-primary-fixed font-bold' : 'bg-surface-container text-on-surface-variant'
+                }`}>
+                  {stats.completed}
+                </span>
               </button>
             </div>
           </div>
 
-          <div className="p-space-md bg-surface-container-low/30 flex flex-col md:flex-row gap-3 items-center justify-between">
+          {/* Filter Bar */}
+          <div className="p-3 bg-surface-container-low/20 border-b border-outline-variant/30 flex flex-col md:flex-row gap-3 items-center justify-between">
             <div className="relative w-full md:w-80 lg:w-96">
-              <span className="material-symbols-outlined absolute left-3 top-2.5 text-[18px] text-outline">search</span>
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-outline w-4 h-4" />
               <input 
-                className="w-full pl-9 pr-8 py-2 bg-surface-container-lowest rounded-lg font-body-md text-body-md text-on-surface placeholder:text-outline focus:outline-none shadow-sm focus:ring-1 focus:ring-primary-container" 
-                placeholder="Search exams by title or course code..." 
+                className="w-full pl-9 pr-8 py-1.5 bg-surface-container-lowest rounded-lg text-xs text-on-surface placeholder:text-outline border border-outline-variant/40 focus:outline-none focus:border-primary transition-all" 
+                placeholder="Search exams by title or course..." 
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               {searchQuery && (
-                <button className="absolute right-2.5 top-2.5 text-outline hover:text-on-surface" onClick={() => setSearchQuery('')}>
-                  <span className="material-symbols-outlined text-[16px]">close</span>
+                <button className="absolute right-2.5 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface cursor-pointer" onClick={() => setSearchQuery('')}>
+                  <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
@@ -131,7 +204,7 @@ export function StudentExamsView() {
             <div className="flex items-center flex-wrap gap-2.5 w-full md:w-auto justify-end">
               <div className="relative">
                 <select 
-                  className="appearance-none bg-surface-container-lowest pl-3 pr-8 py-2 rounded-lg font-label-md text-label-md text-on-surface shadow-sm focus:outline-none cursor-pointer"
+                  className="appearance-none bg-surface-container-lowest pl-3 pr-8 py-1.5 rounded-lg text-xs text-on-surface border border-outline-variant/40 focus:outline-none cursor-pointer"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                 >
@@ -141,58 +214,80 @@ export function StudentExamsView() {
                   <option value="completed">Completed</option>
                   <option value="missed">Missed</option>
                 </select>
-                <span className="material-symbols-outlined absolute right-2 top-2.5 text-[16px] text-outline pointer-events-none">expand_more</span>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-outline w-3.5 h-3.5 pointer-events-none" />
               </div>
             </div>
           </div>
 
+          {/* Assessments Table */}
           <div className="overflow-x-auto w-full">
-            <table className="w-full text-left font-body-md text-body-md select-text">
-              <thead className="bg-surface-container text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="bg-surface-container-low text-on-surface-variant font-label-xs uppercase tracking-wider border-b border-outline-variant/30">
                 <tr>
-                  <th className="py-3 px-space-md font-semibold" scope="col">Exam Name & Course</th>
-                  <th className="py-3 px-space-md font-semibold" scope="col">Date</th>
-                  <th className="py-3 px-space-md font-semibold" scope="col">Status</th>
-                  <th className="py-3 px-space-md font-semibold" scope="col">Score</th>
-                  <th className="py-3 px-space-md font-semibold text-right" scope="col">Actions</th>
+                  <th className="py-2.5 px-4 font-semibold">Exam Name &amp; Course</th>
+                  <th className="py-2.5 px-4 font-semibold">Scheduled Date</th>
+                  <th className="py-2.5 px-4 font-semibold">Status</th>
+                  <th className="py-2.5 px-4 font-semibold">Score</th>
+                  <th className="py-2.5 px-4 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="text-on-surface">
+              <tbody className="divide-y divide-outline-variant/20 text-on-surface">
                 {filteredExams.length === 0 ? (
-                  <tr><td colSpan={5} className="py-8 text-center text-outline font-label-md">No assessments found</td></tr>
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center text-outline">
+                      No assessments found matching the criteria.
+                    </td>
+                  </tr>
                 ) : (
                   filteredExams.map(exam => (
-                    <tr key={exam.id} className="border-b border-outline-variant/20 hover:bg-surface-container-low transition-colors">
-                      <td className="py-3 px-space-md">
-                        <div className="font-semibold text-on-surface">{exam.title}</div>
-                        <div className="text-label-sm text-on-surface-variant">{exam.courseClassCode}</div>
+                    <tr key={exam.id} className="hover:bg-surface-container-low/60 transition-colors">
+                      <td className="py-3 px-4">
+                        <Link href={`/student/exams/${exam.id}`} className="font-semibold text-on-surface hover:text-primary transition-colors">
+                          {exam.title}
+                        </Link>
+                        <div className="text-[11px] font-mono text-on-surface-variant mt-0.5">{exam.courseClassCode || 'SE-PRACTICAL'}</div>
                       </td>
-                      <td className="py-3 px-space-md">
-                        {exam.startTime ? new Date(exam.startTime).toLocaleString() : 'TBD'}
+                      <td className="py-3 px-4 text-on-surface-variant">
+                        {exam.startTime ? new Date(exam.startTime).toLocaleString() : 'Open Window'}
                       </td>
-                      <td className="py-3 px-space-md">
-                        <span className={`px-2 py-0.5 rounded font-label-sm text-label-sm font-semibold ${exam.derivedStatus === 'UPCOMING' ? 'bg-primary-container text-on-primary-container' : exam.derivedStatus === 'COMPLETED' ? 'bg-tertiary-fixed text-on-tertiary-fixed' : 'bg-surface-container-high text-on-surface-variant'}`}>
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                          exam.derivedStatus === 'UPCOMING' 
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200' 
+                            : exam.derivedStatus === 'COMPLETED' 
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                            : 'bg-amber-50 text-amber-700 border border-amber-200'
+                        }`}>
                           {exam.derivedStatus}
                         </span>
                       </td>
-                      <td className="py-3 px-space-md">
+                      <td className="py-3 px-4">
                         {exam.submission ? (
-                          <span className="font-mono bg-surface-container px-2 py-0.5 rounded font-bold text-[14px]">
-                            {exam.submission.totalScore || 0} / 100
+                          <span className="font-mono bg-surface-container px-2 py-0.5 rounded font-bold text-xs text-on-surface">
+                            {exam.submission.totalScore ?? 0} <span className="text-outline text-[10px]">/ 100</span>
                           </span>
                         ) : (
-                          <span className="text-outline">-</span>
+                          <span className="text-outline text-xs">--</span>
                         )}
                       </td>
-                      <td className="py-3 px-space-md text-right">
-                        {exam.submission && (
-                          <Link href={`/student/submissions/${exam.submission.id}`} className="px-3 py-1.5 bg-tertiary text-on-tertiary rounded font-label-sm hover:bg-tertiary/90 transition-colors mr-2">
-                            View Result
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {exam.submission && (
+                            <Link 
+                              href={`/student/submissions/${exam.submission.id}`} 
+                              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-xs font-medium transition-colors border border-emerald-200"
+                            >
+                              Result
+                            </Link>
+                          )}
+                          <Link 
+                            href={`/student/exams/${exam.id}`} 
+                            className="inline-flex items-center gap-1 px-3 py-1 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors shadow-xs"
+                          >
+                            <span>Open</span>
+                            <ExternalLink className="w-3 h-3" />
                           </Link>
-                        )}
-                        <Link href={`/student/exams/${exam.id}`} className="px-3 py-1.5 bg-primary-container text-on-primary rounded font-label-sm hover:bg-primary transition-colors">
-                          View
-                        </Link>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -200,8 +295,9 @@ export function StudentExamsView() {
               </tbody>
             </table>
           </div>
-          <div className="px-space-md py-space-sm bg-surface-container-low/40 flex items-center justify-between">
-            <span className="text-on-surface-variant font-label-sm">
+
+          <div className="px-4 py-2.5 bg-surface-container-low/40 border-t border-outline-variant/30 flex items-center justify-between text-xs text-outline">
+            <span>
               Showing <strong className="text-on-surface">{filteredExams.length}</strong> of <strong className="text-on-surface">{correlatedExams.length}</strong> assessments
             </span>
           </div>

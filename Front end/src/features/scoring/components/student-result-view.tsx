@@ -3,54 +3,54 @@
 import React from 'react';
 import { useStudentResult } from '../hooks';
 import { AxiosError } from 'axios';
+import { AppLink as Link } from '@/components/ui/app-link';
+import { StudentAiAssistantCard } from '@/features/submissions/components';
+import { 
+  ArrowLeft, 
+  Award, 
+  Scale, 
+  CheckCircle2, 
+  AlertCircle, 
+  Calendar, 
+  Lock, 
+  FileCode2,
+  ExternalLink
+} from 'lucide-react';
 
 interface StudentResultViewProps {
   submissionId: string;
 }
-
-import Link from 'next/link';
 
 export function StudentResultView({ submissionId }: StudentResultViewProps) {
   const { data, isLoading, isError, error } = useStudentResult(submissionId);
 
   if (isLoading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="text-on-surface-variant font-label-md">Loading your authorized result...</div>
+      <div className="flex flex-col h-72 items-center justify-center gap-3">
+        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        <p className="text-on-surface-variant font-label-md text-xs">Loading authorized assessment result...</p>
       </div>
     );
   }
 
   if (isError) {
     const status = (error as AxiosError)?.response?.status;
-    
-    if (status === 403) {
-      return (
-        <div className="flex flex-col h-64 items-center justify-center p-space-lg text-center gap-space-sm">
-          <span className="material-symbols-outlined text-error text-[48px]">lock</span>
-          <h2 className="font-headline-md text-headline-md text-on-surface">Result Not Available</h2>
-          <p className="font-body-md text-on-surface-variant">Your result has not been released yet, or you do not have permission to view it.</p>
-        </div>
-      );
-    }
-
-    if (status === 404) {
-      return (
-        <div className="flex flex-col h-64 items-center justify-center p-space-lg text-center gap-space-sm">
-          <span className="material-symbols-outlined text-outline text-[48px]">search_off</span>
-          <h2 className="font-headline-md text-headline-md text-on-surface">Submission Not Found</h2>
-          <p className="font-body-md text-on-surface-variant">We could not locate this submission in your records.</p>
-        </div>
-      );
-    }
-
     return (
-      <div className="flex flex-col h-64 items-center justify-center p-space-lg text-center gap-space-sm">
-        <span className="material-symbols-outlined text-error text-[48px]">error</span>
-        <h2 className="font-headline-md text-headline-md text-on-surface">System Error</h2>
-        <p className="font-body-md text-on-surface-variant">
-          Unable to fetch your result at this time.
+      <div className="max-w-xl mx-auto my-12 p-8 rounded-2xl bg-surface-container-lowest border border-outline-variant/40 shadow-lg text-center flex flex-col items-center gap-3">
+        <div className="p-3 rounded-full bg-rose-50 text-rose-600">
+          {status === 403 ? <Lock className="w-8 h-8" /> : <AlertCircle className="w-8 h-8" />}
+        </div>
+        <h2 className="font-headline-md text-headline-md text-on-surface">
+          {status === 403 ? 'Result Not Available' : status === 404 ? 'Submission Not Found' : 'System Error'}
+        </h2>
+        <p className="font-body-md text-on-surface-variant text-xs">
+          {status === 403 
+            ? 'Your result has not been released yet, or you do not have permission to view it.'
+            : (error as Error).message}
         </p>
+        <Link href="/student/submissions" className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium">
+          Back to Submissions
+        </Link>
       </div>
     );
   }
@@ -59,56 +59,106 @@ export function StudentResultView({ submissionId }: StudentResultViewProps) {
 
   return (
     <div className="max-w-7xl mx-auto px-space-lg py-space-lg flex flex-col w-full gap-space-lg">
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-space-md pb-space-lg border-b border-surface-container">
+      {/* Header & Actions */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-space-md pb-space-md border-b border-outline-variant/30">
         <div className="flex flex-col gap-1">
+          <nav className="flex items-center gap-2 text-on-surface-variant text-xs mb-1">
+            <Link className="hover:text-primary transition-colors flex items-center gap-1 font-medium" href="/student/submissions">
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Submissions</span>
+            </Link>
+            <span className="text-outline-variant">/</span>
+            <span className="text-primary font-semibold">{data.examName}</span>
+          </nav>
           <div className="flex items-center gap-space-sm flex-wrap">
-            <h1 className="font-display-lg text-display-lg text-on-surface tracking-tight">{data.examName} — Result</h1>
-            <span className="px-2.5 py-0.5 rounded bg-tertiary-fixed text-on-tertiary-fixed font-label-sm font-semibold inline-flex items-center gap-1">
-              {data.status.toUpperCase()}
+            <h1 className="font-display-lg text-display-lg text-on-surface tracking-tight">
+              {data.examName} — Official Result
+            </h1>
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold inline-flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>{data.status.toUpperCase()}</span>
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Link href={`/student/appeals/new?submissionId=${submissionId}`} className="px-4 py-2 bg-error text-on-error font-label-md rounded hover:bg-error/90 transition-colors flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-[18px]">gavel</span>
-            Submit Appeal
+
+        <div className="flex items-center gap-2 self-start md:self-auto">
+          <Link 
+            href={`/student/appeals/new?submissionId=${submissionId}`} 
+            className="px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shadow-xs"
+          >
+            <Scale className="w-3.5 h-3.5 text-purple-600" />
+            <span>Submit Appeal Ticket</span>
           </Link>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-md mb-space-xl">
-        <div className="lg:col-span-12 bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col justify-between">
-          <div className="flex flex-col gap-space-md">
-            <div className="flex items-center justify-between">
-              <span className="font-label-md uppercase tracking-wider text-on-surface-variant font-semibold">Consolidated Assessment Total</span>
-              <span className="font-label-sm px-2 py-0.5 rounded bg-surface-container text-on-surface-variant">Evaluated: {data.evaluatedAt}</span>
-            </div>
-            <div className="flex flex-col md:flex-row md:items-baseline gap-space-md mt-2">
-              <div className="flex items-baseline gap-2">
-                <span className="font-display-lg text-[64px] leading-none font-bold text-primary tracking-tight">{data.totalScore}</span>
-                <span className="font-headline-lg text-outline font-normal">/ {data.maxTotalScore}</span>
+      {/* Main Score Banner Card */}
+      {(() => {
+        const effectiveScore = data.effectiveScore ?? (data.overrideTotalScore != null ? data.overrideTotalScore : data.totalScore);
+        const maxScore = data.maxTotalScore ?? (data.criteria?.length ? data.criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0) : 100);
+        const isOverridden = data.overrideTotalScore != null;
+
+        return (
+          <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/40 p-space-lg shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-space-md">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Award className="w-5 h-5 text-primary" />
+                <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">
+                  Consolidated Assessment Total
+                </span>
+                {isOverridden && (
+                  <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                    Adjusted by Instructor (Rubric: {data.totalScore} pts)
+                  </span>
+                )}
               </div>
+              <div className="flex items-baseline gap-2">
+                <span className="font-display-lg text-[64px] leading-none font-bold text-primary tracking-tight">
+                  {effectiveScore}
+                </span>
+                <span className="font-headline-lg text-outline font-normal text-2xl">
+                  / {maxScore} pts
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1 text-xs text-on-surface-variant md:text-right">
+              <div className="flex md:justify-end items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-outline" />
+                <span>Evaluated: {data.evaluatedAt ? new Date(data.evaluatedAt).toLocaleString() : 'Recent'}</span>
+              </div>
+              <span className="text-[11px] text-outline">Certified by Faculty Evaluation Board</span>
             </div>
           </div>
-        </div>
-      </div>
+        );
+      })()}
 
-      <div className="flex flex-col gap-space-md">
-        <h2 className="font-headline-lg text-headline-lg text-on-surface">Criterion-Based Scoring Breakdown</h2>
-        {data.criteria.map((criterion) => (
-          <div key={criterion.criterionId} className="bg-surface-container-lowest rounded-xl shadow-sm p-space-md">
-            <div className="flex items-center justify-between">
+      {/* Criterion Breakdown */}
+      <div className="flex flex-col gap-space-sm">
+        <h2 className="font-headline-sm text-headline-sm text-on-surface tracking-tight">
+          Criterion-Based Rubric Breakdown
+        </h2>
+
+        <div className="space-y-2">
+          {data.criteria.map((criterion) => (
+            <div 
+              key={criterion.criterionId} 
+              className="bg-surface-container-lowest rounded-xl border border-outline-variant/40 p-space-md shadow-xs flex items-center justify-between gap-space-md hover:border-primary/30 transition-all"
+            >
               <div className="flex flex-col">
-                <span className="font-headline-sm text-on-surface">{criterion.name}</span>
-                <span className="font-label-sm text-outline">{criterion.description}</span>
+                <span className="font-label-md font-semibold text-on-surface text-sm">{criterion.name}</span>
+                <span className="text-xs text-on-surface-variant mt-0.5">{criterion.description}</span>
               </div>
-              <div className="font-headline-sm text-tertiary font-semibold">
+              <div className="font-mono text-sm font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200 shrink-0">
                 {criterion.score} / {criterion.maxScore} pts
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
+
+      {/* Student AI Learning Assistant */}
+      <StudentAiAssistantCard submissionId={submissionId} />
     </div>
   );
 }
