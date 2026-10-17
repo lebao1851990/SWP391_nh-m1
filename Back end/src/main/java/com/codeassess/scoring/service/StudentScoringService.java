@@ -7,7 +7,6 @@ import com.codeassess.scoring.entity.RuleScore;
 import com.codeassess.scoring.repository.RuleScoreRepository;
 import com.codeassess.submission.entity.Submission;
 import com.codeassess.submission.repository.SubmissionRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,11 +15,15 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class StudentScoringService {
 
     private final SubmissionRepository submissionRepository;
     private final RuleScoreRepository ruleScoreRepository;
+
+    public StudentScoringService(SubmissionRepository submissionRepository, RuleScoreRepository ruleScoreRepository) {
+        this.submissionRepository = submissionRepository;
+        this.ruleScoreRepository = ruleScoreRepository;
+    }
 
     @Transactional(readOnly = true)
     public StudentSubmissionResult getStudentResult(String submissionId, String studentId) {
@@ -39,14 +42,26 @@ public class StudentScoringService {
 
         BigDecimal effectiveScore = submission.getOverrideScore() != null ? submission.getOverrideScore() : submission.getTotalScore();
 
+        BigDecimal maxTotalScore = criteriaDtos.stream()
+                .map(CriterionScoreDto::getMaxScore)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (maxTotalScore.compareTo(BigDecimal.ZERO) == 0) {
+            maxTotalScore = BigDecimal.valueOf(100);
+        }
+
+        boolean isDone = "COMPLETED".equalsIgnoreCase(submission.getStatus())
+                || "EVALUATED".equalsIgnoreCase(submission.getStatus());
+
         return StudentSubmissionResult.builder()
                 .submissionId(submission.getId())
                 .examName(submission.getExam().getTitle())
                 .status(submission.getStatus())
-                .evaluatedAt(submission.getEvaluatedAt())
+                .evaluatedAt(isDone ? submission.getEvaluatedAt() : null)
                 .totalScore(submission.getTotalScore())
                 .overrideTotalScore(submission.getOverrideScore())
                 .effectiveScore(effectiveScore)
+                .maxTotalScore(maxTotalScore)
                 .criteria(criteriaDtos)
                 .build();
     }

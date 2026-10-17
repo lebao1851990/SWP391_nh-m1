@@ -20,5 +20,6 @@ public class ScoringDetail {
     private BigDecimal totalScore;
     private BigDecimal overrideTotalScore;
     private BigDecimal effectiveScore;
+    private BigDecimal maxTotalScore;
     private List<CriterionScoreDto> criteria;
 }

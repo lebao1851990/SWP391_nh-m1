@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 public class SubmissionListResponse {
     private String id;
     private String examId;
+    private String examTitle;
     private String studentId;
     private String status;
     private BigDecimal totalScore;

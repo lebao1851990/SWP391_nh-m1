@@ -18,8 +18,8 @@ public class CreateExamDto {
     @NotBlank(message = "Title is required")
     private String title;
 
-    @NotBlank(message = "Class ID is required")
     private String classId;
+    private java.util.List<String> classIds;
 
     @NotNull(message = "Exam date is required")
     private LocalDateTime date;

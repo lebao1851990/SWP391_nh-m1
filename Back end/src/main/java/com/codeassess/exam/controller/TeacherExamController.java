@@ -8,8 +8,14 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
+import com.codeassess.exam.dto.request.CreateExamDto;
+import com.codeassess.exam.dto.request.UpdateExamDto;
 
 import java.util.List;
 
@@ -38,5 +44,17 @@ public class TeacherExamController {
             @PathVariable String id, 
             @AuthenticationPrincipal User currentUser) {
         return teacherExamService.getExamSubmissions(id, currentUser.getId());
+    }
+
+    @PreAuthorize("hasRole('TEACHER')")
+    @PostMapping
+    public ExamResponse createExam(@Valid @RequestBody CreateExamDto dto, @AuthenticationPrincipal User currentUser) {
+        return teacherExamService.createExam(dto, currentUser.getId());
+    }
+
+    @PreAuthorize("hasRole('TEACHER')")
+    @PutMapping("/{id}")
+    public ExamResponse updateExam(@PathVariable String id, @Valid @RequestBody UpdateExamDto dto, @AuthenticationPrincipal User currentUser) {
+        return teacherExamService.updateExam(id, dto, currentUser.getId());
     }
 }
