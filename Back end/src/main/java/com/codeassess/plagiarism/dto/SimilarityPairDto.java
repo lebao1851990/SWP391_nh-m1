@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -21,4 +23,11 @@ public class SimilarityPairDto {
     private String studentBName;
     private BigDecimal similarityRate;
     private boolean isFlagged;
+    private String examId;
+    private String examTitle;
+    private String className;
+    private String adjudicationStatus;
+    private String adjudicationNotes;
+    private String adjudicatedBy;
+    private LocalDateTime adjudicatedAt;
 }

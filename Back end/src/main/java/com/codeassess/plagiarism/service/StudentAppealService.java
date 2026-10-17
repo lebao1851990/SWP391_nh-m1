@@ -74,6 +74,9 @@ public class StudentAppealService {
                 .status(appeal.getStatus())
                 .basis(appeal.getBasis())
                 .explanation(appeal.getReason()) // Map reason back to explanation
+                .studentName(appeal.getStudent() != null ? appeal.getStudent().getFullName() : null)
+                .studentEmail(appeal.getStudent() != null ? appeal.getStudent().getEmail() : null)
+                .reviewerNotes(appeal.getReviewerNotes())
                 .createdAt(appeal.getCreatedAt())
                 .resolvedAt(appeal.getResolvedAt())
                 .build();

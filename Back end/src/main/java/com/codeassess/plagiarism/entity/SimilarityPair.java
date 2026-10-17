@@ -4,6 +4,7 @@ import com.codeassess.exam.entity.Exam;
 import com.codeassess.submission.entity.Submission;
 import jakarta.persistence.*;
 import lombok.*;
+import com.codeassess.user.entity.User;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
@@ -46,4 +47,22 @@ public class SimilarityPair {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @Builder.Default
+    @Column(name = "adjudication_status", length = 30)
+    private String adjudicationStatus = "PENDING";
+
+    @Column(name = "adjudication_notes", columnDefinition = "TEXT")
+    private String adjudicationNotes;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "adjudicated_by_id")
+    private User adjudicatedBy;
+
+    @Column(name = "adjudicated_at")
+    private LocalDateTime adjudicatedAt;
+
+    @Builder.Default
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
 }
