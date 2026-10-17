@@ -46,6 +46,49 @@ public class Submission {
     @Column(name = "evaluated_at")
     private LocalDateTime evaluatedAt;
 
+    @Builder.Default
+    @Column(name = "submission_type", length = 20)
+    private String submissionType = "SINGLE_FILE";
+
+    @Column(name = "original_filename")
+    private String originalFilename;
+
+    @Column(name = "archive_hash", length = 64)
+    private String archiveHash;
+
+    @Column(name = "source_tree_hash", length = 64)
+    private String sourceTreeHash;
+
+    @Column(name = "file_count")
+    private Integer fileCount;
+
+    @Column(name = "entry_point_class")
+    private String entryPointClass;
+
+    @Column(name = "execution_status", length = 50)
+    private String executionStatus;
+
+    @Column(name = "exit_code")
+    private Integer exitCode;
+
+    @Column(name = "compile_output", columnDefinition = "TEXT")
+    private String compileOutput;
+
+    @Column(name = "stdout", columnDefinition = "TEXT")
+    private String stdout;
+
+    @Column(name = "stderr", columnDefinition = "TEXT")
+    private String stderr;
+
+    @Column(name = "execution_duration_ms")
+    private Long executionDurationMs;
+
+    @Column(name = "claim_token", length = 64)
+    private String claimToken;
+
+    @Column(name = "lease_expires_at")
+    private LocalDateTime leaseExpiresAt;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
