@@ -19,6 +19,33 @@ export interface AdminClass {
   studentCount: number;
 }
 
+export interface AdminClassStudent {
+  id: string;
+  studentId: string;
+  email: string;
+  fullName: string;
+}
+
+export interface EnrollStudentPayload {
+  studentId?: string;
+  email?: string;
+}
+
+export interface ExcelRowError {
+  rowNumber: number;
+  identifier: string;
+  errorCode: string;
+  message: string;
+}
+
+export interface ExcelImportResult {
+  totalRows: number;
+  importedCount: number;
+  failedCount: number;
+  strict: boolean;
+  errors: ExcelRowError[];
+}
+
 export interface AdminExam {
   id: string;
   title: string;
@@ -71,6 +98,37 @@ export const adminApi = {
   },
   updateClass: async (id: string, data: Partial<AdminClass>): Promise<AdminClass> => {
     const response = await apiClient.put(`/admin/classes/${id}`, data);
+    return response.data;
+  },
+
+  // Roster
+  getClassStudents: async (classId: string): Promise<AdminClassStudent[]> => {
+    const response = await apiClient.get(`/admin/classes/${classId}/students`);
+    return response.data;
+  },
+  enrollStudent: async (classId: string, data: EnrollStudentPayload): Promise<AdminClassStudent> => {
+    const response = await apiClient.post(`/admin/classes/${classId}/students`, data);
+    return response.data;
+  },
+  unenrollStudent: async (classId: string, studentId: string): Promise<void> => {
+    await apiClient.delete(`/admin/classes/${classId}/students/${studentId}`);
+  },
+  importStudentsFromExcel: async (
+    classId: string,
+    file: File,
+    strict: boolean = false
+  ): Promise<ExcelImportResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post<ExcelImportResult>(
+      `/admin/classes/${classId}/students/import-excel?strict=${strict}`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
     return response.data;
   },
 

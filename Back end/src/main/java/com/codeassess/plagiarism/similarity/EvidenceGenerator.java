@@ -20,7 +20,7 @@ public class EvidenceGenerator {
         Map<Long, List<AstFingerprint>> hashToB = fingerprintsB.stream()
                 .collect(Collectors.groupingBy(AstFingerprint::getHashValue));
 
-        Set<Long> sharedHashes = hashToA.keySet();
+        Set<Long> sharedHashes = new java.util.HashSet<>(hashToA.keySet());
         sharedHashes.retainAll(hashToB.keySet());
 
         List<PlagiarismEvidence> evidences = new ArrayList<>();
@@ -35,8 +35,10 @@ public class EvidenceGenerator {
                 cleanType = cleanType.substring(0, cleanType.indexOf("["));
             }
 
-            String description = String.format("Matching AST structure detected around Lines %d–%d.", 
-                    a.getStartLine(), a.getEndLine());
+            String locA = a.getFilePath() != null ? a.getFilePath() + ":" + a.getStartLine() + "-" + a.getEndLine() : "Lines " + a.getStartLine() + "–" + a.getEndLine();
+            String locB = b.getFilePath() != null ? b.getFilePath() + ":" + b.getStartLine() + "-" + b.getEndLine() : "Lines " + b.getStartLine() + "–" + b.getEndLine();
+
+            String description = String.format("Matching AST structure detected around %s.", locA);
 
             PlagiarismEvidence evidence = PlagiarismEvidence.builder()
                     .similarityPair(pair)
@@ -46,6 +48,8 @@ public class EvidenceGenerator {
                     .endLineA(a.getEndLine())
                     .startLineB(b.getStartLine())
                     .endLineB(b.getEndLine())
+                    .locationA(locA)
+                    .locationB(locB)
                     .build();
             evidences.add(evidence);
         }

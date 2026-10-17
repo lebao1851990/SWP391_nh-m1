@@ -36,6 +36,9 @@ public class AstFingerprint {
     @Column(name = "end_line", nullable = false)
     private Integer endLine;
 
+    @Column(name = "file_path", length = 255)
+    private String filePath;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

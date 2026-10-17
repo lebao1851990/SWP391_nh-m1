@@ -32,6 +32,8 @@ export interface ScoringDetail {
   
   // Scoring Data
   totalScore: number; // Official backend total
+  overrideTotalScore?: number | null;
+  effectiveScore?: number;
   maxTotalScore: number;
   gradeEquivalent?: string;
   percentile?: string;
@@ -53,6 +55,8 @@ export interface StudentSubmissionResult {
   evaluatorName?: string;
   
   totalScore: number;
+  overrideTotalScore?: number | null;
+  effectiveScore?: number;
   maxTotalScore: number;
   gradeEquivalent?: string;
   percentile?: string;
@@ -82,3 +86,29 @@ export interface ApiError {
   code?: string;
   status?: number;
 }
+
+export type GradeAuditActionType = 
+  | 'INITIAL_GRADING'
+  | 'OVERRIDE_SET'
+  | 'OVERRIDE_CLEARED'
+  | 'OVERRIDE_UPDATE'
+  | 'RUBRIC_UPDATE'
+  | string;
+
+export interface GradeAuditLog {
+  id: string;
+  submissionId: string;
+  actorId: string | null;
+  actorName: string | null;
+  actorEmail: string | null;
+  actionType: GradeAuditActionType;
+  preRubricScore: number | null;
+  postRubricScore: number | null;
+  preOverrideScore: number | null;
+  postOverrideScore: number | null;
+  preEffectiveScore: number | null;
+  postEffectiveScore: number | null;
+  rationale: string | null;
+  createdAt: string;
+}
+

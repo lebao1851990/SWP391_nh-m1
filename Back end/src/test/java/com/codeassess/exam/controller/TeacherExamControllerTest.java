@@ -76,4 +76,78 @@ public class TeacherExamControllerTest {
         mockMvc.perform(get("/api/teacher/exams/1/submissions"))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    public void testTeacherCanCreateExam() throws Exception {
+        User mockUser = new User();
+        mockUser.setId("teacher-id");
+        mockUser.setRole(com.codeassess.user.entity.Role.TEACHER);
+
+        ExamResponse response = ExamResponse.builder().id("exam-new-1").title("Midterm Exam").build();
+        when(teacherExamService.createExam(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq("teacher-id"))).thenReturn(response);
+
+        String json = """
+            {
+                "title": "Midterm Exam",
+                "classId": "class-1",
+                "date": "2026-11-01T10:00:00",
+                "durationMinutes": 90
+            }
+        """;
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/teacher/exams")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content(json)
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(mockUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("exam-new-1"))
+                .andExpect(jsonPath("$.title").value("Midterm Exam"));
+    }
+
+    @Test
+    public void testTeacherCanUpdateExam() throws Exception {
+        User mockUser = new User();
+        mockUser.setId("teacher-id");
+        mockUser.setRole(com.codeassess.user.entity.Role.TEACHER);
+
+        ExamResponse response = ExamResponse.builder().id("exam-1").title("Updated Exam").status("active").build();
+        when(teacherExamService.updateExam(org.mockito.ArgumentMatchers.eq("exam-1"), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq("teacher-id"))).thenReturn(response);
+
+        String json = """
+            {
+                "title": "Updated Exam",
+                "status": "active"
+            }
+        """;
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/teacher/exams/exam-1")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content(json)
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(mockUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Updated Exam"))
+                .andExpect(jsonPath("$.status").value("active"));
+    }
+
+    @Test
+    public void testStudentCannotCreateExam() throws Exception {
+        User mockUser = new User();
+        mockUser.setId("student-id");
+        mockUser.setRole(com.codeassess.user.entity.Role.STUDENT);
+
+        String json = """
+            {
+                "title": "Hacked Exam",
+                "classId": "class-1",
+                "date": "2026-11-01T10:00:00",
+                "durationMinutes": 90
+            }
+        """;
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/teacher/exams")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content(json)
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(mockUser)))
+                .andExpect(status().isForbidden());
+    }
 }

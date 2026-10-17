@@ -36,7 +36,7 @@ public class CleanDatabaseMigrationTest {
             try (Connection conn = DriverManager.getConnection(ROOT_URL, DB_USER, DB_PASS);
                  Statement stmt = conn.createStatement()) {
                 stmt.execute("DROP DATABASE IF EXISTS " + TEST_DB);
-                stmt.execute("CREATE DATABASE " + TEST_DB);
+                stmt.execute("CREATE DATABASE " + TEST_DB + " CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
             }
 
             // 3. Execute Flyway migration on clean database
@@ -50,14 +50,14 @@ public class CleanDatabaseMigrationTest {
             System.out.println("Flyway target schema version: " + result.targetSchemaVersion);
 
             assertTrue(result.success, "Flyway migrations must succeed");
-            assertEquals(6, result.migrationsExecuted, "Must execute exactly 6 migrations (V1, V1.1, V2, V3, V4, V5)");
-            assertEquals("5", result.targetSchemaVersion, "Target version must be 5");
+            assertEquals(13, result.migrationsExecuted, "Must execute exactly 13 migrations (V1, V1.1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12)");
+            assertEquals("12", result.targetSchemaVersion, "Target version must be 12");
 
-            // 4. Verify all 11 core tables exist in clean DB
+            // 4. Verify all core tables exist in clean DB
             Set<String> testTables = getTableNames(TEST_DB_URL);
             String[] expectedTables = {
-                    "ast_fingerprints", "class_students", "classes", "exams",
-                    "plagiarism_appeals", "plagiarism_evidence", "rule_scores",
+                    "ast_fingerprints", "class_students", "classes", "exam_classes", "exam_matrix_coordination", "exams",
+                    "grade_audit_logs", "plagiarism_appeals", "plagiarism_evidence", "rule_scores",
                     "scoring_criteria", "similarity_matrix", "submissions", "users"
             };
 
@@ -97,12 +97,14 @@ public class CleanDatabaseMigrationTest {
             sources.addAnnotatedClass(com.codeassess.plagiarism.entity.Appeal.class);
             sources.addAnnotatedClass(com.codeassess.scoring.entity.ScoringCriteria.class);
             sources.addAnnotatedClass(com.codeassess.scoring.entity.RuleScore.class);
+            sources.addAnnotatedClass(com.codeassess.scoring.entity.GradeAuditLog.class);
+            sources.addAnnotatedClass(com.codeassess.plagiarism.entity.ExamMatrixCoordination.class);
 
             try {
-                // Building the session factory forces Hibernate validation of all 11 entities against clean DB
+                // Building the session factory forces Hibernate validation of all 13 entities against clean DB
                 var sessionFactory = sources.buildMetadata().buildSessionFactory();
                 sessionFactory.close();
-                System.out.println("Hibernate validation PASSED for all 11 entities with ZERO schema errors!");
+                System.out.println("Hibernate validation PASSED for all 13 entities with ZERO schema errors!");
             } catch (SchemaManagementException ex) {
                 fail("Hibernate validation failed: " + ex.getMessage());
             } finally {

@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: codeassess-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-123456}
+      MYSQL_DATABASE: ${DB_NAME:-plagiarism_system}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - codeassess-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: codeassess-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - codeassess-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ./Back end
+      dockerfile: Dockerfile
+    container_name: codeassess-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-plagiarism_system}
+      DB_USERNAME: ${DB_USERNAME:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-123456}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      BULLMQ_PRODUCER_URL: http://bullmq-service:3001
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-codeassess-internal-secret-2026}
+      PORT: 8080
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - codeassess-network
+
+  bullmq-service:
+    build:
+      context: ./bullmq-service
+      dockerfile: Dockerfile
+    container_name: codeassess-bullmq-worker
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      BACKEND_URL: http://backend:8080
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-codeassess-internal-secret-2026}
+      BULLMQ_CONCURRENCY: ${BULLMQ_CONCURRENCY:-2}
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    networks:
+      - codeassess-network
+
+networks:
+  codeassess-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  redis_data:

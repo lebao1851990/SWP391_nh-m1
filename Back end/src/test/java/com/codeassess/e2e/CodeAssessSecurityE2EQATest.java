@@ -69,7 +69,13 @@ public class CodeAssessSecurityE2EQATest {
     private AppealRepository appealRepository;
 
     @Autowired
+    private com.codeassess.plagiarism.repository.AstFingerprintRepository astFingerprintRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private javax.sql.DataSource dataSource;
 
     // Identities
     private User admin;
@@ -94,9 +100,11 @@ public class CodeAssessSecurityE2EQATest {
 
     @BeforeEach
     public void setupDb() {
+        com.codeassess.testconfig.DatabaseSafetyGuard.assertSafeTestDatabase(dataSource);
         appealRepository.deleteAll();
         plagiarismEvidenceRepository.deleteAll();
         similarityPairRepository.deleteAll();
+        astFingerprintRepository.deleteAll();
         submissionRepository.deleteAll();
         examRepository.deleteAll();
         classStudentRepository.deleteAll();

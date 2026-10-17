@@ -19,6 +19,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.codeassess.plagiarism.dto.AdjudicationRequestDto;
+import com.codeassess.plagiarism.dto.AdjudicationResponseDto;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -53,11 +60,7 @@ public class TeacherPlagiarismController {
     public ResponseEntity<List<SimilarityPairDto>> listAllPlagiarismPairs() {
         User teacher = getAuthenticatedTeacher();
         
-        // This is a naive implementation fetching all pairs and filtering.
-        // A real implementation would query by teacher ID.
-        List<SimilarityPair> pairs = similarityPairRepository.findAll().stream()
-                .filter(p -> p.getExam().getCourseClass().getTeacher().getId().equals(teacher.getId()))
-                .collect(Collectors.toList());
+        List<SimilarityPair> pairs = similarityPairRepository.findActiveByTeacherId(teacher.getId());
 
         return ResponseEntity.ok(pairs.stream().map(mapper::toPairDto).collect(Collectors.toList()));
     }
@@ -82,5 +85,41 @@ public class TeacherPlagiarismController {
         
         List<PlagiarismEvidence> evidences = evidenceRepository.findBySimilarityPair_Id(id);
         return ResponseEntity.ok(mapper.toComparisonDto(pair, evidences));
+    }
+
+    @PostMapping("/{id}/adjudicate")
+    @Transactional
+    public ResponseEntity<AdjudicationResponseDto> adjudicatePair(
+            @PathVariable Long id,
+            @Valid @RequestBody AdjudicationRequestDto request) {
+        User teacher = getAuthenticatedTeacher();
+        SimilarityPair pair = similarityPairRepository.findByIdAndTeacherIdForUpdate(id, teacher.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Plagiarism record not found"));
+
+        String status = request.getStatus() != null ? request.getStatus().trim().toUpperCase() : "PENDING";
+        if (!isValidAdjudicationStatus(status)) {
+            throw new IllegalArgumentException("Invalid adjudication status: " + status);
+        }
+
+        pair.setAdjudicationStatus(status);
+        pair.setAdjudicationNotes(request.getNotes() != null ? request.getNotes().trim() : null);
+        pair.setAdjudicatedBy(teacher);
+        pair.setAdjudicatedAt(LocalDateTime.now());
+        similarityPairRepository.save(pair);
+
+        return ResponseEntity.ok(AdjudicationResponseDto.builder()
+                .pairId(pair.getId().toString())
+                .status(pair.getAdjudicationStatus())
+                .notes(pair.getAdjudicationNotes())
+                .adjudicatedBy(teacher.getFullName() != null ? teacher.getFullName() : teacher.getEmail())
+                .adjudicatedAt(pair.getAdjudicatedAt())
+                .build());
+    }
+
+    private boolean isValidAdjudicationStatus(String status) {
+        return "PENDING".equals(status) ||
+               "FLAG_CONFIRMED".equals(status) ||
+               "FALSE_POSITIVE".equals(status) ||
+               "HEARING_SCHEDULED".equals(status);
     }
 }

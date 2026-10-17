@@ -1,5 +1,6 @@
-import { redirect } from 'next/navigation';
+import React from 'react';
+import { StudentSubmissionsView } from '@/features/submissions/components/StudentSubmissionsView';
 
-export default function Page() {
-  redirect('/student/dashboard');
+export default function StudentSubmissionsPage() {
+  return <StudentSubmissionsView />;
 }

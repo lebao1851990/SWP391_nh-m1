@@ -59,6 +59,7 @@ class ScoringControllerTest {
     void unauthenticatedReturns401() throws Exception {
         mockMvc.perform(get("/api/teacher/submissions/1/scoring")).andExpect(status().isUnauthorized());
         mockMvc.perform(put("/api/teacher/submissions/1/scoring").contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/teacher/submissions/1/scoring/audit-logs")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/student/submissions/1/result")).andExpect(status().isUnauthorized());
     }
 
@@ -67,6 +68,7 @@ class ScoringControllerTest {
     void studentCannotAccessTeacherScoring() throws Exception {
         mockMvc.perform(get("/api/teacher/submissions/1/scoring")).andExpect(status().isForbidden());
         mockMvc.perform(put("/api/teacher/submissions/1/scoring").contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/teacher/submissions/1/scoring/audit-logs")).andExpect(status().isForbidden());
     }
 
     @Test
@@ -109,5 +111,26 @@ class ScoringControllerTest {
         mockMvc.perform(get("/api/student/submissions/sub-1/result").with(user(studentUser)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalScore").value(10));
+    }
+
+    @Test
+    void teacherCanAccessAuditLogs() throws Exception {
+        com.codeassess.scoring.dto.response.GradeAuditLogDto logDto = com.codeassess.scoring.dto.response.GradeAuditLogDto.builder()
+                .id("log-1")
+                .submissionId("sub-1")
+                .actionType("OVERRIDE_SET")
+                .actorName("Teacher One")
+                .preEffectiveScore(BigDecimal.valueOf(8))
+                .postEffectiveScore(BigDecimal.valueOf(7))
+                .build();
+        Mockito.when(teacherScoringService.getAuditLogs("sub-1", "teacher-1")).thenReturn(java.util.List.of(logDto));
+
+        mockMvc.perform(get("/api/teacher/submissions/sub-1/scoring/audit-logs").with(user(teacherUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value("log-1"))
+                .andExpect(jsonPath("$[0].actionType").value("OVERRIDE_SET"))
+                .andExpect(jsonPath("$[0].actorName").value("Teacher One"))
+                .andExpect(jsonPath("$[0].preEffectiveScore").value(8))
+                .andExpect(jsonPath("$[0].postEffectiveScore").value(7));
     }
 }

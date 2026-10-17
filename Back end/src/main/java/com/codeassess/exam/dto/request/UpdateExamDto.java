@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 public class UpdateExamDto {
     private String title;
     private String classId;
+    private java.util.List<String> classIds;
     private LocalDateTime date;
     private Integer durationMinutes;
     

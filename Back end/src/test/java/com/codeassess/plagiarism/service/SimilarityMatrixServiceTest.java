@@ -4,6 +4,8 @@ import com.codeassess.exam.entity.Exam;
 import com.codeassess.exam.repository.ExamRepository;
 import com.codeassess.plagiarism.entity.AstFingerprint;
 import com.codeassess.plagiarism.entity.SimilarityPair;
+import com.codeassess.plagiarism.entity.ExamMatrixCoordination;
+import com.codeassess.plagiarism.repository.ExamMatrixCoordinationRepository;
 import com.codeassess.plagiarism.repository.AstFingerprintRepository;
 import com.codeassess.plagiarism.repository.PlagiarismEvidenceRepository;
 import com.codeassess.plagiarism.repository.SimilarityPairRepository;
@@ -34,6 +36,7 @@ class SimilarityMatrixServiceTest {
     private AstFingerprintRepository fingerprintRepository;
     private SimilarityPairRepository similarityPairRepository;
     private PlagiarismEvidenceRepository evidenceRepository;
+    private ExamMatrixCoordinationRepository coordinationRepository;
     private JaccardSimilarityCalculator similarityCalculator;
     private EvidenceGenerator evidenceGenerator;
     private SimilarityMatrixService service;
@@ -45,17 +48,28 @@ class SimilarityMatrixServiceTest {
         fingerprintRepository = mock(AstFingerprintRepository.class);
         similarityPairRepository = mock(SimilarityPairRepository.class);
         evidenceRepository = mock(PlagiarismEvidenceRepository.class);
+        coordinationRepository = mock(ExamMatrixCoordinationRepository.class);
         similarityCalculator = new JaccardSimilarityCalculator();
         evidenceGenerator = new EvidenceGenerator();
 
         service = new SimilarityMatrixService(examRepository, submissionRepository, fingerprintRepository,
-                similarityPairRepository, evidenceRepository, similarityCalculator, evidenceGenerator);
+                similarityPairRepository, evidenceRepository, similarityCalculator, evidenceGenerator, coordinationRepository, null);
     }
 
     @Test
     void testGenerateMatrixNormalizesOrderingAndRejectsSelf() {
         Exam exam = Exam.builder().id("exam-1").build();
         when(examRepository.findById("exam-1")).thenReturn(Optional.of(exam));
+
+        ExamMatrixCoordination coord = ExamMatrixCoordination.builder()
+                .examId("exam-1")
+                .exam(exam)
+                .currentGeneration(0L)
+                .requestedGeneration(1L)
+                .lockedGeneration(0L)
+                .status("IDLE")
+                .build();
+        when(coordinationRepository.findByExamIdForUpdate("exam-1")).thenReturn(Optional.of(coord));
 
         // Submissions with IDs out of order
         Submission subZ = Submission.builder().id("sub-Z").build();

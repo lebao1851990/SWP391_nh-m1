@@ -1,9 +1,15 @@
 spring:
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:plagiarism_system}?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:plagiarism_system_test}?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:123456}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 1
+      idle-timeout: 10000
+      max-lifetime: 30000
+      connection-timeout: 10000
   jpa:
     hibernate:
       ddl-auto: validate
@@ -11,8 +17,24 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
     open-in-view: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT_MS:2000}ms
   flyway:
-    enabled: false
+    enabled: true
+    locations: classpath:db/migration
+
+queue:
+  plagiarism:
+    enabled: ${QUEUE_PLAGIARISM_ENABLED:true}
+    stream-name: ${QUEUE_PLAGIARISM_STREAM:codeassess:jobs:plagiarism:test}
+    consumer-group: ${QUEUE_PLAGIARISM_GROUP:plagiarism-worker-group-test}
+    max-retries: 3
+    publish-timeout-ms: 2000
+
 
 server:
   port: 0
@@ -23,6 +45,14 @@ app:
   ai:
     provider: none
     api-key:
+    model: gpt-4o-mini
+    timeout-seconds: 5
+    base-url: https://api.openai.com/v1
+    gemini:
+      api-key:
+      model: gemini-2.5-flash
+      timeout-seconds: 5
+      base-url: https://generativelanguage.googleapis.com/v1beta
 
 sandbox:
   image: eclipse-temurin:21-jdk-alpine

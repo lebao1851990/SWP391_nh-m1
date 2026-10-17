@@ -18,4 +18,16 @@ public class SubmissionDetailResponse {
     private BigDecimal overrideScore;
     private LocalDateTime evaluatedAt;
     private LocalDateTime createdAt;
+    private String submissionType;
+    private String originalFilename;
+    private String archiveHash;
+    private String sourceTreeHash;
+    private Integer fileCount;
+    private String entryPointClass;
+    private String executionStatus;
+    private Integer exitCode;
+    private String compileOutput;
+    private String stdout;
+    private String stderr;
+    private Long executionDurationMs;
 }

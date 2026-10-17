@@ -14,6 +14,9 @@ public class AppealResponseDto {
     private String status;
     private String basis;
     private String explanation;
+    private String studentName;
+    private String studentEmail;
+    private String reviewerNotes;
     private LocalDateTime createdAt;
     private LocalDateTime resolvedAt;
 }

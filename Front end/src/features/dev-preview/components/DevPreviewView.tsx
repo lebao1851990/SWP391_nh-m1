@@ -32,6 +32,7 @@ import { StudentExamsView } from '@/features/exams/components/StudentExamsView';
 import { TeacherExamsView } from '@/features/exams/components/TeacherExamsView';
 import { TeacherExamDetailView } from '@/features/exams/components/TeacherExamDetailView';
 import { StudentSubmissionsView } from '@/features/submissions/components/StudentSubmissionsView';
+import { TeacherSubmissionsView } from '@/features/submissions/components/TeacherSubmissionsView';
 import { PreviewErrorBoundary } from './PreviewErrorBoundary';
 import { PreviewNavigationContext } from '../context/PreviewNavigationContext';
 
@@ -61,7 +62,7 @@ export function DevPreviewView() {
       // Student
       case '/student/dashboard': return <StudentDashboardView />;
       case '/student/exams': return <StudentExamsView />;
-      case '/student/submissions': return <StudentSubmissionsView submissionId="sub_preview_001" />;
+      case '/student/submissions': return <StudentSubmissionsView />;
       case '/student/submissions/sub_preview_001': return <StudentResultView submissionId="sub_preview_001" />;
       case '/student/plagiarism/plg_preview_001': return <StudentPlagiarismDetailView recordId="plg_preview_001" />;
       case '/student/appeals': return <StudentAppealsListView />;
@@ -72,6 +73,7 @@ export function DevPreviewView() {
       case '/teacher/dashboard': return <TeacherDashboardView />;
       case '/teacher/exams': return <TeacherExamsView />;
       case '/teacher/exams/exam_preview_001': return <TeacherExamDetailView examId="exam_preview_001" />;
+      case '/teacher/submissions': return <TeacherSubmissionsView />;
       case '/teacher/submissions/sub_preview_001': return <TeacherScoringView submissionId="sub_preview_001" />;
       case '/teacher/scoring/sub_preview_001': return <TeacherScoringView submissionId="sub_preview_001" />;
       case '/teacher/plagiarism': return <TeacherPlagiarismDashboardView />;
