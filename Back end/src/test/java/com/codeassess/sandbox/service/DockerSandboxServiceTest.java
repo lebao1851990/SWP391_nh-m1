@@ -9,10 +9,17 @@ import com.github.dockerjava.api.command.*;
 import com.github.dockerjava.api.exception.DockerException;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.StreamType;
+import com.codeassess.submission.dto.ExtractedFile;
+import com.codeassess.submission.dto.ExtractedWorkspace;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -51,6 +58,7 @@ class DockerSandboxServiceTest {
     private WaitContainerCmd waitCmd;
     private StopContainerCmd stopCmd;
     private RemoveContainerCmd removeCmd;
+    private CopyArchiveToContainerCmd copyArchiveCmd;
 
     @BeforeEach
     void setUp() {
@@ -77,8 +85,11 @@ class DockerSandboxServiceTest {
         stopCmd   = mock(StopContainerCmd.class, RETURNS_SELF);
         removeCmd = mock(RemoveContainerCmd.class, RETURNS_SELF);
 
+        copyArchiveCmd = mock(CopyArchiveToContainerCmd.class, RETURNS_SELF);
+
         when(dockerClient.createContainerCmd(anyString())).thenReturn(createCmd);
         when(dockerClient.startContainerCmd(anyString())).thenReturn(startCmd);
+        when(dockerClient.copyArchiveToContainerCmd(anyString())).thenReturn(copyArchiveCmd);
         when(dockerClient.logContainerCmd(anyString())).thenReturn(logCmd);
         when(dockerClient.waitContainerCmd(anyString())).thenReturn(waitCmd);
         when(dockerClient.stopContainerCmd(anyString())).thenReturn(stopCmd);
@@ -318,6 +329,351 @@ class DockerSandboxServiceTest {
         OutputCollector col = new OutputCollector(1024);
         DockerSandboxService.RawLogResultCallback cb = new DockerSandboxService.RawLogResultCallback(col);
         assertThatCode(() -> cb.onNext(null)).doesNotThrowAnyException();
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // 8. Multi-file workspace execution (executeWorkspace)
+    // ═════════════════════════════════════════════════════════════════════════
+
+    @Test
+    void executeWorkspace_validMultiFileWithEntryPoint_returnsSuccess(@TempDir Path tempDir) throws IOException {
+        Path mainFile = tempDir.resolve("Main.java");
+        Files.writeString(mainFile, "public class Main { public static void main(String[] args) {} }");
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(new ExtractedFile("Main.java", mainFile, Files.size(mainFile), true)),
+                Files.size(mainFile),
+                "mock-sha256"
+        );
+
+        setExitCode(0);
+        SandboxResult result = service.executeWorkspace(workspace, "Main");
+
+        assertThat(result.getStatus()).isEqualTo(SandboxResult.Status.SUCCESS);
+        verify(dockerClient).copyArchiveToContainerCmd(anyString());
+        verify(copyArchiveCmd).withTarInputStream(any());
+        verify(copyArchiveCmd).exec();
+        verify(removeCmd).exec();
+    }
+
+    @Test
+    void executeWorkspace_noEntryPoint_returnsCompileOnlySuccess(@TempDir Path tempDir) throws IOException {
+        Path helperFile = tempDir.resolve("Helper.java");
+        Files.writeString(helperFile, "public class Helper {}");
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(new ExtractedFile("Helper.java", helperFile, Files.size(helperFile), true)),
+                Files.size(helperFile),
+                "mock-sha256"
+        );
+
+        setExitCode(0);
+        SandboxResult result = service.executeWorkspace(workspace, null);
+
+        assertThat(result.getStatus()).isEqualTo(SandboxResult.Status.COMPILE_ONLY_SUCCESS);
+        verify(dockerClient).copyArchiveToContainerCmd(anyString());
+        verify(removeCmd).exec();
+    }
+
+    @Test
+    void executeWorkspace_compileError_returnsCompileError(@TempDir Path tempDir) throws IOException {
+        Path badFile = tempDir.resolve("Bad.java");
+        Files.writeString(badFile, "class Bad { syntax error");
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(new ExtractedFile("Bad.java", badFile, Files.size(badFile), true)),
+                Files.size(badFile),
+                "mock-sha256"
+        );
+
+        setExitCode(1);
+        SandboxResult result = service.executeWorkspace(workspace, "Bad");
+
+        assertThat(result.getStatus()).isEqualTo(SandboxResult.Status.COMPILE_ERROR);
+        verify(removeCmd).exec();
+    }
+
+    @Test
+    void executeWorkspace_runtimeError_returnsRuntimeError(@TempDir Path tempDir) throws IOException {
+        Path mainFile = tempDir.resolve("Main.java");
+        Files.writeString(mainFile, "public class Main { public static void main(String[] args) { throw new RuntimeException(); } }");
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(new ExtractedFile("Main.java", mainFile, Files.size(mainFile), true)),
+                Files.size(mainFile),
+                "mock-sha256"
+        );
+
+        setExitCode(42);
+        SandboxResult result = service.executeWorkspace(workspace, "Main");
+
+        assertThat(result.getStatus()).isEqualTo(SandboxResult.Status.RUNTIME_ERROR);
+        verify(removeCmd).exec();
+    }
+
+    @Test
+    void executeWorkspace_invalidEntryPointName_throwsIllegalArgument(@TempDir Path tempDir) throws IOException {
+        Path mainFile = tempDir.resolve("Main.java");
+        Files.writeString(mainFile, "public class Main {}");
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(new ExtractedFile("Main.java", mainFile, Files.size(mainFile), true)),
+                Files.size(mainFile),
+                "mock-sha256"
+        );
+
+        assertThatThrownBy(() -> service.executeWorkspace(workspace, "Main; rm -rf /"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Invalid entry point class name");
+
+        // Verify container was never created
+        verify(dockerClient, never()).createContainerCmd(anyString());
+    }
+
+    @Test
+    void executeWorkspace_workspaceExceedsTmpfsCapacity_returnsCapacityExceeded(@TempDir Path tempDir) {
+        Path bigFile = tempDir.resolve("Big.java");
+        // Workspace totalBytes > 16 MiB
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(new ExtractedFile("Big.java", bigFile, 17L * 1024 * 1024, true)),
+                17L * 1024 * 1024,
+                "mock-sha256"
+        );
+
+        SandboxResult result = service.executeWorkspace(workspace, "Big");
+
+        assertThat(result.getStatus()).isEqualTo(SandboxResult.Status.CAPACITY_EXCEEDED);
+        assertThat(result.getStderr()).contains("exceeds maximum sandbox tmpfs threshold");
+        verify(dockerClient, never()).createContainerCmd(anyString());
+    }
+
+    @Test
+    void executeWorkspace_archiveExceedsInlineTransferLimit_returnsCapacityExceeded(@TempDir Path tempDir) throws IOException {
+        Path bigFile = tempDir.resolve("Big.java");
+        // Write 95 KiB file content (exceeds MAX_INLINE_TAR_BYTES = 90 KiB)
+        byte[] payload = new byte[95 * 1024];
+        Files.write(bigFile, payload);
+
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(new ExtractedFile("Big.java", bigFile, payload.length, true)),
+                payload.length,
+                "mock-sha256"
+        );
+
+        SandboxResult result = service.executeWorkspace(workspace, "Big");
+
+        assertThat(result.getStatus()).isEqualTo(SandboxResult.Status.CAPACITY_EXCEEDED);
+        assertThat(result.getStderr()).contains("exceeds the inline container transfer limit");
+        verify(dockerClient, never()).createContainerCmd(anyString());
+    }
+
+    @Test
+    void executeWorkspace_scriptContainsFailClosedExtractionCommand(@TempDir Path tempDir) throws IOException {
+        Path mainFile = tempDir.resolve("Main.java");
+        Files.writeString(mainFile, "public class Main {}");
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(new ExtractedFile("Main.java", mainFile, Files.size(mainFile), true)),
+                Files.size(mainFile),
+                "mock-sha256"
+        );
+
+        setExitCode(0);
+        service.executeWorkspace(workspace, "Main");
+
+        org.mockito.ArgumentCaptor<String> scriptCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(createCmd).withCmd(eq("sh"), eq("-c"), scriptCaptor.capture());
+        String executedScript = scriptCaptor.getValue();
+        assertThat(executedScript)
+                .startsWith("set -e -o pipefail 2>/dev/null || set -e; if ! ( echo '")
+                .contains("| base64 -d | tar -xf - -C /tmp ); then echo 'Failed to unpack workspace archive' >&2; exit 43; fi;");
+    }
+
+    @Test
+    void executeWorkspace_dockerCopyArchiveFails_cleansUpAndThrowsSandboxException(@TempDir Path tempDir) throws IOException {
+        Path mainFile = tempDir.resolve("Main.java");
+        Files.writeString(mainFile, "public class Main {}");
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(new ExtractedFile("Main.java", mainFile, Files.size(mainFile), true)),
+                Files.size(mainFile),
+                "mock-sha256"
+        );
+
+        doThrow(new DockerException("copy failed", 500)).when(copyArchiveCmd).exec();
+
+        assertThatThrownBy(() -> service.executeWorkspace(workspace, "Main"))
+                .isInstanceOf(SandboxException.class)
+                .hasMessageContaining("Docker engine error");
+
+        // Even though copy failed, container was created and MUST be removed
+        verify(removeCmd).exec();
+    }
+
+    @Test
+    void executeWorkspace_fileWithSpacesAndSpecialChars_handledSafely(@TempDir Path tempDir) throws IOException {
+        Path subDir = Files.createDirectories(tempDir.resolve("pkg name"));
+        Path sourceFile = subDir.resolve("My Class.java");
+        Files.writeString(sourceFile, "package pkg; public class MyClass {}");
+
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(new ExtractedFile("pkg name/My Class.java", sourceFile, Files.size(sourceFile), true)),
+                Files.size(sourceFile),
+                "mock-sha256"
+        );
+
+        setExitCode(0);
+        SandboxResult result = service.executeWorkspace(workspace, null);
+
+        assertThat(result.getStatus()).isEqualTo(SandboxResult.Status.COMPILE_ONLY_SUCCESS);
+        verify(copyArchiveCmd).exec();
+        verify(removeCmd).exec();
+    }
+
+    @Test
+    void executeWorkspace_unicodeFilename_acceptedAndHandledSafely(@TempDir Path tempDir) throws IOException {
+        Path subDir = Files.createDirectories(tempDir.resolve("tiếngviệt"));
+        Path sourceFile = subDir.resolve("BàiTập.java");
+        Files.writeString(sourceFile, "package tiếngviệt; public class BàiTập {}");
+
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(new ExtractedFile("tiếngviệt/BàiTập.java", sourceFile, Files.size(sourceFile), true)),
+                Files.size(sourceFile),
+                "mock-sha256"
+        );
+
+        setExitCode(0);
+        SandboxResult result = service.executeWorkspace(workspace, null);
+
+        assertThat(result.getStatus()).isEqualTo(SandboxResult.Status.COMPILE_ONLY_SUCCESS);
+        verify(copyArchiveCmd).exec();
+        verify(removeCmd).exec();
+    }
+
+    @Test
+    void executeWorkspace_filenameWithQuotes_throwsIllegalArgument(@TempDir Path tempDir) throws IOException {
+        Path sourceFile = tempDir.resolve("Main.java");
+        Files.writeString(sourceFile, "public class Main {}");
+
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(new ExtractedFile("pkg/\"Main\".java", sourceFile, Files.size(sourceFile), true)),
+                Files.size(sourceFile),
+                "mock-sha256"
+        );
+
+        assertThatThrownBy(() -> service.executeWorkspace(workspace, "Main"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("unsupported quote characters");
+    }
+
+    @Test
+    void executeWorkspace_filenameWithBackslash_throwsIllegalArgument(@TempDir Path tempDir) throws IOException {
+        Path sourceFile = tempDir.resolve("Main.java");
+        Files.writeString(sourceFile, "public class Main {}");
+
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(new ExtractedFile("pkg\\Main.java", sourceFile, Files.size(sourceFile), true)),
+                Files.size(sourceFile),
+                "mock-sha256"
+        );
+
+        assertThatThrownBy(() -> service.executeWorkspace(workspace, "Main"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("contains backslash");
+    }
+
+    @Test
+    void executeWorkspace_filenameWithNewline_throwsIllegalArgument(@TempDir Path tempDir) throws IOException {
+        Path sourceFile = tempDir.resolve("Main.java");
+        Files.writeString(sourceFile, "public class Main {}");
+
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(new ExtractedFile("pkg/Main\n.java", sourceFile, Files.size(sourceFile), true)),
+                Files.size(sourceFile),
+                "mock-sha256"
+        );
+
+        assertThatThrownBy(() -> service.executeWorkspace(workspace, "Main"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("newline character");
+    }
+
+    @Test
+    void executeWorkspace_filenameWithNullByte_throwsIllegalArgument(@TempDir Path tempDir) throws IOException {
+        Path sourceFile = tempDir.resolve("Main.java");
+        Files.writeString(sourceFile, "public class Main {}");
+
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(new ExtractedFile("pkg/Main\0.java", sourceFile, Files.size(sourceFile), true)),
+                Files.size(sourceFile),
+                "mock-sha256"
+        );
+
+        assertThatThrownBy(() -> service.executeWorkspace(workspace, "Main"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("null byte");
+    }
+
+    @Test
+    void executeWorkspace_filenameWithShellMetacharacters_throwsIllegalArgument(@TempDir Path tempDir) throws IOException {
+        Path sourceFile = tempDir.resolve("Main.java");
+        Files.writeString(sourceFile, "public class Main {}");
+
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(new ExtractedFile("pkg/Main;rm -rf.java", sourceFile, Files.size(sourceFile), true)),
+                Files.size(sourceFile),
+                "mock-sha256"
+        );
+
+        assertThatThrownBy(() -> service.executeWorkspace(workspace, "Main"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("unsupported or unsafe character");
+    }
+
+    @Test
+    void executeWorkspace_filenameWithDirectoryTraversal_throwsIllegalArgument(@TempDir Path tempDir) throws IOException {
+        Path sourceFile = tempDir.resolve("Main.java");
+        Files.writeString(sourceFile, "public class Main {}");
+
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(new ExtractedFile("../outside/Main.java", sourceFile, Files.size(sourceFile), true)),
+                Files.size(sourceFile),
+                "mock-sha256"
+        );
+
+        assertThatThrownBy(() -> service.executeWorkspace(workspace, "Main"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("directory traversal");
+    }
+
+    @Test
+    void executeWorkspace_duplicateRelativePaths_throwsIllegalArgument(@TempDir Path tempDir) throws IOException {
+        Path sourceFile = tempDir.resolve("Main.java");
+        Files.writeString(sourceFile, "public class Main {}");
+
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(
+                        new ExtractedFile("pkg/Main.java", sourceFile, Files.size(sourceFile), true),
+                        new ExtractedFile("pkg/Main.java", sourceFile, Files.size(sourceFile), true)
+                ),
+                Files.size(sourceFile) * 2,
+                "mock-sha256"
+        );
+
+        assertThatThrownBy(() -> service.executeWorkspace(workspace, "Main"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("duplicate file path");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
