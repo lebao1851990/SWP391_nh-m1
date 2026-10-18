@@ -367,4 +367,81 @@ class Workflow2StudentExamSubmissionTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404));
     }
+
+    // =========================================================================
+    // 6. SECURITY RULES & CROSS-ROLE AUTHORIZATION (RBAC)
+    // =========================================================================
+
+    @Test
+    @DisplayName("WF2-10: Security - Unauthenticated student request returns 401 Unauthorized")
+    void testWorkflow2_Security_AnonymousUser_Returns401Unauthorized() throws Exception {
+        mockMvc.perform(get("/api/student/exams"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/student/exams/" + EXAM_ID))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/student/submissions"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/student/exams/" + EXAM_ID + "/submissions")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content("{\"sourceCode\":\"class A{}\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("WF2-11: Security - Teacher role is forbidden (403) from accessing student submission endpoint")
+    void testWorkflow2_CrossRole_TeacherCannotAccessStudentSubmissionApi_Returns403() throws Exception {
+        com.codeassess.submission.dto.request.SubmissionCreateRequest request =
+                new com.codeassess.submission.dto.request.SubmissionCreateRequest("public class Test {}");
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/student/exams/" + EXAM_ID + "/submissions")
+                .with(user(teacherUser))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("WF2-12: Security - Admin role is forbidden (403) from accessing student submission endpoint")
+    void testWorkflow2_CrossRole_AdminCannotAccessStudentSubmissionApi_Returns403() throws Exception {
+        com.codeassess.submission.dto.request.SubmissionCreateRequest request =
+                new com.codeassess.submission.dto.request.SubmissionCreateRequest("public class Test {}");
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/student/exams/" + EXAM_ID + "/submissions")
+                .with(user(adminUser))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("WF2-13: Security - Injected studentId in request body is ignored and bound to authenticated principal")
+    void testWorkflow2_Security_InjectedStudentIdInBodyIsIgnored_ServerBindsToAuthenticatedUser() throws Exception {
+        com.codeassess.submission.dto.response.SubmissionDetailResponse response =
+                com.codeassess.submission.dto.response.SubmissionDetailResponse.builder()
+                        .id("sub-wf2-501")
+                        .examId(EXAM_ID)
+                        .studentId("student-kim-2004")
+                        .status("PENDING")
+                        .sourceCode("public class Test {}")
+                        .build();
+
+        Mockito.when(studentSubmissionService.submitCode(
+                org.mockito.ArgumentMatchers.eq(EXAM_ID),
+                org.mockito.ArgumentMatchers.eq("student-kim-2004"),
+                org.mockito.ArgumentMatchers.any(com.codeassess.submission.dto.request.SubmissionCreateRequest.class)))
+                .thenReturn(response);
+
+        // Attempting to spoof identity by adding injected studentId in payload
+        String spoofedPayload = "{\"sourceCode\":\"public class Test {}\",\"studentId\":\"malicious-attacker-id\"}";
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/student/exams/" + EXAM_ID + "/submissions")
+                .with(user(studentKim))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content(spoofedPayload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.studentId").value("student-kim-2004"));
+    }
 }
