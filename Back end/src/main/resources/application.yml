@@ -23,7 +23,8 @@ spring:
       timeout: ${REDIS_TIMEOUT_MS:2000}ms
 
   flyway:
-    enabled: false
+    enabled: ${FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
 
 queue:
   plagiarism:
