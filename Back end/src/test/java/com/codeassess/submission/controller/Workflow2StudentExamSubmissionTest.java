@@ -323,4 +323,48 @@ class Workflow2StudentExamSubmissionTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404));
     }
+
+    // =========================================================================
+    // 5. EXCEPTION PATH 3: EXAM LIFECYCLE BOUNDARIES
+    // =========================================================================
+
+    @Test
+    @DisplayName("WF2-08: Exception Path 3 - Submission to closed or inactive exam is rejected with 400 Bad Request")
+    void testWorkflow2_ExceptionPath3_SubmitToClosedOrInactiveExam_Returns400BadRequest() throws Exception {
+        Mockito.when(studentSubmissionService.submitCode(
+                org.mockito.ArgumentMatchers.eq(EXAM_ID),
+                org.mockito.ArgumentMatchers.eq("student-kim-2004"),
+                org.mockito.ArgumentMatchers.any(com.codeassess.submission.dto.request.SubmissionCreateRequest.class)))
+                .thenThrow(new IllegalStateException("Exam is not currently active for submissions"));
+
+        com.codeassess.submission.dto.request.SubmissionCreateRequest request =
+                new com.codeassess.submission.dto.request.SubmissionCreateRequest("public class Test {}");
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/student/exams/" + EXAM_ID + "/submissions")
+                .with(user(studentKim))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+    }
+
+    @Test
+    @DisplayName("WF2-09: Exception Path 3 - Submission to non-existent exam ID returns 404 Not Found")
+    void testWorkflow2_ExceptionPath3_SubmitToNonExistentExam_Returns404NotFound() throws Exception {
+        Mockito.when(studentSubmissionService.submitCode(
+                org.mockito.ArgumentMatchers.eq("non-existent-exam"),
+                org.mockito.ArgumentMatchers.eq("student-kim-2004"),
+                org.mockito.ArgumentMatchers.any(com.codeassess.submission.dto.request.SubmissionCreateRequest.class)))
+                .thenThrow(new com.codeassess.common.exception.ResourceNotFoundException("Exam not found or you are not enrolled in this class"));
+
+        com.codeassess.submission.dto.request.SubmissionCreateRequest request =
+                new com.codeassess.submission.dto.request.SubmissionCreateRequest("public class Test {}");
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/student/exams/non-existent-exam/submissions")
+                .with(user(studentKim))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
+    }
 }
