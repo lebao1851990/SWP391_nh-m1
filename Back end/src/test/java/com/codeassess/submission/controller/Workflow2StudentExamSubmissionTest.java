@@ -232,4 +232,34 @@ class Workflow2StudentExamSubmissionTest {
                 .andExpect(jsonPath("$.status").value("GRADED"))
                 .andExpect(jsonPath("$.effectiveScore").value(95.00));
     }
+
+    // =========================================================================
+    // 2. EXCEPTION PATH 1: INPUT VALIDATION FAILURES
+    // =========================================================================
+
+    @Test
+    @DisplayName("WF2-02: Exception Path 1 - Empty source code is rejected with 400 Bad Request")
+    void testWorkflow2_ExceptionPath1_EmptySourceCode_Returns400BadRequest() throws Exception {
+        com.codeassess.submission.dto.request.SubmissionCreateRequest emptyRequest =
+                new com.codeassess.submission.dto.request.SubmissionCreateRequest("");
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/student/exams/" + EXAM_ID + "/submissions")
+                .with(user(studentKim))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(emptyRequest)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("WF2-03: Exception Path 1 - Blank whitespace source code is rejected with 400 Bad Request")
+    void testWorkflow2_ExceptionPath1_BlankWhitespaceSourceCode_Returns400BadRequest() throws Exception {
+        com.codeassess.submission.dto.request.SubmissionCreateRequest blankRequest =
+                new com.codeassess.submission.dto.request.SubmissionCreateRequest("   \n\t  ");
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/student/exams/" + EXAM_ID + "/submissions")
+                .with(user(studentKim))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(blankRequest)))
+                .andExpect(status().isBadRequest());
+    }
 }
