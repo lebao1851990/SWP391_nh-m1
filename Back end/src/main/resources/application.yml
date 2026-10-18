@@ -2,7 +2,7 @@ spring:
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:plagiarism_system}?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true
     username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:123456}
+    password: ${DB_PASSWORD:Kim20042005}
     driver-class-name: com.mysql.cj.jdbc.Driver
   
   jpa:
@@ -39,7 +39,7 @@ queue:
     timeout-ms: ${BULLMQ_TIMEOUT_MS:3000}
 
 server:
-  port: ${PORT:8080}
+  port: ${PORT:8088}
   servlet:
     session:
       cookie:
