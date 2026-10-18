@@ -148,3 +148,88 @@ erDiagram
         timestamp created_at
     }
 ```
+
+---
+
+## 3. Sơ Đồ Tuần Tự Workflow 2 (Student Execution Sequence Diagram)
+
+Sơ đồ thể hiện luồng hoạt động chuẩn mực từ lúc sinh viên xem đề bài, thực thi và nộp mã nguồn cho đến khi nhận kết quả:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Student as Sinh viên (Client)
+    participant Gateway as Security Filter
+    participant ExamCtrl as StudentExamController
+    participant SubCtrl as StudentSubmissionController
+    participant ScoreCtrl as StudentScoringController
+    participant SubService as StudentSubmissionService
+    participant Sandbox as DockerSandboxService
+    participant AST as PlagiarismAnalysisListener
+    participant DB as MySQL Database
+
+    %% Bước 1: Xem danh sách kỳ thi
+    Student->>Gateway: GET /api/student/exams (Cookie session)
+    Gateway->>ExamCtrl: Chuyển tiếp với AuthenticationPrincipal
+    ExamCtrl->>DB: Truy vấn kỳ thi thuộc lớp sinh viên đã ghi danh
+    DB-->>ExamCtrl: Danh sách kỳ thi (ACTIVE/UPCOMING)
+    ExamCtrl-->>Student: 200 OK [Exams List]
+
+    %% Bước 2: Vào làm bài thi
+    Student->>Gateway: GET /api/student/exams/{id}
+    Gateway->>ExamCtrl: Kiểm tra quyền sở hữu lớp (Class Enrollment)
+    alt Không thuộc lớp
+        ExamCtrl-->>Student: 404 Not Found (Resource Masking)
+    else Hợp lệ
+        ExamCtrl->>DB: Lấy chi tiết đề thi, thời lượng, hạn nộp
+        DB-->>ExamCtrl: Chi tiết kỳ thi
+        ExamCtrl-->>Student: 200 OK (Exam Detail)
+    end
+
+    %% Bước 3: Soạn thảo và nộp bài
+    Note over Student: Soạn mã Java trên giao diện Dark IDE
+    Student->>Gateway: POST /api/student/exams/{id}/submissions {sourceCode}
+    Gateway->>SubCtrl: Validate @NotBlank sourceCode
+    alt Source code rỗng
+        SubCtrl-->>Student: 400 Bad Request
+    else Hợp lệ
+        SubCtrl->>SubService: submitCode(examId, studentId, request)
+        SubService->>DB: Kiểm tra exam.status == 'ACTIVE'
+        SubService->>DB: INSERT INTO submissions (status='PENDING')
+        DB-->>SubService: Submission created (sub-id)
+        SubService-)AST: Phát sự kiện SubmissionCreatedEvent (AFTER_COMMIT)
+        SubService-->>SubCtrl: SubmissionDetailResponse
+        SubCtrl-->>Student: 201 Created {id: sub-id, status: PENDING}
+    end
+
+    %% Bước 4: Xử lý ngầm bất đồng bộ
+    Note over AST,DB: Phân tích AST ngầm không làm chậm Client
+    AST->>DB: Lấy các bài nộp khác cùng kỳ thi
+    AST->>AST: Chuẩn hóa, K-Gram (K=5), Winnowing (W=4), Jaccard
+    AST->>DB: Lưu ast_fingerprints & similarity_matrix (is_flagged nếu >= 70%)
+
+    %% Bước 5: Xem kết quả chấm điểm
+    Student->>Gateway: GET /api/student/submissions/{id}/result
+    Gateway->>ScoreCtrl: getStudentResult(id, studentId)
+    ScoreCtrl->>DB: Kiểm tra quyền sở hữu bài nộp
+    alt Bài thi của sinh viên khác
+        ScoreCtrl-->>Student: 404 Not Found (Peer Privacy)
+    else Bài nộp chính chủ
+        DB-->>ScoreCtrl: Điểm tổng, điểm ghi đè, rubric breakdown
+        ScoreCtrl-->>Student: 200 OK {totalScore: 95.0, criteria: [...]}
+    end
+```
+
+---
+
+## 4. Hợp Đồng Giao Tiếp API Của Phân Hệ Sinh Viên (API Contracts)
+
+| Phương thức | Đường dẫn (Path) | Quyền hạn | Request Payload | Response Shape | Mã Lỗi Chính |
+| :--- | :--- | :---: | :--- | :--- | :--- |
+| `GET` | `/api/student/exams` | `ROLE_STUDENT` | Không có | `200 OK`: Mảng `ExamResponse[]` | 401 (Chưa đăng nhập) |
+| `GET` | `/api/student/exams/{id}` | `ROLE_STUDENT` | Không có | `200 OK`: `ExamResponse` chi tiết | 401, 404 (Không thuộc lớp / Không tồn tại) |
+| `POST` | `/api/student/exams/{id}/submissions` | `ROLE_STUDENT` | JSON: `{ "sourceCode": "string" }` | `201 Created`: `SubmissionDetailResponse` | 400 (Mã rỗng / Thi đóng), 401, 404 (Lớp khác) |
+| `GET` | `/api/student/submissions` | `ROLE_STUDENT` | Không có | `200 OK`: Mảng `SubmissionListResponse[]` | 401 |
+| `GET` | `/api/student/submissions/{id}` | `ROLE_STUDENT` | Không có | `200 OK`: `SubmissionDetailResponse` | 401, 404 (Không phải bài của mình) |
+| `GET` | `/api/student/submissions/{id}/result` | `ROLE_STUDENT` | Không có | `200 OK`: `StudentSubmissionResult` | 401, 404 (Không phải bài của mình) |
+
