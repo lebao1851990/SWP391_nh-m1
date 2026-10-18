@@ -178,4 +178,58 @@ class Workflow2StudentExamSubmissionTest {
                 .andExpect(jsonPath("$.id").value("sub-wf2-501"))
                 .andExpect(jsonPath("$.status").value("PENDING"));
     }
+
+    @Test
+    @DisplayName("WF2-01D: Student queries their submission history")
+    void testWorkflow2_StudentViewsSubmissionHistory() throws Exception {
+        com.codeassess.submission.dto.response.SubmissionListResponse listEntry =
+                com.codeassess.submission.dto.response.SubmissionListResponse.builder()
+                        .id("sub-wf2-501")
+                        .examId(EXAM_ID)
+                        .examTitle("CS301 Java Data Structures Practical Exam")
+                        .status("PENDING")
+                        .createdAt(LocalDateTime.now())
+                        .build();
+
+        Mockito.when(studentSubmissionService.getStudentSubmissions("student-kim-2004"))
+                .thenReturn(List.of(listEntry));
+
+        mockMvc.perform(get("/api/student/submissions").with(user(studentKim)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value("sub-wf2-501"))
+                .andExpect(jsonPath("$[0].status").value("PENDING"));
+    }
+
+    @Test
+    @DisplayName("WF2-01E: Student inspects graded evaluation result with rubric score")
+    void testWorkflow2_StudentInspectsGradedResultWithRubric() throws Exception {
+        com.codeassess.scoring.dto.response.StudentSubmissionResult gradedResult =
+                com.codeassess.scoring.dto.response.StudentSubmissionResult.builder()
+                        .submissionId("sub-wf2-501")
+                        .examName("CS301 Java Data Structures Practical Exam")
+                        .status("GRADED")
+                        .totalScore(new java.math.BigDecimal("95.00"))
+                        .effectiveScore(new java.math.BigDecimal("95.00"))
+                        .maxTotalScore(new java.math.BigDecimal("100.00"))
+                        .criteria(List.of(
+                                com.codeassess.scoring.dto.response.CriterionScoreDto.builder()
+                                        .criterionId("crit-1")
+                                        .name("Correctness")
+                                        .description("Outputs expected answer")
+                                        .score(new java.math.BigDecimal("70.00"))
+                                        .maxScore(new java.math.BigDecimal("70.00"))
+                                        .build()
+                        ))
+                        .evaluatedAt(LocalDateTime.now())
+                        .build();
+
+        Mockito.when(studentScoringService.getStudentResult("sub-wf2-501", "student-kim-2004"))
+                .thenReturn(gradedResult);
+
+        mockMvc.perform(get("/api/student/submissions/sub-wf2-501/result").with(user(studentKim)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.submissionId").value("sub-wf2-501"))
+                .andExpect(jsonPath("$.status").value("GRADED"))
+                .andExpect(jsonPath("$.effectiveScore").value(95.00));
+    }
 }
