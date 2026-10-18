@@ -262,4 +262,39 @@ class Workflow2StudentExamSubmissionTest {
                 .content(objectMapper.writeValueAsString(blankRequest)))
                 .andExpect(status().isBadRequest());
     }
+
+    // =========================================================================
+    // 3. EXCEPTION PATH 2A: RESOURCE OWNERSHIP & CLASS ENROLLMENT MASKING
+    // =========================================================================
+
+    @Test
+    @DisplayName("WF2-04: Exception Path 2A - Student not enrolled in class receives 404 Masking on exam detail")
+    void testWorkflow2_ExceptionPath2_StudentNotEnrolledInClass_ExamAccessReturns404NotFound() throws Exception {
+        Mockito.when(studentExamService.getStudentExamById(EXAM_ID, "student-kim-2004"))
+                .thenThrow(new com.codeassess.common.exception.ResourceNotFoundException("Exam not found or access denied"));
+
+        mockMvc.perform(get("/api/student/exams/" + EXAM_ID).with(user(studentKim)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
+    }
+
+    @Test
+    @DisplayName("WF2-05: Exception Path 2A - Student not enrolled in class receives 404 Masking on submission attempt")
+    void testWorkflow2_ExceptionPath2_StudentNotEnrolledInClass_SubmissionReturns404NotFound() throws Exception {
+        Mockito.when(studentSubmissionService.submitCode(
+                org.mockito.ArgumentMatchers.eq(EXAM_ID),
+                org.mockito.ArgumentMatchers.eq("student-kim-2004"),
+                org.mockito.ArgumentMatchers.any(com.codeassess.submission.dto.request.SubmissionCreateRequest.class)))
+                .thenThrow(new com.codeassess.common.exception.ResourceNotFoundException("Exam not found or you are not enrolled in this class"));
+
+        com.codeassess.submission.dto.request.SubmissionCreateRequest request =
+                new com.codeassess.submission.dto.request.SubmissionCreateRequest("public class Test {}");
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/student/exams/" + EXAM_ID + "/submissions")
+                .with(user(studentKim))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
+    }
 }
