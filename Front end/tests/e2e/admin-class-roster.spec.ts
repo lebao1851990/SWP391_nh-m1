@@ -402,7 +402,7 @@ test.describe('Admin Class & Student Roster Management UI', () => {
 
   // 8. Import sinh viên từ file Excel (Partial mode)
   test('Opens Excel Import modal, uploads Excel spreadsheet in partial mode, and displays summary and row-level errors', async ({ page }) => {
-    let enrolled = [
+    const enrolled = [
       { id: 's-1', studentId: 's-1', email: 'alice@school.edu', fullName: 'Alice Smith' },
     ];
 
