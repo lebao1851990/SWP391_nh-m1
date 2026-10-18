@@ -123,4 +123,59 @@ class Workflow2StudentExamSubmissionTest {
                 .andExpect(jsonPath("$[0].title").value("CS301 Java Data Structures Practical Exam"))
                 .andExpect(jsonPath("$[0].status").value("ACTIVE"));
     }
+
+    @Test
+    @DisplayName("WF2-01B: Student enters exam workspace and views exam details")
+    void testWorkflow2_StudentViewsExamDetail() throws Exception {
+        ExamResponse examDetail = ExamResponse.builder()
+                .id(EXAM_ID)
+                .title("CS301 Java Data Structures Practical Exam")
+                .classId("class-cs301")
+                .duration(90)
+                .status("ACTIVE")
+                .courseName("Data Structures")
+                .courseCode("CS301")
+                .build();
+
+        Mockito.when(studentExamService.getStudentExamById(EXAM_ID, "student-kim-2004"))
+                .thenReturn(examDetail);
+
+        mockMvc.perform(get("/api/student/exams/" + EXAM_ID).with(user(studentKim)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(EXAM_ID))
+                .andExpect(jsonPath("$.duration").value(90))
+                .andExpect(jsonPath("$.courseCode").value("CS301"));
+    }
+
+    @Test
+    @DisplayName("WF2-01C: Student submits valid Java solution and receives 201 Created")
+    void testWorkflow2_StudentSubmitsSolution() throws Exception {
+        String validSourceCode = "public class Solution { public static void main(String[] args) {} }";
+        com.codeassess.submission.dto.request.SubmissionCreateRequest submitRequest =
+                new com.codeassess.submission.dto.request.SubmissionCreateRequest(validSourceCode);
+
+        com.codeassess.submission.dto.response.SubmissionDetailResponse createdSubmission =
+                com.codeassess.submission.dto.response.SubmissionDetailResponse.builder()
+                        .id("sub-wf2-501")
+                        .examId(EXAM_ID)
+                        .studentId("student-kim-2004")
+                        .status("PENDING")
+                        .sourceCode(validSourceCode)
+                        .createdAt(LocalDateTime.now())
+                        .build();
+
+        Mockito.when(studentSubmissionService.submitCode(
+                org.mockito.ArgumentMatchers.eq(EXAM_ID),
+                org.mockito.ArgumentMatchers.eq("student-kim-2004"),
+                org.mockito.ArgumentMatchers.any(com.codeassess.submission.dto.request.SubmissionCreateRequest.class)))
+                .thenReturn(createdSubmission);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/student/exams/" + EXAM_ID + "/submissions")
+                .with(user(studentKim))
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(submitRequest)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("sub-wf2-501"))
+                .andExpect(jsonPath("$.status").value("PENDING"));
+    }
 }
