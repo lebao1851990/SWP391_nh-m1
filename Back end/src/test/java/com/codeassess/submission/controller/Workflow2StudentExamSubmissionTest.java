@@ -297,4 +297,30 @@ class Workflow2StudentExamSubmissionTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404));
     }
+
+    // =========================================================================
+    // 4. EXCEPTION PATH 2B: PEER PRIVACY & IDOR DEFENSE
+    // =========================================================================
+
+    @Test
+    @DisplayName("WF2-06: Exception Path 2B - Student cannot access submission belonging to another student (IDOR Masking 404)")
+    void testWorkflow2_ExceptionPath2_StudentCannotAccessOtherStudentSubmission_Returns404NotFound() throws Exception {
+        Mockito.when(studentSubmissionService.getStudentSubmissionById("sub-wf2-999", "student-kim-2004"))
+                .thenThrow(new com.codeassess.common.exception.ResourceNotFoundException("Submission not found"));
+
+        mockMvc.perform(get("/api/student/submissions/sub-wf2-999").with(user(studentKim)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
+    }
+
+    @Test
+    @DisplayName("WF2-07: Exception Path 2B - Student cannot access graded result of another student (IDOR Masking 404)")
+    void testWorkflow2_ExceptionPath2_StudentCannotAccessOtherStudentSubmissionResult_Returns404NotFound() throws Exception {
+        Mockito.when(studentScoringService.getStudentResult("sub-wf2-999", "student-kim-2004"))
+                .thenThrow(new com.codeassess.common.exception.ResourceNotFoundException("Submission result not found"));
+
+        mockMvc.perform(get("/api/student/submissions/sub-wf2-999/result").with(user(studentKim)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
+    }
 }
