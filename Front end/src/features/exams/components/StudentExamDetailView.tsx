@@ -90,12 +90,25 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
 
   if (!exam) return null;
 
-  const isClosed = exam.status === 'completed' || exam.status === 'missed';
+  const nowMs = Date.now();
+  const startMs = exam.startTime ? new Date(exam.startTime).getTime() : 0;
+  const endMs = exam.endTime ? new Date(exam.endTime).getTime() : 0;
+  const isUpcoming = Boolean(startMs && nowMs < startMs);
+  const isDeadlinePassed = Boolean(endMs && nowMs > endMs);
+  const isClosed = exam.status === 'completed' || exam.status === 'missed' || isDeadlinePassed || isUpcoming;
   const lineCount = sourceCode ? sourceCode.split('\n').length : 0;
   const charCount = sourceCode.length;
 
   const handlePreSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isUpcoming) {
+      setLocalError(`Assessment has not started yet. Window opens at ${new Date(exam.startTime).toLocaleString()}.`);
+      return;
+    }
+    if (isDeadlinePassed || exam.status === 'completed' || exam.status === 'missed') {
+      setLocalError(`Assessment deadline has passed (${new Date(exam.endTime).toLocaleString()}). Submissions are closed.`);
+      return;
+    }
     if (!sourceCode.trim()) {
       setLocalError('Source code cannot be empty.');
       return;
@@ -144,17 +157,19 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">{exam.title}</h1>
               <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                exam.status === 'active' 
+                !isClosed && exam.status === 'active'
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                  : isUpcoming
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
                   : 'bg-surface-container text-on-surface-variant'
               }`}>
-                {exam.status === 'active' && (
+                {!isClosed && exam.status === 'active' && (
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                   </span>
                 )}
-                <span>{exam.status.toUpperCase()}</span>
+                <span>{isUpcoming ? 'UPCOMING' : isDeadlinePassed ? 'CLOSED' : exam.status.toUpperCase()}</span>
               </div>
             </div>
 
@@ -166,19 +181,42 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container-high text-on-surface border border-outline-variant/30">
                 <Clock className="w-3.5 h-3.5 text-outline" />
                 <span>Deadline: {new Date(exam.endTime).toLocaleString()}</span>
-                {isClosed && <span className="text-rose-600 font-semibold ml-1">(Closed)</span>}
+                {isDeadlinePassed && <span className="text-rose-600 font-semibold ml-1">(Concluded)</span>}
+                {isUpcoming && <span className="text-blue-600 font-semibold ml-1">(Not Started)</span>}
               </span>
             </div>
           </div>
         </div>
 
+        {/* Upcoming Exam Alert Banner */}
+        {isUpcoming && (
+          <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs flex items-center gap-3">
+            <Clock className="w-5 h-5 text-blue-600 shrink-0" />
+            <div>
+              <p className="font-semibold">Assessment Not Yet Started</p>
+              <p className="text-blue-700 mt-0.5">This assessment will open at {new Date(exam.startTime).toLocaleString()}. You cannot submit solutions until the window starts.</p>
+            </div>
+          </div>
+        )}
+
         {/* Closed Exam Alert Banner */}
-        {isClosed && (
+        {isDeadlinePassed && (
           <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
             <div>
               <p className="font-semibold">Assessment Window Concluded</p>
-              <p className="text-amber-700 mt-0.5">The deadline for this assessment has passed. Submissions are closed.</p>
+              <p className="text-amber-700 mt-0.5">The deadline for this assessment has passed ({new Date(exam.endTime).toLocaleString()}). Submissions are closed.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Completed/Missed Banner */}
+        {(!isDeadlinePassed && !isUpcoming && (exam.status === 'completed' || exam.status === 'missed')) && (
+          <div className="p-4 rounded-xl bg-surface-container border border-outline-variant/40 text-on-surface-variant text-xs flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+            <div>
+              <p className="font-semibold">Assessment Status: {exam.status.toUpperCase()}</p>
+              <p className="text-on-surface-variant/80 mt-0.5">This assessment is no longer accepting new submissions.</p>
             </div>
           </div>
         )}
@@ -259,7 +297,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                   disabled={submitExam.isPending || isClosed || !sourceCode.trim()}
                 >
                   <Send className="w-3.5 h-3.5" />
-                  <span>Submit Code Artifact</span>
+                  <span>{isUpcoming ? 'Opens at ' + (exam.startTime ? new Date(exam.startTime).toLocaleTimeString() : '') : isDeadlinePassed ? 'Deadline Passed' : 'Submit Code Artifact'}</span>
                 </button>
               </div>
             </div>

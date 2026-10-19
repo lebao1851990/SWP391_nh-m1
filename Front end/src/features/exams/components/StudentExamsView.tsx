@@ -38,8 +38,12 @@ export function StudentExamsView() {
       let derivedStatus = 'UPCOMING';
       if (submission) {
         derivedStatus = submission.status === 'GRADED' ? 'COMPLETED' : 'SUBMITTED';
-      } else if (exam.startTime && new Date(exam.startTime).getTime() < now) {
+      } else if (exam.endTime && new Date(exam.endTime).getTime() < now) {
         derivedStatus = 'MISSED';
+      } else if (exam.startTime && new Date(exam.startTime).getTime() <= now) {
+        derivedStatus = 'ACTIVE';
+      } else {
+        derivedStatus = 'UPCOMING';
       }
       return { ...exam, submission, derivedStatus };
     });
@@ -255,7 +259,9 @@ export function StudentExamsView() {
                           exam.derivedStatus === 'UPCOMING' 
                             ? 'bg-blue-50 text-blue-700 border border-blue-200' 
                             : exam.derivedStatus === 'COMPLETED' 
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                            ? 'bg-teal-50 text-teal-700 border border-teal-200' 
+                            : exam.derivedStatus === 'MISSED'
+                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
                             : 'bg-amber-50 text-amber-700 border border-amber-200'
                         }`}>
                           {exam.derivedStatus}

@@ -1,3 +1,6 @@
-set JAVA_HOME=D:\jdk-21_windows-x64_bin\jdk-21.0.11
+@echo off
+if not defined JAVA_HOME set JAVA_HOME=C:\Program Files\Java\jdk-21.0.12.1
 set PATH=%JAVA_HOME%\bin;%PATH%
+set PORT=8088
 mvnw.cmd spring-boot:run
+pause

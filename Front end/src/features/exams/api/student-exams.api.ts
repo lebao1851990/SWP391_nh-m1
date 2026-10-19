@@ -30,9 +30,22 @@ function normalizeExam(data: Record<string, unknown>): ExamResponse {
   }
   const courseCode = (data.courseCode as string) || (data.courseClassCode as string) || 'PRJ301';
   const statusStr = String(data.status || 'active').toLowerCase();
-  const validStatus: ExamResponse['status'] = ['upcoming', 'active', 'completed', 'missed'].includes(statusStr)
+  let validStatus: ExamResponse['status'] = ['upcoming', 'active', 'completed', 'missed'].includes(statusStr)
     ? (statusStr as ExamResponse['status'])
     : 'active';
+
+  if (validStatus !== 'completed') {
+    const nowMs = Date.now();
+    const startMs = startTime ? new Date(startTime).getTime() : 0;
+    const endMs = endTime ? new Date(endTime).getTime() : 0;
+    if (startMs && nowMs < startMs) {
+      validStatus = 'upcoming';
+    } else if (endMs && nowMs > endMs) {
+      validStatus = 'missed';
+    } else {
+      validStatus = 'active';
+    }
+  }
 
   return {
     id: String(data.id || ''),
