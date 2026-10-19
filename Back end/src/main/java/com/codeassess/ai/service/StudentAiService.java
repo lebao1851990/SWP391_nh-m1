@@ -118,7 +118,13 @@ public class StudentAiService {
                     + "Compiler / Build Output:\n```\n" + compilerOutput + "\n```\n\n"
                     + "Please explain this compiler error conceptually and guide the student on how to resolve it.";
 
-            String explanation = aiClient.generateStudentFeedback(systemPrompt, userPrompt);
+            String explanation;
+            try {
+                explanation = aiClient.generateStudentFeedback(systemPrompt, userPrompt);
+            } catch (com.codeassess.ai.exception.AiIntegrationException ex) {
+                log.warn("AI service unavailable for compiler error feedback: {}", ex.getMessage());
+                explanation = "[THÔNG BÁO] Dịch vụ AI tạm thời không khả dụng: " + ex.getMessage();
+            }
             return new StudentAiResponse(StudentAiMode.COMPILER_ERROR, explanation);
 
         } else if (mode == StudentAiMode.CODE_EXPLANATION) {
@@ -137,7 +143,13 @@ public class StudentAiService {
             String userPrompt = "Student Source Code:\n```java\n" + sourceCode + "\n```\n\n"
                     + "Please explain the structure, execution flow, and behavior of this code.";
 
-            String explanation = aiClient.generateStudentFeedback(systemPrompt, userPrompt);
+            String explanation;
+            try {
+                explanation = aiClient.generateStudentFeedback(systemPrompt, userPrompt);
+            } catch (com.codeassess.ai.exception.AiIntegrationException ex) {
+                log.warn("AI service unavailable for code explanation: {}", ex.getMessage());
+                explanation = "[THÔNG BÁO] Dịch vụ AI tạm thời không khả dụng: " + ex.getMessage();
+            }
             return new StudentAiResponse(StudentAiMode.CODE_EXPLANATION, explanation);
 
         } else if (mode == StudentAiMode.DEBUG_HINTS) {
@@ -159,7 +171,13 @@ public class StudentAiService {
             }
             userPrompt.append("Please provide 2-3 incremental debugging clues without giving away the complete solution.");
 
-            String explanation = aiClient.generateStudentFeedback(systemPrompt, userPrompt.toString());
+            String explanation;
+            try {
+                explanation = aiClient.generateStudentFeedback(systemPrompt, userPrompt.toString());
+            } catch (com.codeassess.ai.exception.AiIntegrationException ex) {
+                log.warn("AI service unavailable for debug hints: {}", ex.getMessage());
+                explanation = "[THÔNG BÁO] Dịch vụ AI tạm thời không khả dụng: " + ex.getMessage();
+            }
             return new StudentAiResponse(StudentAiMode.DEBUG_HINTS, explanation);
         }
 

@@ -32,18 +32,21 @@ public class TeacherScoringService {
     private final ScoringCriteriaRepository scoringCriteriaRepository;
     private final GradeAuditLogRepository gradeAuditLogRepository;
     private final UserRepository userRepository;
+    private final com.codeassess.testcase.repository.SubmissionTestResultRepository submissionTestResultRepository;
 
     public TeacherScoringService(
             SubmissionRepository submissionRepository,
             RuleScoreRepository ruleScoreRepository,
             ScoringCriteriaRepository scoringCriteriaRepository,
             GradeAuditLogRepository gradeAuditLogRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            com.codeassess.testcase.repository.SubmissionTestResultRepository submissionTestResultRepository) {
         this.submissionRepository = submissionRepository;
         this.ruleScoreRepository = ruleScoreRepository;
         this.scoringCriteriaRepository = scoringCriteriaRepository;
         this.gradeAuditLogRepository = gradeAuditLogRepository;
         this.userRepository = userRepository;
+        this.submissionTestResultRepository = submissionTestResultRepository;
     }
 
     @Transactional(readOnly = true)
@@ -61,7 +64,28 @@ public class TeacherScoringService {
                 .maxScore(rs.getCriteria().getMaxScore())
                 .build()).collect(Collectors.toList());
 
-        BigDecimal effectiveScore = submission.getOverrideScore() != null ? submission.getOverrideScore() : submission.getTotalScore();
+        List<com.codeassess.testcase.entity.SubmissionTestResult> testResults = 
+                submissionTestResultRepository != null ? submissionTestResultRepository.findBySubmission_IdOrderByIdAsc(submissionId) : java.util.Collections.emptyList();
+
+        List<com.codeassess.testcase.dto.response.SubmissionTestResultDto> testResultDtos = testResults.stream().map(tr -> 
+                com.codeassess.testcase.dto.response.SubmissionTestResultDto.builder()
+                        .id(tr.getId())
+                        .testCaseId(tr.getTestCase() != null ? tr.getTestCase().getId() : null)
+                        .testCaseName(tr.getTestCaseName())
+                        .isHidden(tr.getIsHidden())
+                        .status(tr.getStatus())
+                        .actualOutput(tr.getActualOutput())
+                        .expectedOutput(tr.getExpectedOutput())
+                        .executionTimeMs(tr.getExecutionTimeMs())
+                        .exitCode(tr.getExitCode())
+                        .errorMessage(tr.getErrorMessage())
+                        .pointsAwarded(tr.getPointsAwarded())
+                        .maxPoints(tr.getTestCase() != null ? tr.getTestCase().getPoints() : null)
+                        .build()
+        ).collect(Collectors.toList());
+
+        BigDecimal effectiveScore = submission.getOverrideScore() != null ? submission.getOverrideScore() 
+                : (submission.getTotalScore() != null ? submission.getTotalScore() : submission.getAutoScore());
 
         BigDecimal maxTotalScore = criteriaDtos.stream()
                 .map(CriterionScoreDto::getMaxScore)
@@ -84,6 +108,10 @@ public class TeacherScoringService {
                 .status(submission.getStatus())
                 .totalScore(submission.getTotalScore())
                 .overrideTotalScore(submission.getOverrideScore())
+                .autoScore(submission.getAutoScore())
+                .testCasesPassed(submission.getTestCasesPassed())
+                .testCasesTotal(submission.getTestCasesTotal())
+                .testResults(testResultDtos)
                 .effectiveScore(effectiveScore)
                 .maxTotalScore(maxTotalScore)
                 .criteria(criteriaDtos)

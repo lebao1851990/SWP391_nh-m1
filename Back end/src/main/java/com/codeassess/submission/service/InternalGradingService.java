@@ -28,8 +28,8 @@ public class InternalGradingService {
     private final DockerSandboxService dockerSandboxService;
     private final AstPlagiarismService astPlagiarismService;
     private final SimilarityMatrixService similarityMatrixService;
+    private final com.codeassess.testcase.service.AutomatedTestRunnerService automatedTestRunnerService;
 
-    @Transactional
     public InternalGradingResponse processGrading(String submissionId) {
         Submission submission = submissionRepository.findById(submissionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Submission not found: " + submissionId));
@@ -76,41 +76,11 @@ public class InternalGradingService {
         String submissionType = submission.getSubmissionType() != null ? submission.getSubmissionType() : "SINGLE_FILE";
 
         if ("SINGLE_FILE".equalsIgnoreCase(submissionType)) {
-            // Execute single-file submission in Docker sandbox
-            SandboxResult sandboxResult;
-            try {
-                sandboxResult = dockerSandboxService.execute(submission.getSourceCode());
-            } catch (Exception e) {
-                log.error("Docker Sandbox execution failed for submission {}: {}", submissionId, e.getMessage(), e);
-                sandboxResult = SandboxResult.builder()
-                        .status(SandboxResult.Status.INTERNAL_ERROR)
-                        .stderr("Sandbox execution failure: " + e.getMessage())
-                        .executionTimeMs(0L)
-                        .build();
-            }
+            // Execute single-file submission through AutomatedTestRunnerService
+            automatedTestRunnerService.runAndGrade(submission);
 
-            String executionStatus = sandboxResult.getStatus() != null ? sandboxResult.getStatus().name() : "INTERNAL_ERROR";
-            int completed = submissionRepository.completeGradingWithToken(
-                    submissionId,
-                    claimToken,
-                    executionStatus,
-                    sandboxResult.getExitCode(),
-                    SubmissionPersistenceService.safeTruncateUtf8(sandboxResult.getCompilerOutput(), SubmissionPersistenceService.MAX_OUTPUT_BYTES),
-                    SubmissionPersistenceService.safeTruncateUtf8(sandboxResult.getStdout(), SubmissionPersistenceService.MAX_OUTPUT_BYTES),
-                    SubmissionPersistenceService.safeTruncateUtf8(sandboxResult.getStderr(), SubmissionPersistenceService.MAX_OUTPUT_BYTES),
-                    sandboxResult.getExecutionTimeMs(),
-                    LocalDateTime.now()
-            );
-
-            if (completed == 0) {
-                log.warn("Submission {} lost its claim lease during execution (claimToken={}); discarding obsolete results",
-                        submissionId, claimToken);
-                return InternalGradingResponse.builder()
-                        .submissionId(submissionId)
-                        .status("OBSOLETE_CLAIM")
-                        .message("Claim expired or superseded by another worker")
-                        .build();
-            }
+            // Reload fresh entity state
+            submission = submissionRepository.findById(submissionId).orElse(submission);
 
             // Generate AST fingerprints
             try {
@@ -131,9 +101,9 @@ public class InternalGradingService {
             return InternalGradingResponse.builder()
                     .submissionId(submissionId)
                     .status("COMPLETED")
-                    .executionStatus(executionStatus)
-                    .exitCode(sandboxResult.getExitCode())
-                    .message("Successfully graded single-file submission")
+                    .executionStatus(submission.getExecutionStatus())
+                    .exitCode(submission.getExitCode())
+                    .message("Successfully graded single-file submission with automated test cases")
                     .build();
         } else {
             // ZIP submission: execution telemetry was persisted during upload; complete with fencing check

@@ -48,15 +48,15 @@ export function ResetPasswordForm() {
           <div className="w-16 h-16 rounded-xl bg-destructive/10 flex items-center justify-center p-2 mb-6">
             <AlertCircle className="w-8 h-8 text-destructive" />
           </div>
-          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Invalid Link</h1>
+          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Liên kết không hợp lệ</h1>
           <p className="text-sm text-muted-foreground mt-2 mb-6">
-            The password reset link is missing or invalid. Please request a new one.
+            Liên kết đặt lại mật khẩu bị thiếu hoặc đã hết hạn. Vui lòng yêu cầu một liên kết mới.
           </p>
           <Link
             href="/forgot-password"
             className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
           >
-            Request new link
+            Yêu cầu liên kết mới
           </Link>
         </div>
       </main>
@@ -70,15 +70,15 @@ export function ResetPasswordForm() {
           <div className="w-16 h-16 rounded-xl bg-green-100 flex items-center justify-center p-2 mb-6">
             <CheckCircle className="w-8 h-8 text-green-700" />
           </div>
-          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Password Reset</h1>
+          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Đặt lại mật khẩu thành công</h1>
           <p className="text-sm text-muted-foreground mt-2 mb-6">
-            Your password has been successfully reset.
+            Mật khẩu của bạn đã được cập nhật thành công.
           </p>
           <Link
             href="/login"
             className="w-full flex items-center justify-center py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
           >
-            Return to Login
+            Quay lại Đăng nhập
           </Link>
         </div>
       </main>
@@ -93,9 +93,9 @@ export function ResetPasswordForm() {
           <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center p-2 mb-2 shadow-sm">
             <span className="font-bold text-2xl text-primary">CA</span>
           </div>
-          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Create New Password</h1>
+          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Tạo mật khẩu mới</h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-            Enter your new secure password below to regain access.
+            Nhập mật khẩu an toàn mới của bạn để truy cập hệ thống.
           </p>
         </div>
 
@@ -103,17 +103,17 @@ export function ResetPasswordForm() {
           <div className="mb-4 p-3 rounded-lg flex items-start gap-3 bg-destructive/10 text-destructive transition-all">
             <AlertCircle className="w-5 h-5 mt-0.5" />
             <div className="flex-1">
-              <p className="text-[13px] font-semibold">Reset Failed</p>
-              <p className="text-xs mt-0.5">The link may have expired or is invalid.</p>
+              <p className="text-[13px] font-semibold">Đặt lại thất bại</p>
+              <p className="text-xs mt-0.5">Liên kết có thể đã hết hạn hoặc không hợp lệ.</p>
             </div>
           </div>
         )}
 
-        <form className="flex flex-col gap-4" onSubmit={(e) => e.preventDefault()} noValidate>
+        <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)} noValidate>
           {/* Password Field */}
-          <div className="flex flex-col gap-1.5 opacity-60">
+          <div className="flex flex-col gap-1.5">
             <label className="text-[13px] font-medium text-foreground" htmlFor="password">
-              New Password
+              Mật khẩu mới
             </label>
             <div className="relative flex items-center">
               <span className="absolute left-3 text-muted-foreground pointer-events-none">
@@ -121,18 +121,30 @@ export function ResetPasswordForm() {
               </span>
               <input
                 id="password"
-                type="password"
-                disabled
-                placeholder="Enter new password"
-                className="w-full pl-10 pr-10 py-2 bg-muted text-muted-foreground text-sm rounded-lg border border-border shadow-sm cursor-not-allowed"
+                type={showPassword ? 'text' : 'password'}
+                {...register('password')}
+                disabled={mutation.isPending}
+                placeholder="Nhập mật khẩu mới (tối thiểu 8 ký tự)"
+                className="w-full pl-10 pr-10 py-2 bg-background text-foreground text-sm rounded-lg border border-border shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 text-muted-foreground hover:text-foreground transition-colors"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
+            {errors.password && (
+              <span className="text-xs text-destructive">{errors.password.message}</span>
+            )}
           </div>
 
           {/* Confirm Password Field */}
-          <div className="flex flex-col gap-1.5 opacity-60">
+          <div className="flex flex-col gap-1.5">
             <label className="text-[13px] font-medium text-foreground" htmlFor="confirmPassword">
-              Confirm Password
+              Xác nhận mật khẩu mới
             </label>
             <div className="relative flex items-center">
               <span className="absolute left-3 text-muted-foreground pointer-events-none">
@@ -140,29 +152,42 @@ export function ResetPasswordForm() {
               </span>
               <input
                 id="confirmPassword"
-                type="password"
-                disabled
-                placeholder="Confirm new password"
-                className="w-full pl-10 pr-10 py-2 bg-muted text-muted-foreground text-sm rounded-lg border border-border shadow-sm cursor-not-allowed"
+                type={showConfirm ? 'text' : 'password'}
+                {...register('confirmPassword')}
+                disabled={mutation.isPending}
+                placeholder="Nhập lại mật khẩu mới"
+                className="w-full pl-10 pr-10 py-2 bg-background text-foreground text-sm rounded-lg border border-border shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
+              <button
+                type="button"
+                onClick={() => setShowConfirm(!showConfirm)}
+                className="absolute right-3 text-muted-foreground hover:text-foreground transition-colors"
+                tabIndex={-1}
+              >
+                {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
-          </div>
-
-          <div className="mt-2 p-4 rounded-lg bg-surface-container-low border border-outline-variant/30 text-center flex flex-col items-center gap-2">
-            <AlertCircle className="w-6 h-6 text-outline" />
-            <span className="font-semibold text-on-surface text-sm">Password Recovery Not Configured</span>
-            <span className="text-xs text-on-surface-variant">
-              This feature is currently unavailable in this environment. Please contact your system administrator if you need to reset your password.
-            </span>
+            {errors.confirmPassword && (
+              <span className="text-xs text-destructive">{errors.confirmPassword.message}</span>
+            )}
           </div>
 
           <button
-            type="button"
-            disabled
-            className="w-full mt-2 py-2.5 px-4 rounded-lg bg-surface-container-highest text-on-surface-variant font-semibold text-base shadow-sm flex items-center justify-center gap-2 cursor-not-allowed opacity-70"
+            type="submit"
+            disabled={mutation.isPending}
+            className="w-full mt-2 py-2.5 px-4 rounded-lg bg-primary text-primary-foreground font-semibold text-base shadow-sm flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer"
           >
-            <span>Save Password</span>
-            <ArrowRight className="w-5 h-5" />
+            {mutation.isPending ? (
+              <>
+                <RefreshCcw className="w-5 h-5 animate-spin" />
+                <span>Đang cập nhật mật khẩu...</span>
+              </>
+            ) : (
+              <>
+                <span>Lưu mật khẩu</span>
+                <ArrowRight className="w-5 h-5" />
+              </>
+            )}
           </button>
         </form>
       </div>

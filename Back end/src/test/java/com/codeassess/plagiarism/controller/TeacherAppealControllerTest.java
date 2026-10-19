@@ -1,7 +1,5 @@
 package com.codeassess.plagiarism.controller;
 
-import com.codeassess.common.exception.ConflictException;
-import com.codeassess.common.exception.ResourceNotFoundException;
 import com.codeassess.plagiarism.dto.AppealResolveRequestDto;
 import com.codeassess.plagiarism.dto.AppealResponseDto;
 import com.codeassess.plagiarism.service.TeacherAppealService;
@@ -89,104 +87,19 @@ public class TeacherAppealControllerTest {
 
     @Test
     @WithMockUser(username = "teachera@fpt.edu.vn", roles = "TEACHER")
-    public void resolveAppeal_Approved_Success() throws Exception {
+    public void teacherCannotResolveAppeal_ReturnsForbidden() throws Exception {
         when(userRepository.findByEmail("teachera@fpt.edu.vn")).thenReturn(Optional.of(teacher));
         AppealResolveRequestDto request = AppealResolveRequestDto.builder()
                 .decision("APPROVED")
                 .reviewerNotes("Accepting valid explanation")
                 .build();
 
-        AppealResponseDto response = AppealResponseDto.builder()
-                .id("apl_100")
-                .status("APPROVED")
-                .reviewerNotes("Accepting valid explanation")
-                .build();
-
-        when(teacherAppealService.resolveAppeal(eq("apl_100"), any(), any())).thenReturn(response);
-
+        // Teachers are strictly forbidden from resolving appeals
         mockMvc.perform(put("/api/teacher/appeals/apl_100/resolve")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("APPROVED"))
-                .andExpect(jsonPath("$.reviewerNotes").value("Accepting valid explanation"));
-    }
-
-    @Test
-    @WithMockUser(username = "teachera@fpt.edu.vn", roles = "TEACHER")
-    public void resolveAppeal_Rejected_Success() throws Exception {
-        when(userRepository.findByEmail("teachera@fpt.edu.vn")).thenReturn(Optional.of(teacher));
-        AppealResolveRequestDto request = AppealResolveRequestDto.builder()
-                .decision("REJECTED")
-                .reviewerNotes("Explanation is not substantiated")
-                .build();
-
-        AppealResponseDto response = AppealResponseDto.builder()
-                .id("apl_100")
-                .status("REJECTED")
-                .reviewerNotes("Explanation is not substantiated")
-                .build();
-
-        when(teacherAppealService.resolveAppeal(eq("apl_100"), any(), any())).thenReturn(response);
-
-        mockMvc.perform(put("/api/teacher/appeals/apl_100/resolve")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("REJECTED"));
-    }
-
-    @Test
-    @WithMockUser(username = "teachera@fpt.edu.vn", roles = "TEACHER")
-    public void resolveAppeal_InvalidDecision_ReturnsBadRequest() throws Exception {
-        when(userRepository.findByEmail("teachera@fpt.edu.vn")).thenReturn(Optional.of(teacher));
-        AppealResolveRequestDto request = AppealResolveRequestDto.builder()
-                .decision("INVALID_DECISION")
-                .build();
-
-        mockMvc.perform(put("/api/teacher/appeals/apl_100/resolve")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    @WithMockUser(username = "teachera@fpt.edu.vn", roles = "TEACHER")
-    public void resolveAppeal_AlreadyResolved_ReturnsConflict() throws Exception {
-        when(userRepository.findByEmail("teachera@fpt.edu.vn")).thenReturn(Optional.of(teacher));
-        AppealResolveRequestDto request = AppealResolveRequestDto.builder()
-                .decision("APPROVED")
-                .build();
-
-        when(teacherAppealService.resolveAppeal(eq("apl_100"), any(), any()))
-                .thenThrow(new ConflictException("Appeal has already been resolved and cannot be modified."));
-
-        mockMvc.perform(put("/api/teacher/appeals/apl_100/resolve")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isConflict());
-    }
-
-    @Test
-    @WithMockUser(username = "teachera@fpt.edu.vn", roles = "TEACHER")
-    public void resolveAppeal_NotFoundOrForbidden_ReturnsNotFound() throws Exception {
-        when(userRepository.findByEmail("teachera@fpt.edu.vn")).thenReturn(Optional.of(teacher));
-        AppealResolveRequestDto request = AppealResolveRequestDto.builder()
-                .decision("APPROVED")
-                .build();
-
-        when(teacherAppealService.resolveAppeal(eq("apl_unknown"), any(), any()))
-                .thenThrow(new ResourceNotFoundException("Appeal not found"));
-
-        mockMvc.perform(put("/api/teacher/appeals/apl_unknown/resolve")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isForbidden());
     }
 
     @Test

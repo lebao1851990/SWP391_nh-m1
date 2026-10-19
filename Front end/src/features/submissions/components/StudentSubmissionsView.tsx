@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStudentSubmissions } from '../hooks';
 import { AppLink as Link } from '@/components/ui/app-link';
 import { 
@@ -11,11 +11,12 @@ import {
   Clock, 
   Award, 
   FileCode2, 
-  ExternalLink,
-  ShieldCheck,
-  AlertCircle,
-  Loader2,
-  X
+  ExternalLink, 
+  ShieldCheck, 
+  AlertCircle, 
+  Loader2, 
+  Scale,
+  X 
 } from 'lucide-react';
 
 export function StudentSubmissionsView() {
@@ -60,7 +61,7 @@ export function StudentSubmissionsView() {
       <div className="max-w-7xl mx-auto px-space-lg py-space-lg">
         <div className="flex flex-col h-72 items-center justify-center gap-3">
           <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-          <p className="text-on-surface-variant font-label-md text-xs">Loading submission history...</p>
+          <p className="text-on-surface-variant font-label-md text-xs">Đang tải lịch sử bài nộp...</p>
         </div>
       </div>
     );
@@ -72,15 +73,15 @@ export function StudentSubmissionsView() {
         <div className="p-3 rounded-full bg-rose-50 text-rose-600">
           <AlertCircle className="w-8 h-8" />
         </div>
-        <h2 className="font-headline-md text-headline-md text-on-surface">Unable to Load Submissions</h2>
+        <h2 className="font-headline-md text-headline-md text-on-surface">Không thể tải danh sách bài nộp</h2>
         <p className="font-body-md text-on-surface-variant text-xs">
-          {(error as Error)?.message || 'An error occurred while fetching your submissions.'}
+          {(error as Error)?.message || 'Đã xảy ra lỗi khi tải danh sách bài nộp của bạn.'}
         </p>
         <button
           onClick={() => refetch()}
           className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-all cursor-pointer shadow-xs"
         >
-          Retry
+          Thử lại
         </button>
       </div>
     );
@@ -92,18 +93,18 @@ export function StudentSubmissionsView() {
         {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 text-xs text-on-surface-variant">
           <Link className="hover:text-primary transition-colors font-medium" href="/student/dashboard">
-            Dashboard
+            Bảng điều khiển
           </Link>
           <ChevronRight className="w-3.5 h-3.5 text-outline" />
-          <span className="text-on-surface font-semibold">My Submissions</span>
+          <span className="text-on-surface font-semibold">Bài nộp của tôi</span>
         </div>
 
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md">
           <div className="flex flex-col gap-0.5">
-            <h1 className="font-display-lg text-display-lg text-on-surface tracking-tight">My Submissions</h1>
+            <h1 className="font-display-lg text-display-lg text-on-surface tracking-tight">Bài nộp của tôi</h1>
             <p className="text-xs sm:text-sm text-on-surface-variant">
-              Track your code artifacts, evaluation progress, and automated AST verification results.
+              Theo dõi mã nguồn bài làm của bạn, tiến độ chấm điểm và kết quả kiểm định AST tự động.
             </p>
           </div>
           <Link
@@ -111,26 +112,26 @@ export function StudentSubmissionsView() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors self-start lg:self-auto shadow-xs"
           >
             <FileCode2 className="w-4 h-4" />
-            <span>Browse Active Exams</span>
+            <span>Xem các bài thi đang mở</span>
           </Link>
         </div>
 
         {/* 4 Metric Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-space-sm">
           <div className="bg-surface-container-lowest p-space-md rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between">
-            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">Total Submissions</span>
+            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">Tổng số bài nộp</span>
             <span className="font-display-lg font-bold text-on-surface mt-2">{stats.total}</span>
           </div>
           <div className="bg-surface-container-lowest p-space-md rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between">
-            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">Graded</span>
+            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">Đã chấm điểm</span>
             <span className="font-display-lg font-bold text-emerald-600 mt-2">{stats.graded}</span>
           </div>
           <div className="bg-surface-container-lowest p-space-md rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between">
-            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">In Review</span>
+            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">Đang xem xét</span>
             <span className="font-display-lg font-bold text-amber-600 mt-2">{stats.pending}</span>
           </div>
           <div className="bg-surface-container-lowest p-space-md rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between">
-            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">Avg Score</span>
+            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">Điểm trung bình</span>
             <div className="mt-2 flex items-baseline gap-1">
               <span className="font-display-lg font-bold text-primary">{stats.avgScore}</span>
               <span className="text-xs text-outline font-normal">/ 100</span>
@@ -144,7 +145,7 @@ export function StudentSubmissionsView() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-outline w-4 h-4" />
             <input
               type="text"
-              placeholder="Search by exam title or submission ID..."
+              placeholder="Tìm kiếm theo tiêu đề bài thi hoặc mã bài nộp..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-8 py-1.5 bg-surface-container-low border border-outline-variant/40 rounded-lg text-xs text-on-surface placeholder:text-outline focus:outline-none focus:border-primary transition-colors"
@@ -159,17 +160,17 @@ export function StudentSubmissionsView() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-on-surface-variant font-label-xs text-xs font-medium">Filter:</span>
+            <span className="text-on-surface-variant font-label-xs text-xs font-medium">Bộ lọc:</span>
             <div className="relative">
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
                 className="appearance-none pl-3 pr-8 py-1.5 bg-surface-container-low border border-outline-variant/40 rounded-lg text-xs text-on-surface focus:outline-none cursor-pointer"
               >
-                <option value="all">All Statuses</option>
-                <option value="GRADED">Graded</option>
-                <option value="PENDING">Pending</option>
-                <option value="EVALUATING">Evaluating</option>
+                <option value="all">Tất cả trạng thái</option>
+                <option value="GRADED">Đã chấm điểm</option>
+                <option value="PENDING">Chờ chấm điểm</option>
+                <option value="EVALUATING">Đang đánh giá</option>
               </select>
               <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-outline w-3.5 h-3.5 pointer-events-none" />
             </div>
@@ -182,12 +183,12 @@ export function StudentSubmissionsView() {
             <table className="w-full text-left border-collapse text-xs" id="student-submissions-table">
               <thead>
                 <tr className="bg-surface-container-low text-on-surface-variant font-label-xs uppercase tracking-wider border-b border-outline-variant/30 select-none">
-                  <th className="py-2.5 px-4 font-semibold">Exam Title</th>
-                  <th className="py-2.5 px-4 font-semibold">Submitted At</th>
-                  <th className="py-2.5 px-4 font-semibold">Score</th>
-                  <th className="py-2.5 px-4 font-semibold">Status</th>
-                  <th className="py-2.5 px-4 font-semibold">AST Integrity</th>
-                  <th className="py-2.5 px-4 font-semibold text-right">Actions</th>
+                  <th className="py-2.5 px-4 font-semibold">Tiêu đề bài thi</th>
+                  <th className="py-2.5 px-4 font-semibold">Thời gian nộp</th>
+                  <th className="py-2.5 px-4 font-semibold">Điểm số</th>
+                  <th className="py-2.5 px-4 font-semibold">Trạng thái</th>
+                  <th className="py-2.5 px-4 font-semibold">Kiểm định AST</th>
+                  <th className="py-2.5 px-4 font-semibold text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/20 text-on-surface">
@@ -196,11 +197,11 @@ export function StudentSubmissionsView() {
                     <td colSpan={6} className="py-12 text-center text-on-surface-variant">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <FileCode2 className="w-8 h-8 text-outline" />
-                        <p className="font-semibold text-on-surface text-sm">No submissions found</p>
+                        <p className="font-semibold text-on-surface text-sm">Không tìm thấy bài nộp nào</p>
                         <p className="text-outline text-xs">
                           {searchQuery || statusFilter !== 'all'
-                            ? 'No submissions match your filter criteria.'
-                            : 'You have not submitted any exam solutions yet.'}
+                            ? 'Không có bài nộp nào khớp với điều kiện lọc của bạn.'
+                            : 'Bạn chưa nộp bài thi nào.'}
                         </p>
                       </div>
                     </td>
@@ -208,7 +209,7 @@ export function StudentSubmissionsView() {
                 ) : (
                   filteredSubmissions.map(sub => {
                     const isGraded = sub.status === 'GRADED';
-                    const displayTitle = sub.examTitle || `Exam #${sub.examId?.substring(0, 8)}`;
+                    const displayTitle = sub.examTitle || `Bài thi #${sub.examId?.substring(0, 8)}`;
                     return (
                       <tr
                         key={sub.id}
@@ -221,7 +222,7 @@ export function StudentSubmissionsView() {
                           </div>
                         </td>
                         <td className="py-3 px-4 text-on-surface-variant">
-                          {sub.createdAt ? new Date(sub.createdAt).toLocaleString() : 'N/A'}
+                          {sub.createdAt ? new Date(sub.createdAt).toLocaleString('vi-VN') : 'N/A'}
                         </td>
                         <td className="py-3 px-4">
                           {isGraded ? (
@@ -230,7 +231,7 @@ export function StudentSubmissionsView() {
                               <span className="text-outline text-[10px] ml-0.5">/100</span>
                             </span>
                           ) : (
-                            <span className="text-outline italic">Pending</span>
+                            <span className="text-outline italic">Chờ chấm</span>
                           )}
                         </td>
                         <td className="py-3 px-4">
@@ -241,23 +242,35 @@ export function StudentSubmissionsView() {
                                 : 'bg-amber-50 text-amber-700 border border-amber-200'
                             }`}
                           >
-                            {sub.status || 'PENDING'}
+                            {isGraded ? 'Đã chấm' : 'Chờ chấm'}
                           </span>
                         </td>
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-1.5 text-emerald-700">
                             <ShieldCheck className="w-3.5 h-3.5" />
-                            <span className="font-semibold text-[11px]">AST Verified</span>
+                            <span className="font-semibold text-[11px]">Đã xác thực AST</span>
                           </div>
                         </td>
                         <td className="py-3 px-4 text-right">
-                          <Link
-                            href={`/student/submissions/${sub.id}`}
-                            className="inline-flex items-center gap-1 px-3 py-1 bg-surface-container hover:bg-surface-container-high text-primary rounded-lg font-medium transition-colors"
-                          >
-                            <span>View Result</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </Link>
+                          <div className="inline-flex items-center gap-1.5 justify-end">
+                            <Link
+                              href={`/student/submissions/${sub.id}`}
+                              className="inline-flex items-center gap-1 px-3 py-1 bg-surface-container hover:bg-surface-container-high text-primary rounded-lg font-medium transition-colors"
+                            >
+                              <span>Xem kết quả</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </Link>
+                            {isGraded && (
+                              <Link
+                                href={`/student/appeals/new?submissionId=${sub.id}&examTitle=${encodeURIComponent(displayTitle)}&score=${sub.overrideScore != null ? sub.overrideScore : (sub.totalScore != null ? sub.totalScore : 0)}`}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg font-medium transition-colors"
+                                title="Khiếu nại điểm bài thi này"
+                              >
+                                <Scale className="w-3 h-3 text-amber-600" />
+                                <span>Khiếu nại điểm</span>
+                              </Link>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -269,8 +282,8 @@ export function StudentSubmissionsView() {
           {filteredSubmissions.length > 0 && (
             <div className="px-4 py-2.5 bg-surface-container-low/40 flex items-center justify-between text-xs text-outline border-t border-outline-variant/20">
               <span>
-                Showing <strong className="text-on-surface">{filteredSubmissions.length}</strong> of{' '}
-                <strong className="text-on-surface">{submissions?.length || 0}</strong> submissions
+                Hiển thị <strong className="text-on-surface">{filteredSubmissions.length}</strong> trên tổng số{' '}
+                <strong className="text-on-surface">{submissions?.length || 0}</strong> bài nộp
               </span>
             </div>
           )}

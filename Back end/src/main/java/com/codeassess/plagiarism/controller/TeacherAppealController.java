@@ -7,6 +7,7 @@ import com.codeassess.user.entity.User;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -33,19 +34,27 @@ public class TeacherAppealController {
         return ResponseEntity.ok(teacherAppealService.getTeacherAppeal(opaqueId, currentUser));
     }
 
+    /**
+     * Deprecated/Locked: Teachers are strictly forbidden from resolving appeals.
+     * Appeal resolution authority is exclusively assigned to Administrators.
+     */
     @PutMapping("/{id}/resolve")
     public ResponseEntity<AppealResponseDto> resolveAppealPut(
             @PathVariable("id") String opaqueId,
             @Valid @RequestBody AppealResolveRequestDto dto,
             @AuthenticationPrincipal User currentUser) {
-        return ResponseEntity.ok(teacherAppealService.resolveAppeal(opaqueId, dto, currentUser));
+        throw new AccessDeniedException("Giảng viên không có quyền phê duyệt hoặc từ chối khiếu nại. Thao tác này thuộc thẩm quyền của Quản trị viên (Admin).");
     }
 
+    /**
+     * Deprecated/Locked: Teachers are strictly forbidden from resolving appeals.
+     * Appeal resolution authority is exclusively assigned to Administrators.
+     */
     @PostMapping("/{id}/resolve")
     public ResponseEntity<AppealResponseDto> resolveAppealPost(
             @PathVariable("id") String opaqueId,
             @Valid @RequestBody AppealResolveRequestDto dto,
             @AuthenticationPrincipal User currentUser) {
-        return ResponseEntity.ok(teacherAppealService.resolveAppeal(opaqueId, dto, currentUser));
+        throw new AccessDeniedException("Giảng viên không có quyền phê duyệt hoặc từ chối khiếu nại. Thao tác này thuộc thẩm quyền của Quản trị viên (Admin).");
     }
 }

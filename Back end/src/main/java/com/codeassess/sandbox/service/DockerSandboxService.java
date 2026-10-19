@@ -31,9 +31,16 @@ import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.ArrayList;
+import java.util.UUID;
+import java.math.BigDecimal;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import com.codeassess.testcase.dto.sandbox.TestCaseBatchItem;
+import com.codeassess.testcase.dto.sandbox.TestCaseBatchSuiteResult;
+import com.codeassess.testcase.dto.sandbox.TestCaseExecutionItemResult;
+import com.codeassess.testcase.util.OutputNormalizer;
 
 /**
  * Runs untrusted Java source code inside a hardened, disposable Docker container.
@@ -235,6 +242,302 @@ public class DockerSandboxService {
             return runWorkspaceInContainer(workspace, entryPointClass != null ? entryPointClass.trim() : null);
         } finally {
             getSemaphore().release();
+        }
+    }
+
+    /**
+     * Executes single-file Java source code against a batch of test cases inside an isolated Docker container.
+     * Compiles once; if compile fails, returns compiled=false with compilation error.
+     * If compile succeeds, runs each test case sequentially with input redirected from stdin,
+     * enforcing individual per-test timeouts with /usr/bin/timeout.
+     *
+     * @param sourceCode raw Java source code
+     * @param testCases list of test cases with input, expected output, and timeout
+     * @return test suite execution results
+     */
+    public TestCaseBatchSuiteResult executeTestCaseSuite(String sourceCode, List<TestCaseBatchItem> testCases) {
+        validateSource(sourceCode);
+        if (testCases == null || testCases.isEmpty()) {
+            throw new IllegalArgumentException("testCases list must not be empty");
+        }
+
+        if (!getSemaphore().tryAcquire()) {
+            log.warn("Sandbox concurrency limit ({}) reached — rejecting request",
+                    props.getMaxConcurrentExecutions());
+            throw new SandboxException("Sandbox is at capacity. Try again shortly.");
+        }
+
+        try {
+            return runTestCaseSuiteInContainer(sourceCode, testCases);
+        } finally {
+            getSemaphore().release();
+        }
+    }
+
+    private TestCaseBatchSuiteResult runTestCaseSuiteInContainer(String sourceCode, List<TestCaseBatchItem> testCases) {
+        String base64Source = Base64.getEncoder().encodeToString(sourceCode.getBytes(StandardCharsets.UTF_8));
+        String runToken = UUID.randomUUID().toString().replace("-", "");
+        String compileMarker = "TC_COMPILE_" + runToken;
+        String tcStart = "TC_START_" + runToken + "_";
+        String tcExit = "TC_EXIT_" + runToken + "_";
+        String tcTime = "TC_TIME_" + runToken + "_";
+        String tcOut = "TC_OUT_" + runToken + "_";
+        String tcErr = "TC_ERR_" + runToken + "_";
+        String tcEnd = "TC_END_" + runToken + "_";
+
+        StringBuilder script = new StringBuilder();
+        script.append("set -e; ");
+        script.append("mkdir -p ").append(TMP_DIR).append(" ").append(CLASS_DIR).append("; ");
+        script.append("echo '").append(base64Source).append("' | base64 -d > ").append(SOURCE_FILE).append("; ");
+        script.append("if ! javac -d ").append(CLASS_DIR).append(" ").append(SOURCE_FILE).append(" 2>/tmp/sandbox/compile.err; then ");
+        script.append("  echo '<<<").append(compileMarker).append(":FAILED>>>'; ");
+        script.append("  cat /tmp/sandbox/compile.err; ");
+        script.append("  exit 1; ");
+        script.append("fi; ");
+        script.append("echo '<<<").append(compileMarker).append(":SUCCESS>>>'; ");
+        script.append("set +e; ");
+
+        int totalTimeoutSeconds = 15; // 15s startup and compilation budget
+        for (int i = 0; i < testCases.size(); i++) {
+            TestCaseBatchItem tc = testCases.get(i);
+            String input = tc.getInputData() != null ? tc.getInputData() : "";
+            String base64Input = Base64.getEncoder().encodeToString(input.getBytes(StandardCharsets.UTF_8));
+            int timeoutSec = tc.getTimeoutSeconds() > 0 ? tc.getTimeoutSeconds() : 5;
+            totalTimeoutSeconds += timeoutSec;
+
+            script.append("echo '").append(base64Input).append("' | base64 -d > /tmp/sandbox/in_").append(i).append(".txt; ");
+            script.append("echo '<<<").append(tcStart).append(i).append(">>>'; ");
+            script.append("START_TS=$(date +%s%3N 2>/dev/null || date +%s000); ");
+            script.append("timeout ").append(timeoutSec).append(" java -cp ").append(CLASS_DIR)
+                  .append(" -Xmx256m -Xms32m -Djava.security.manager=disallow Main < /tmp/sandbox/in_").append(i)
+                  .append(".txt > /tmp/sandbox/out_").append(i).append(".txt 2> /tmp/sandbox/err_").append(i).append(".txt; ");
+            script.append("ec=$?; ");
+            script.append("END_TS=$(date +%s%3N 2>/dev/null || date +%s000); ");
+            script.append("DUR=$((END_TS - START_TS)); ");
+            script.append("echo '<<<").append(tcExit).append(i).append(":'$ec'>>>'; ");
+            script.append("echo '<<<").append(tcTime).append(i).append(":'$DUR'>>>'; ");
+            script.append("echo '<<<").append(tcOut).append(i).append(">>>'; ");
+            script.append("cat /tmp/sandbox/out_").append(i).append(".txt; ");
+            script.append("echo '<<<").append(tcErr).append(i).append(">>>'; ");
+            script.append("cat /tmp/sandbox/err_").append(i).append(".txt; ");
+            script.append("echo '<<<").append(tcEnd).append(i).append(">>>'; ");
+        }
+        script.append("exit 0;");
+
+        String containerId = null;
+        long startMs = System.currentTimeMillis();
+        AtomicBoolean timedOut = new AtomicBoolean(false);
+
+        try {
+            containerId = createContainer(script.toString());
+            dockerClient.startContainerCmd(containerId).exec();
+
+            final String finalContainerId = containerId;
+            final int maxWaitSec = Math.max(totalTimeoutSeconds, props.getTimeoutSeconds());
+            Thread timeoutThread = new Thread(() -> {
+                try {
+                    Thread.sleep(maxWaitSec * 1000L);
+                    log.warn("Test suite container {} timed out after {}s — stopping", finalContainerId, maxWaitSec);
+                    timedOut.set(true);
+                    stopContainer(finalContainerId);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }, "sandbox-tc-timeout-" + finalContainerId.substring(0, 12));
+            timeoutThread.setDaemon(true);
+            timeoutThread.start();
+
+            OutputCollector collector = new OutputCollector(props.getMaxOutputBytes());
+            try (RawLogResultCallback logCallback = dockerClient.logContainerCmd(containerId)
+                    .withStdOut(true)
+                    .withStdErr(true)
+                    .withFollowStream(true)
+                    .exec(new RawLogResultCallback(collector))) {
+
+                dockerClient.waitContainerCmd(containerId)
+                        .exec(new WaitContainerResultCallback())
+                        .awaitStatusCode(maxWaitSec + 2L, TimeUnit.SECONDS);
+
+                try {
+                    logCallback.awaitCompletion(3, TimeUnit.SECONDS);
+                } catch (Exception ignored) {}
+
+                timeoutThread.interrupt();
+                long totalElapsedMs = System.currentTimeMillis() - startMs;
+
+                String fullLog = collector.getStdout() + "\n" + collector.getStderr();
+                log.info("Full test suite container output for {}: [{}]", containerId, fullLog);
+
+                // Check compile marker
+                String failedMarker = "<<<" + compileMarker + ":FAILED>>>";
+                String successMarker = "<<<" + compileMarker + ":SUCCESS>>>";
+
+                if (fullLog.contains(failedMarker)) {
+                    int idx = fullLog.indexOf(failedMarker);
+                    String compileErr = fullLog.substring(idx + failedMarker.length()).trim();
+                    List<TestCaseExecutionItemResult> items = new ArrayList<>();
+                    for (TestCaseBatchItem tc : testCases) {
+                        items.add(TestCaseExecutionItemResult.builder()
+                                .testCaseId(tc.getId())
+                                .testCaseName(tc.getName())
+                                .isHidden(tc.getIsHidden())
+                                .status("COMPILE_ERROR")
+                                .errorMessage(compileErr)
+                                .actualOutput("")
+                                .expectedOutput(tc.getExpectedOutput())
+                                .pointsAwarded(BigDecimal.ZERO)
+                                .maxPoints(tc.getPoints())
+                                .executionTimeMs(0L)
+                                .exitCode(1)
+                                .build());
+                    }
+                    return TestCaseBatchSuiteResult.builder()
+                            .compiled(false)
+                            .compileOutput(compileErr)
+                            .itemResults(items)
+                            .totalDurationMs(totalElapsedMs)
+                            .build();
+                }
+
+                boolean compiled = fullLog.contains(successMarker);
+                List<TestCaseExecutionItemResult> items = new ArrayList<>();
+
+                for (int i = 0; i < testCases.size(); i++) {
+                    TestCaseBatchItem tc = testCases.get(i);
+                    String startTag = "<<<" + tcStart + i + ">>>";
+                    String exitTagPrefix = "<<<" + tcExit + i + ":";
+                    String timeTagPrefix = "<<<" + tcTime + i + ":";
+                    String outTag = "<<<" + tcOut + i + ">>>";
+                    String errTag = "<<<" + tcErr + i + ">>>";
+                    String endTag = "<<<" + tcEnd + i + ">>>";
+
+                    if (!fullLog.contains(startTag) || !fullLog.contains(endTag)) {
+                        items.add(TestCaseExecutionItemResult.builder()
+                                .testCaseId(tc.getId())
+                                .testCaseName(tc.getName())
+                                .isHidden(tc.getIsHidden())
+                                .status(timedOut.get() ? "TIMEOUT" : "NOT_EXECUTED")
+                                .errorMessage(timedOut.get() ? "Execution timed out" : "Process terminated prematurely")
+                                .actualOutput("")
+                                .expectedOutput(tc.getExpectedOutput())
+                                .pointsAwarded(BigDecimal.ZERO)
+                                .maxPoints(tc.getPoints())
+                                .executionTimeMs(0L)
+                                .exitCode(null)
+                                .build());
+                        continue;
+                    }
+
+                    // Extract exit code
+                    Integer exitCode = null;
+                    int exitStart = fullLog.indexOf(exitTagPrefix);
+                    if (exitStart >= 0) {
+                        int exitEnd = fullLog.indexOf(">>>", exitStart);
+                        if (exitEnd > exitStart) {
+                            String codeStr = fullLog.substring(exitStart + exitTagPrefix.length(), exitEnd).trim();
+                            try {
+                                exitCode = Integer.parseInt(codeStr);
+                            } catch (NumberFormatException ignored) {}
+                        }
+                    }
+
+                    // Extract time ms
+                    Long execDurationMs = null;
+                    int timeStart = fullLog.indexOf(timeTagPrefix);
+                    if (timeStart >= 0) {
+                        int timeEnd = fullLog.indexOf(">>>", timeStart);
+                        if (timeEnd > timeStart) {
+                            String timeStr = fullLog.substring(timeStart + timeTagPrefix.length(), timeEnd).trim();
+                            try {
+                                execDurationMs = Long.parseLong(timeStr);
+                            } catch (NumberFormatException ignored) {}
+                        }
+                    }
+
+                    // Extract stdout
+                    String stdout = "";
+                    int outStart = fullLog.indexOf(outTag);
+                    int errStart = fullLog.indexOf(errTag);
+                    if (outStart >= 0 && errStart > outStart) {
+                        stdout = fullLog.substring(outStart + outTag.length(), errStart);
+                        if (stdout.startsWith("\r\n")) {
+                            stdout = stdout.substring(2);
+                        } else if (stdout.startsWith("\n")) {
+                            stdout = stdout.substring(1);
+                        }
+                    }
+
+                    // Extract stderr
+                    String stderr = "";
+                    int endStart = fullLog.indexOf(endTag);
+                    if (errStart >= 0 && endStart > errStart) {
+                        stderr = fullLog.substring(errStart + errTag.length(), endStart);
+                        if (stderr.startsWith("\r\n")) {
+                            stderr = stderr.substring(2);
+                        } else if (stderr.startsWith("\n")) {
+                            stderr = stderr.substring(1);
+                        }
+                    }
+
+                    String status;
+                    BigDecimal pointsAwarded = BigDecimal.ZERO;
+                    String errorMessage = null;
+
+                    if (exitCode != null && (exitCode == 124 || exitCode == 137 || exitCode == 143)) {
+                        status = "TIMEOUT";
+                        errorMessage = "Execution timed out (exceeded " + tc.getTimeoutSeconds() + "s limit)";
+                    } else if (exitCode != null && exitCode != 0) {
+                        status = "RUNTIME_ERROR";
+                        errorMessage = stderr.trim();
+                    } else {
+                        boolean matches = OutputNormalizer.matches(stdout, tc.getExpectedOutput());
+                        if (matches) {
+                            status = "PASSED";
+                            pointsAwarded = tc.getPoints() != null ? tc.getPoints() : BigDecimal.valueOf(10.00);
+                        } else {
+                            status = "FAILED";
+                        }
+                    }
+
+                    items.add(TestCaseExecutionItemResult.builder()
+                            .testCaseId(tc.getId())
+                            .testCaseName(tc.getName())
+                            .isHidden(tc.getIsHidden())
+                            .status(status)
+                            .actualOutput(stdout)
+                            .expectedOutput(tc.getExpectedOutput())
+                            .pointsAwarded(pointsAwarded)
+                            .maxPoints(tc.getPoints())
+                            .executionTimeMs(execDurationMs)
+                            .exitCode(exitCode)
+                            .errorMessage(errorMessage)
+                            .build());
+                }
+
+                return TestCaseBatchSuiteResult.builder()
+                        .compiled(compiled)
+                        .compileOutput(compiled ? "Compilation successful" : "Failed")
+                        .itemResults(items)
+                        .totalDurationMs(totalElapsedMs)
+                        .build();
+
+            } catch (Exception e) {
+                timeoutThread.interrupt();
+                log.error("Error collecting container test suite output for {}", containerId, e);
+                throw new SandboxException("Failed to collect container test suite output", e);
+            }
+        } catch (SandboxException | IllegalArgumentException e) {
+            throw e;
+        } catch (DockerException e) {
+            log.error("Docker error during sandbox test suite execution", e);
+            throw new SandboxException("Docker engine error: " + sanitizeDockerError(e), e);
+        } catch (Exception e) {
+            log.error("Unexpected sandbox error during test suite execution", e);
+            throw new SandboxException("Sandbox infrastructure failure", e);
+        } finally {
+            if (containerId != null) {
+                removeContainer(containerId);
+            }
         }
     }
 

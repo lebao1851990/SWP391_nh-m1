@@ -16,6 +16,9 @@ public class SubmissionDetailResponse {
     private String sourceCode;
     private BigDecimal totalScore;
     private BigDecimal overrideScore;
+    private BigDecimal autoScore;
+    private Integer testCasesPassed;
+    private Integer testCasesTotal;
     private LocalDateTime evaluatedAt;
     private LocalDateTime createdAt;
     private String submissionType;

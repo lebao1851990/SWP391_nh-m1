@@ -60,6 +60,9 @@ export interface CreateExamPayload {
   title: string;
   classId?: string;
   classIds?: string[];
+  newClassCode?: string;
+  newClassName?: string;
+  semester?: string;
   date: string;
   durationMinutes: number;
 }
@@ -76,6 +79,11 @@ export interface UpdateExamPayload {
 export const teacherExamsApi = {
   getMyClasses: async (): Promise<TeacherClassResponse[]> => {
     const response = await apiClient.get('/teacher/classes');
+    return response.data;
+  },
+
+  createClass: async (payload: { name: string; code: string; semester?: string }): Promise<TeacherClassResponse> => {
+    const response = await apiClient.post('/teacher/classes', payload);
     return response.data;
   },
 
@@ -112,5 +120,73 @@ export const teacherExamsApi = {
   getSubmissionById: async (id: string): Promise<SubmissionDetailResponse> => {
     const response = await apiClient.get(`/teacher/submissions/${id}`);
     return response.data;
+  },
+
+  getClassStudents: async (classId: string): Promise<{ id: string; studentId: string; email: string; fullName?: string }[]> => {
+    const response = await apiClient.get(`/teacher/classes/${classId}/students`);
+    return response.data;
+  },
+
+  enrollStudent: async (classId: string, payload: { studentId?: string; email?: string }): Promise<{ id: string; studentId: string; email: string; fullName?: string }> => {
+    const response = await apiClient.post(`/teacher/classes/${classId}/students`, payload);
+    return response.data;
+  },
+
+  unenrollStudent: async (classId: string, studentId: string): Promise<void> => {
+    await apiClient.delete(`/teacher/classes/${classId}/students/${studentId}`);
+  },
+
+  getExamTestCases: async (examId: string): Promise<TestCaseResponse[]> => {
+    const response = await apiClient.get(`/teacher/exams/${examId}/test-cases`);
+    return response.data;
+  },
+
+  createTestCase: async (examId: string, payload: CreateTestCasePayload): Promise<TestCaseResponse> => {
+    const response = await apiClient.post(`/teacher/exams/${examId}/test-cases`, payload);
+    return response.data;
+  },
+
+  updateTestCase: async (examId: string, id: string, payload: UpdateTestCasePayload): Promise<TestCaseResponse> => {
+    const response = await apiClient.put(`/teacher/exams/${examId}/test-cases/${id}`, payload);
+    return response.data;
+  },
+
+  deleteTestCase: async (examId: string, id: string): Promise<void> => {
+    await apiClient.delete(`/teacher/exams/${examId}/test-cases/${id}`);
   }
 };
+
+export interface TestCaseResponse {
+  id: string;
+  examId: string;
+  name: string;
+  description?: string;
+  inputData?: string;
+  expectedOutput?: string;
+  points: number;
+  isHidden: boolean;
+  displayOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTestCasePayload {
+  name: string;
+  description?: string;
+  inputData?: string;
+  expectedOutput?: string;
+  points: number;
+  isHidden?: boolean;
+  displayOrder?: number;
+}
+
+export interface UpdateTestCasePayload {
+  name: string;
+  description?: string;
+  inputData?: string;
+  expectedOutput?: string;
+  points: number;
+  isHidden?: boolean;
+  displayOrder?: number;
+}
+

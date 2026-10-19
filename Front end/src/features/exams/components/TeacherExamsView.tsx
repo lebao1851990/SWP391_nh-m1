@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useTeacherExams, useTeacherClasses, useCreateExam } from '../hooks/use-teacher-exams';
+import { useTeacherExams, useTeacherClasses, useCreateExam, useCreateTeacherClass } from '../hooks/use-teacher-exams';
 import { AppLink as Link } from '@/components/ui/app-link';
 import { 
   Search, 
@@ -15,14 +15,16 @@ import {
   ExternalLink,
   AlertCircle,
   Loader2,
-  Users
+  Users,
+  FolderPlus
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function TeacherExamsView() {
   const { data: exams, isLoading, isError, error } = useTeacherExams();
-  const { data: classes } = useTeacherClasses();
+  const { data: classes, refetch: refetchClasses } = useTeacherClasses();
   const createExam = useCreateExam();
+  const createTeacherClass = useCreateTeacherClass();
 
   const [searchQuery, setSearchQuery] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -45,6 +47,12 @@ export function TeacherExamsView() {
   const [durationMinutes, setDurationMinutes] = useState(90);
   const [formError, setFormError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+
+  // Quick class creation state
+  const [showQuickCreateClass, setShowQuickCreateClass] = useState(false);
+  const [newClassCode, setNewClassCode] = useState('');
+  const [newClassName, setNewClassName] = useState('');
+  const [isCreatingClass, setIsCreatingClass] = useState(false);
 
   const filteredExams = useMemo(() => {
     if (!exams) return [];
@@ -97,6 +105,9 @@ export function TeacherExamsView() {
     setExamDate(now.toISOString().slice(0, 16));
     setDurationMinutes(90);
     setFormError('');
+    setNewClassCode('');
+    setNewClassName('');
+    setShowQuickCreateClass(!classes || classes.length === 0);
     setIsCreateModalOpen(true);
   };
 
@@ -108,22 +119,51 @@ export function TeacherExamsView() {
     );
   };
 
+  const handleQuickAddClass = async () => {
+    if (!newClassCode.trim()) {
+      setFormError('Vui lòng nhập mã lớp học (ví dụ: PRJ301).');
+      return;
+    }
+    const name = newClassName.trim() || newClassCode.trim();
+    setIsCreatingClass(true);
+    setFormError('');
+    try {
+      const created = await createTeacherClass.mutateAsync({
+        code: newClassCode.trim(),
+        name,
+        semester: 'Fall 2026',
+      });
+      toast.success(`Đã tạo lớp học ${created.code} thành công!`);
+      setSelectedClassIds(prev => [...prev, created.id]);
+      setNewClassCode('');
+      setNewClassName('');
+      setShowQuickCreateClass(false);
+      refetchClasses();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message || (err as { message?: string })?.message || 'Không thể tạo lớp học';
+      setFormError(msg);
+      toast.error(msg);
+    } finally {
+      setIsCreatingClass(false);
+    }
+  };
+
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!examTitle.trim()) {
-      setFormError('Exam title is required.');
+      setFormError('Tiêu đề bài thi không được để trống.');
       return;
     }
-    if (selectedClassIds.length === 0) {
-      setFormError('Please select at least one course class for the exam.');
+    if (selectedClassIds.length === 0 && !newClassCode.trim()) {
+      setFormError('Vui lòng chọn hoặc nhập ít nhất một lớp học cho bài thi.');
       return;
     }
     if (!examDate) {
-      setFormError('Exam date and start time are required.');
+      setFormError('Vui lòng chọn ngày và giờ bắt đầu thi.');
       return;
     }
     if (durationMinutes <= 0) {
-      setFormError('Duration must be greater than 0 minutes.');
+      setFormError('Thời lượng thi phải lớn hơn 0 phút.');
       return;
     }
 
@@ -132,20 +172,24 @@ export function TeacherExamsView() {
       {
         title: examTitle.trim(),
         classId: selectedClassIds[0],
-        classIds: selectedClassIds,
+        classIds: selectedClassIds.length > 0 ? selectedClassIds : undefined,
+        newClassCode: newClassCode.trim() ? newClassCode.trim() : undefined,
+        newClassName: newClassName.trim() ? newClassName.trim() : undefined,
+        semester: 'Fall 2026',
         date: new Date(examDate).toISOString(),
         durationMinutes: Number(durationMinutes),
       },
       {
         onSuccess: (newExam) => {
           setIsCreateModalOpen(false);
-          const msg = `Exam "${newExam.title}" created successfully!`;
+          const msg = `Tạo bài thi "${newExam.title}" thành công!`;
           setSuccessMessage(msg);
           toast.success(msg);
           setTimeout(() => setSuccessMessage(''), 5000);
+          refetchClasses();
         },
         onError: (err: unknown) => {
-          const msg = (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message || (err as { message?: string })?.message || 'Failed to create exam';
+          const msg = (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message || (err as { message?: string })?.message || 'Đã xảy ra lỗi khi tạo bài thi. Vui lòng thử lại.';
           setFormError(msg);
           toast.error(msg);
         },
@@ -157,7 +201,7 @@ export function TeacherExamsView() {
     return (
       <div className="flex flex-col h-72 items-center justify-center gap-3">
         <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-        <p className="text-on-surface-variant font-label-md text-xs">Loading course exams...</p>
+        <p className="text-on-surface-variant font-label-md text-xs">Đang tải danh sách bài thi...</p>
       </div>
     );
   }
@@ -168,13 +212,13 @@ export function TeacherExamsView() {
         <div className="p-3 rounded-full bg-rose-50 text-rose-600">
           <AlertCircle className="w-8 h-8" />
         </div>
-        <h2 className="font-headline-md text-headline-md text-on-surface">Error Loading Exams</h2>
-        <p className="font-body-md text-on-surface-variant text-xs">{(error as Error).message}</p>
+        <h2 className="font-headline-md text-headline-md text-on-surface">Lỗi tải dữ liệu bài thi</h2>
+        <p className="font-body-md text-on-surface-variant text-xs">{(error as Error).message || 'Đã xảy ra lỗi. Vui lòng thử lại.'}</p>
         <button 
           onClick={() => window.location.reload()}
           className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-all cursor-pointer"
         >
-          Retry Connection
+          Thử kết nối lại
         </button>
       </div>
     );
@@ -200,11 +244,11 @@ export function TeacherExamsView() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-space-md mb-space-lg">
           <div className="flex flex-col">
             <div className="flex items-center gap-space-sm">
-              <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">Exam Management</h1>
-              <span className="font-label-xs text-xs px-2 py-0.5 rounded bg-surface-container border border-outline-variant/30 text-on-surface-variant font-medium">Fall 2026 Term</span>
+              <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">Quản lý bài thi</h1>
+              <span className="font-label-xs text-xs px-2 py-0.5 rounded bg-surface-container border border-outline-variant/30 text-on-surface-variant font-medium">Học kỳ Fall 2026</span>
             </div>
             <p className="font-body-md text-body-md text-on-surface-variant mt-0.5 text-xs sm:text-sm">
-              Create, configure, and monitor your course programming assessments and AST detection runs.
+              Tạo, cấu hình và giám sát các bài thi lập trình và phiên quét đạo văn cây AST của bạn.
             </p>
           </div>
           <button
@@ -213,7 +257,7 @@ export function TeacherExamsView() {
             id="btn-create-exam"
           >
             <PlusCircle className="w-4 h-4" />
-            <span>+ Create Exam</span>
+            <span>+ Tạo bài thi mới</span>
           </button>
         </div>
 
@@ -224,7 +268,7 @@ export function TeacherExamsView() {
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-outline w-4 h-4" />
               <input 
                 className="w-full pl-8 pr-3 py-1.5 bg-surface-container-low rounded-lg text-on-surface font-body-sm text-xs border border-outline-variant/40 focus:outline-none focus:border-primary transition-all" 
-                placeholder="Search exams by title, course, or ID..." 
+                placeholder="Tìm kiếm bài thi theo tiêu đề, mã lớp hoặc ID..." 
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -242,7 +286,7 @@ export function TeacherExamsView() {
                 value={classFilter}
                 onChange={(e) => setClassFilter(e.target.value)}
               >
-                <option value="all">All Cohorts / Classes</option>
+                <option value="all">Tất cả các lớp học</option>
                 {uniqueClasses.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-outline w-3.5 h-3.5 pointer-events-none" />
@@ -256,12 +300,12 @@ export function TeacherExamsView() {
             <table className="w-full text-left border-collapse min-w-[900px] text-xs" id="teacher-exams-table">
               <thead>
                 <tr className="bg-surface-container-low text-on-surface-variant font-label-xs uppercase tracking-wider border-b border-outline-variant/30">
-                  <th className="py-2.5 px-4 font-semibold">Exam Title</th>
-                  <th className="py-2.5 px-4 font-semibold">Cohort</th>
-                  <th className="py-2.5 px-4 font-semibold">Scheduled Date</th>
-                  <th className="py-2.5 px-4 font-semibold">Duration</th>
-                  <th className="py-2.5 px-4 font-semibold">Status</th>
-                  <th className="py-2.5 px-4 text-right font-semibold">Actions</th>
+                  <th className="py-2.5 px-4 font-semibold">Tiêu đề bài thi</th>
+                  <th className="py-2.5 px-4 font-semibold">Lớp học</th>
+                  <th className="py-2.5 px-4 font-semibold">Thời gian thi</th>
+                  <th className="py-2.5 px-4 font-semibold">Thời lượng</th>
+                  <th className="py-2.5 px-4 font-semibold">Trạng thái</th>
+                  <th className="py-2.5 px-4 text-right font-semibold">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/20 text-on-surface">
@@ -270,11 +314,11 @@ export function TeacherExamsView() {
                     <td colSpan={6} className="py-12 text-center text-outline font-label-md">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <FileCode2 className="w-8 h-8 text-outline" />
-                        <p className="font-headline-sm text-on-surface text-sm">No exams found</p>
+                        <p className="font-headline-sm text-on-surface text-sm">Không tìm thấy bài thi nào</p>
                         <p className="text-outline text-xs">
                           {searchQuery || classFilter !== 'all'
-                            ? 'No exams match your search or cohort filter criteria.'
-                            : 'You have not created any exams for your courses yet.'}
+                            ? 'Không có bài thi nào khớp với từ khóa tìm kiếm hoặc bộ lọc lớp học.'
+                            : 'Bạn chưa tạo bài thi nào. Nhấn "+ Tạo bài thi mới" để bắt đầu.'}
                         </p>
                       </div>
                     </td>
@@ -303,14 +347,18 @@ export function TeacherExamsView() {
                         </div>
                       </td>
                       <td className="py-3 px-4 text-on-surface-variant">
-                        {exam.examDate ? new Date(exam.examDate).toLocaleString() : 'Open Schedule'}
+                        {exam.examDate ? new Date(exam.examDate).toLocaleString('vi-VN') : 'Linh hoạt'}
                       </td>
                       <td className="py-3 px-4 text-on-surface-variant">
-                        {exam.duration || 90} mins
+                        {exam.duration || 90} phút
                       </td>
                       <td className="py-3 px-4">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          Active
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                          exam.status === 'draft'
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        }`}>
+                          {exam.status === 'draft' ? 'Bản nháp' : 'Đang hoạt động'}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right">
@@ -318,7 +366,7 @@ export function TeacherExamsView() {
                           href={`/teacher/exams/${exam.id}`} 
                           className="inline-flex items-center gap-1 px-3 py-1 bg-surface-container hover:bg-surface-container-high text-primary rounded-lg font-medium transition-colors"
                         >
-                          <span>Manage</span>
+                          <span>Quản lý</span>
                           <ExternalLink className="w-3 h-3" />
                         </Link>
                       </td>
@@ -330,7 +378,7 @@ export function TeacherExamsView() {
           </div>
           <div className="px-4 py-2.5 bg-surface-container-low/40 border-t border-outline-variant/30 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-outline">
             <span>
-              Showing <strong className="text-on-surface">{filteredExams.length}</strong> of <strong className="text-on-surface">{stats.total}</strong> registered exams
+              Hiển thị <strong className="text-on-surface">{filteredExams.length}</strong> trên tổng số <strong className="text-on-surface">{stats.total}</strong> bài thi
             </span>
           </div>
         </div>
@@ -342,7 +390,7 @@ export function TeacherExamsView() {
               <div className="flex items-center justify-between border-b border-outline-variant/30 pb-3">
                 <div className="flex items-center gap-2">
                   <PlusCircle className="w-5 h-5 text-primary" />
-                  <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold">Create New Exam</h2>
+                  <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold">Tạo bài thi mới</h2>
                 </div>
                 <button
                   type="button"
@@ -362,11 +410,11 @@ export function TeacherExamsView() {
                 )}
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-on-surface">Exam Title *</label>
+                  <label className="text-xs font-semibold text-on-surface">Tiêu đề bài thi *</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. CS201 Data Structures Midterm Practical"
+                    placeholder="Ví dụ: Thi thực hành giữa kỳ Lập trình Java CS201"
                     value={examTitle}
                     onChange={(e) => setExamTitle(e.target.value)}
                     className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant/40 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary transition-colors"
@@ -376,28 +424,75 @@ export function TeacherExamsView() {
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-on-surface">
-                      Assigned Course Classes ({selectedClassIds.length} selected) *
+                      Lớp học áp dụng ({selectedClassIds.length} lớp đã chọn) *
                     </label>
-                    {classes && classes.length > 1 && (
-                      <div className="flex items-center gap-2 text-[11px]">
+                    <div className="flex items-center gap-2 text-[11px]">
+                      {classes && classes.length > 1 && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedClassIds(classes.map(c => c.id))}
+                            className="text-primary hover:underline font-medium cursor-pointer"
+                          >
+                            Chọn tất cả
+                          </button>
+                          <span className="text-outline">|</span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedClassIds([])}
+                            className="text-outline hover:underline cursor-pointer"
+                          >
+                            Bỏ chọn
+                          </button>
+                          <span className="text-outline">|</span>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowQuickCreateClass(!showQuickCreateClass)}
+                        className="text-primary hover:underline font-medium cursor-pointer flex items-center gap-1"
+                      >
+                        <FolderPlus className="w-3 h-3" />
+                        <span>{showQuickCreateClass ? 'Ẩn tạo lớp' : '+ Tạo lớp mới'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Quick Class Creation Panel */}
+                  {showQuickCreateClass && (
+                    <div className="p-3 rounded-lg bg-surface-container border border-primary/30 flex flex-col gap-2 text-xs animate-in fade-in">
+                      <span className="font-semibold text-on-surface text-[11px] flex items-center gap-1 text-primary">
+                        <FolderPlus className="w-3.5 h-3.5" /> Thêm lớp học cho giảng viên
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          placeholder="Mã lớp * (vd: PRJ301)"
+                          value={newClassCode}
+                          onChange={(e) => setNewClassCode(e.target.value)}
+                          className="px-2.5 py-1.5 bg-surface-container-lowest border border-outline-variant/40 rounded text-xs text-on-surface focus:outline-none focus:border-primary uppercase font-mono"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Tên lớp (vd: Lập trình Java)"
+                          value={newClassName}
+                          onChange={(e) => setNewClassName(e.target.value)}
+                          className="px-2.5 py-1.5 bg-surface-container-lowest border border-outline-variant/40 rounded text-xs text-on-surface focus:outline-none focus:border-primary"
+                        />
+                      </div>
+                      <div className="flex justify-end">
                         <button
                           type="button"
-                          onClick={() => setSelectedClassIds(classes.map(c => c.id))}
-                          className="text-primary hover:underline font-medium cursor-pointer"
+                          onClick={handleQuickAddClass}
+                          disabled={isCreatingClass || !newClassCode.trim()}
+                          className="px-3 py-1 bg-primary text-on-primary rounded text-xs font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors cursor-pointer"
                         >
-                          Select All
-                        </button>
-                        <span className="text-outline">|</span>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedClassIds([])}
-                          className="text-outline hover:underline cursor-pointer"
-                        >
-                          Clear
+                          {isCreatingClass ? 'Đang tạo lớp...' : 'Lưu & Chọn lớp này'}
                         </button>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
+
                   <div className="max-h-44 overflow-y-auto p-2 bg-surface-container-low border border-outline-variant/40 rounded-lg flex flex-col gap-1.5">
                     {classes && classes.length > 0 ? (
                       classes.map((cls) => {
@@ -424,21 +519,24 @@ export function TeacherExamsView() {
                             </div>
                             {cls.studentCount !== undefined && (
                               <span className="text-[11px] text-outline shrink-0">
-                                {cls.studentCount} students
+                                {cls.studentCount} sinh viên
                               </span>
                             )}
                           </label>
                         );
                       })
                     ) : (
-                      <p className="text-xs text-outline py-2 text-center">No authorized classes found.</p>
+                      <div className="py-3 px-2 text-center text-outline flex flex-col items-center gap-1">
+                        <p className="text-xs">Chưa có lớp học nào được phân công.</p>
+                        <p className="text-[11px] text-primary">Hãy nhập mã lớp ở mục &quot;+ Tạo lớp mới&quot; phía trên để tiếp tục tạo bài thi.</p>
+                      </div>
                     )}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-semibold text-on-surface">Start Date &amp; Time *</label>
+                    <label className="text-xs font-semibold text-on-surface">Thời gian bắt đầu *</label>
                     <input
                       type="datetime-local"
                       required
@@ -449,7 +547,7 @@ export function TeacherExamsView() {
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-semibold text-on-surface">Duration (Minutes) *</label>
+                    <label className="text-xs font-semibold text-on-surface">Thời lượng (Phút) *</label>
                     <input
                       type="number"
                       required
@@ -469,22 +567,23 @@ export function TeacherExamsView() {
                     disabled={createExam.isPending}
                     className="px-4 py-2 text-xs rounded-lg border border-outline-variant/40 hover:bg-surface-container transition-colors cursor-pointer"
                   >
-                    Cancel
+                    Hủy
                   </button>
                   <button
                     type="submit"
+                    id="submit-create-exam-btn"
                     disabled={createExam.isPending}
                     className="inline-flex items-center gap-2 px-5 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
                   >
                     {createExam.isPending ? (
                       <>
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Creating Exam...</span>
+                        <span>Đang lưu bài thi...</span>
                       </>
                     ) : (
                       <>
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Publish &amp; Save</span>
+                        <span>Lưu &amp; Xuất bản</span>
                       </>
                     )}
                   </button>

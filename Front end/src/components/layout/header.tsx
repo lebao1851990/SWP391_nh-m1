@@ -99,7 +99,7 @@ export function Header() {
       // ignore network errors on logout
     } finally {
       clearSession();
-      toast.success('Signed out successfully');
+      toast.success('Đăng xuất thành công');
       router.push('/login');
     }
   };
@@ -113,7 +113,7 @@ export function Header() {
             type="button"
             onClick={toggleMobileNav}
             className="p-1.5 -ml-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-lg lg:hidden transition-colors cursor-pointer shrink-0"
-            aria-label="Toggle navigation menu"
+            aria-label="Chuyển đổi menu điều hướng"
           >
             <Menu className="w-5 h-5 text-on-surface" />
           </button>
@@ -125,7 +125,7 @@ export function Header() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-14 py-1.5 bg-surface-container-low rounded border border-outline-variant text-on-surface font-body-sm text-body-sm placeholder:text-outline focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-all" 
-              placeholder="Search exams, courses, or IDs (Enter to search)..." 
+              placeholder="Tìm kiếm bài thi, môn học hoặc mã ID (Nhấn Enter)..." 
               type="text"
             />
             <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 font-label-xs text-[10px] text-outline bg-surface-container px-1.5 py-0.5 rounded border border-outline-variant/40 select-none">
@@ -140,7 +140,7 @@ export function Header() {
           {/* Semester Badge */}
           <div className="hidden md:flex items-center gap-1.5 px-space-sm py-1 rounded bg-surface-container border border-outline-variant/30 text-on-surface text-xs font-medium">
             <GraduationCap className="w-3.5 h-3.5 text-primary" />
-            <span className="font-label-md text-label-md">Fall 2026 Term</span>
+            <span className="font-label-md text-label-md">Học kỳ Fall 2026</span>
           </div>
           
           {/* Notifications Trigger */}
@@ -151,7 +151,7 @@ export function Header() {
                 setProfileOpen(false);
               }}
               className="relative p-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded transition-colors cursor-pointer" 
-              title="System Notifications"
+              title="Thông báo hệ thống"
             >
               <Bell className="w-4 h-4" />
               <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-surface-container-lowest"></span>
@@ -161,22 +161,22 @@ export function Header() {
             {notificationsOpen && (
               <div className="absolute right-0 mt-2 w-80 bg-surface-container-lowest border border-outline-variant/40 rounded-xl shadow-xl z-50 p-space-md flex flex-col gap-space-sm">
                 <div className="flex items-center justify-between border-b border-outline-variant/30 pb-2">
-                  <span className="font-label-md font-semibold text-on-surface">Platform Telemetry</span>
-                  <span className="font-label-xs text-xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">Active</span>
+                  <span className="font-label-md font-semibold text-on-surface">Trạng thái hệ thống</span>
+                  <span className="font-label-xs text-xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">Hoạt động</span>
                 </div>
                 <div className="space-y-2 text-xs">
                   <div className="flex items-start gap-2 p-2 rounded bg-surface-container-low">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-semibold text-on-surface">AST Engine Synchronized</p>
-                      <p className="text-on-surface-variant text-[11px]">Real-time bytecode parser ready for submissions.</p>
+                      <p className="font-semibold text-on-surface">Công cụ AST đã đồng bộ</p>
+                      <p className="text-on-surface-variant text-[11px]">Bộ phân tích cú pháp mã nguồn sẵn sàng cho bài nộp.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-2 p-2 rounded bg-surface-container-low">
                     <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-semibold text-on-surface">Docker Sandbox v2 Standby</p>
-                      <p className="text-on-surface-variant text-[11px]">Memory cap: 512MB cgroup, 3.0s timeout.</p>
+                      <p className="font-semibold text-on-surface">Hộp cát Docker v2 sẵn sàng</p>
+                      <p className="text-on-surface-variant text-[11px]">Giới hạn bộ nhớ: 512MB cgroup, thời gian chạy tối đa 3.0s.</p>
                     </div>
                   </div>
                 </div>
@@ -184,7 +184,7 @@ export function Header() {
                   onClick={() => setNotificationsOpen(false)}
                   className="w-full py-1 text-center font-label-xs text-primary hover:underline cursor-pointer"
                 >
-                  Close Telemetry
+                  Đóng thông báo
                 </button>
               </div>
             )}
@@ -194,7 +194,7 @@ export function Header() {
           <button 
             onClick={() => setHelpOpen(true)}
             className="p-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded transition-colors cursor-pointer" 
-            title="Academic Guidelines & Honor Code"
+            title="Quy tắc liêm chính & Hướng dẫn học thuật"
           >
             <HelpCircle className="w-4 h-4" />
           </button>
@@ -216,7 +216,7 @@ export function Header() {
               <div className="flex flex-col hidden sm:flex">
                 <div className="flex items-center gap-1.5">
                   <span className="font-label-md text-label-md font-semibold text-on-surface truncate max-w-[120px]">
-                    {user?.email ? user.email.split('@')[0] : 'User'}
+                    {user?.email ? user.email.split('@')[0] : 'Người dùng'}
                   </span>
                   <span className={`font-label-xs text-[10px] px-1.5 py-0.2 rounded font-semibold ${
                     user?.role === 'TEACHER' 
@@ -225,7 +225,7 @@ export function Header() {
                       ? 'bg-purple-100 text-purple-800' 
                       : 'bg-emerald-100 text-emerald-800'
                   }`}>
-                    {user?.role === 'ADMIN' ? 'Admin' : user?.role === 'TEACHER' ? 'Faculty' : 'Student'}
+                    {user?.role === 'ADMIN' ? 'Quản trị viên' : user?.role === 'TEACHER' ? 'Giảng viên' : 'Sinh viên'}
                   </span>
                 </div>
               </div>
@@ -236,9 +236,9 @@ export function Header() {
             {profileOpen && (
               <div className="absolute right-0 mt-2 w-64 bg-surface-container-lowest border border-outline-variant/40 rounded-xl shadow-xl z-50 p-2 flex flex-col gap-1">
                 <div className="px-3 py-2 border-b border-outline-variant/20 mb-1">
-                  <p className="font-label-xs text-outline uppercase tracking-wider">Signed in as</p>
+                  <p className="font-label-xs text-outline uppercase tracking-wider">Đăng nhập với tư cách</p>
                   <p className="font-label-md font-semibold text-on-surface truncate">{user?.email || 'N/A'}</p>
-                  <p className="font-label-xs text-outline-variant truncate">ID: {user?.id || 'Pending'}</p>
+                  <p className="font-label-xs text-outline-variant truncate">ID: {user?.id || 'Đang xử lý'}</p>
                 </div>
 
                 <button
@@ -249,7 +249,7 @@ export function Header() {
                   className="flex items-center gap-2 px-3 py-2 text-xs text-on-surface hover:bg-surface-container rounded-lg transition-colors cursor-pointer"
                 >
                   <User className="w-3.5 h-3.5 text-outline" />
-                  <span>Dashboard Overview</span>
+                  <span>Tổng quan bảng điều khiển</span>
                 </button>
 
                 <button
@@ -260,7 +260,7 @@ export function Header() {
                   className="flex items-center gap-2 px-3 py-2 text-xs text-on-surface hover:bg-surface-container rounded-lg transition-colors cursor-pointer"
                 >
                   <BookOpen className="w-3.5 h-3.5 text-outline" />
-                  <span>Honor Code &amp; Guidelines</span>
+                  <span>Quy tắc liêm chính & Hướng dẫn</span>
                 </button>
 
                 <div className="border-t border-outline-variant/20 my-1"></div>
@@ -273,7 +273,7 @@ export function Header() {
                   className="flex items-center gap-2 px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer font-medium"
                 >
                   <LogOut className="w-3.5 h-3.5 text-rose-500" />
-                  <span>Sign Out</span>
+                  <span>Đăng xuất</span>
                 </button>
               </div>
             )}
@@ -288,7 +288,7 @@ export function Header() {
             <div className="flex items-center justify-between border-b border-outline-variant/30 pb-3">
               <div className="flex items-center gap-2 text-primary font-semibold">
                 <BookOpen className="w-5 h-5" />
-                <h3 className="font-headline-sm text-headline-sm text-on-surface">CodeAssess Academic Standards</h3>
+                <h3 className="font-headline-sm text-headline-sm text-on-surface">Tiêu chuẩn Liêm chính Học thuật</h3>
               </div>
               <button 
                 onClick={() => setHelpOpen(false)} 
@@ -302,25 +302,25 @@ export function Header() {
               <div className="p-3 rounded-lg bg-surface-container-low border border-outline-variant/30">
                 <p className="font-semibold text-on-surface mb-1 flex items-center gap-1.5">
                   <ShieldAlert className="w-4 h-4 text-amber-600" />
-                  AST Bytecode Verification Policy
+                  Chính sách kiểm tra cấu trúc mã AST
                 </p>
-                <p>All submitted Java code is parsed into Abstract Syntax Trees (AST) and tokenized to detect structural plagiarism across variable renames, statement reordering, and syntactic wrapping.</p>
+                <p>Mã nguồn Java nộp lên được phân tích thành Cây Cú pháp Trừu tượng (AST) và mã hóa từ vựng nhằm phát hiện sao chép cấu trúc qua việc đổi tên biến, đảo lệnh hoặc bọc mã cú pháp.</p>
               </div>
 
               <div className="p-3 rounded-lg bg-surface-container-low border border-outline-variant/30">
                 <p className="font-semibold text-on-surface mb-1 flex items-center gap-1.5">
                   <Calendar className="w-4 h-4 text-blue-600" />
-                  Appeals SLA Policy
+                  Thời hạn xử lý khiếu nại (SLA)
                 </p>
-                <p>Students may appeal grading decisions or integrity flags within 48 hours of evaluation publication. The Faculty Review Committee evaluates submitted rationales.</p>
+                <p>Sinh viên có thể khiếu nại kết quả chấm hoặc cảnh báo liêm chính trong vòng 48 giờ sau khi công bố kết quả. Hội đồng giảng viên sẽ trực tiếp đánh giá lý do khiếu nại.</p>
               </div>
 
               <div className="p-3 rounded-lg bg-surface-container-low border border-outline-variant/30">
                 <p className="font-semibold text-on-surface mb-1 flex items-center gap-1.5">
                   <Code2 className="w-4 h-4 text-emerald-600" />
-                  Docker Sandbox Execution
+                  Thực thi trong môi trường Sandbox Docker
                 </p>
-                <p>Code runs in strictly isolated Docker containers without internet access, capped at 512MB RAM and 3.0s CPU timeout per test case.</p>
+                <p>Mã được thực thi trong môi trường Docker cách ly nghiêm ngặt không có mạng ngoài, giới hạn 512MB RAM và thời gian chờ tối đa 3.0s mỗi test case.</p>
               </div>
             </div>
 
@@ -329,7 +329,7 @@ export function Header() {
                 onClick={() => setHelpOpen(false)}
                 className="px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors cursor-pointer shadow-sm"
               >
-                Understood
+                Đã hiểu
               </button>
             </div>
           </div>

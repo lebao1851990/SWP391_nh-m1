@@ -11,6 +11,9 @@ import com.codeassess.classes.repository.CourseClassRepository;
 import com.codeassess.exam.dto.request.CreateExamDto;
 import com.codeassess.exam.dto.request.UpdateExamDto;
 import com.codeassess.submission.repository.SubmissionRepository;
+import com.codeassess.user.entity.User;
+import com.codeassess.user.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +28,7 @@ public class TeacherExamService {
     private final ClassStudentRepository classStudentRepository;
     private final CourseClassRepository courseClassRepository;
     private final SubmissionRepository submissionRepository;
+    private final UserRepository userRepository;
 
     public TeacherExamService(
             ExamRepository examRepository,
@@ -32,11 +36,23 @@ public class TeacherExamService {
             ClassStudentRepository classStudentRepository,
             CourseClassRepository courseClassRepository,
             SubmissionRepository submissionRepository) {
+        this(examRepository, examMapper, classStudentRepository, courseClassRepository, submissionRepository, null);
+    }
+
+    @Autowired
+    public TeacherExamService(
+            ExamRepository examRepository,
+            ExamMapper examMapper,
+            ClassStudentRepository classStudentRepository,
+            CourseClassRepository courseClassRepository,
+            SubmissionRepository submissionRepository,
+            UserRepository userRepository) {
         this.examRepository = examRepository;
         this.examMapper = examMapper;
         this.classStudentRepository = classStudentRepository;
         this.courseClassRepository = courseClassRepository;
         this.submissionRepository = submissionRepository;
+        this.userRepository = userRepository;
     }
 
     private ExamResponse populateCounts(ExamResponse response) {
@@ -109,18 +125,47 @@ public class TeacherExamService {
                 .distinct()
                 .collect(Collectors.toList());
 
-        if (distinctIds.isEmpty()) {
-            throw new IllegalArgumentException("At least one class must be selected for the exam");
-        }
-
-        List<CourseClass> classes = courseClassRepository.findAllById(distinctIds);
-        if (classes.size() != distinctIds.size()) {
-            throw new ResourceNotFoundException("One or more classes not found or access denied");
-        }
-        for (CourseClass cc : classes) {
-            if (!cc.getTeacher().getId().equals(teacherId)) {
-                throw new ResourceNotFoundException("Class not found or access denied: " + cc.getId());
+        List<CourseClass> classes = new ArrayList<>();
+        if (!distinctIds.isEmpty()) {
+            classes = courseClassRepository.findAllById(distinctIds);
+            if (classes.size() != distinctIds.size()) {
+                throw new ResourceNotFoundException("One or more classes not found or access denied");
             }
+            for (CourseClass cc : classes) {
+                if (!cc.getTeacher().getId().equals(teacherId)) {
+                    throw new ResourceNotFoundException("Class not found or access denied: " + cc.getId());
+                }
+            }
+        } else if (dto.getNewClassCode() != null && !dto.getNewClassCode().isBlank()) {
+            if (userRepository == null) {
+                throw new IllegalStateException("UserRepository not initialized");
+            }
+            String code = dto.getNewClassCode().trim().toUpperCase();
+            String name = (dto.getNewClassName() != null && !dto.getNewClassName().isBlank()) 
+                    ? dto.getNewClassName().trim() 
+                    : code;
+            String semester = (dto.getSemester() != null && !dto.getSemester().isBlank()) 
+                    ? dto.getSemester().trim() 
+                    : "Fall 2026";
+
+            User teacher = userRepository.findById(teacherId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Teacher not found with id: " + teacherId));
+
+            CourseClass courseClass = courseClassRepository.findByCode(code).orElseGet(() -> 
+                courseClassRepository.save(CourseClass.builder()
+                        .name(name)
+                        .code(code)
+                        .semester(semester)
+                        .teacher(teacher)
+                        .build())
+            );
+
+            if (!courseClass.getTeacher().getId().equals(teacherId)) {
+                throw new ResourceNotFoundException("Class already belongs to another teacher: " + code);
+            }
+            classes.add(courseClass);
+        } else {
+            throw new IllegalArgumentException("At least one class must be selected for the exam");
         }
 
         Exam newExam = Exam.builder()

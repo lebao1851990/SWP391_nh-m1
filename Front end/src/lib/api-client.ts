@@ -3,7 +3,7 @@ import { useSessionStore } from '@/stores/session.store';
 
 // We assume the backend is hosted at NEXT_PUBLIC_API_URL or defaults to localhost
 export const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081/api',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
