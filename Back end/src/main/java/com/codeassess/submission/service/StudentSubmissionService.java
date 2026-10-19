@@ -50,9 +50,9 @@ public class StudentSubmissionService {
     private final AstPlagiarismService astPlagiarismService;
     private final ZipSubmissionProperties zipProperties;
     private final SubmissionPersistenceService submissionPersistenceService;
-
-    @Autowired(required = false)
-    private com.codeassess.queue.service.BullMqJobDispatcher bullMqJobDispatcher;
+    private final InternalGradingService internalGradingService;
+    private final com.codeassess.testcase.service.AutomatedTestRunnerService automatedTestRunnerService;
+    private final com.codeassess.queue.service.BullMqJobDispatcher bullMqJobDispatcher;
 
     public StudentSubmissionService(
             SubmissionRepository submissionRepository,
@@ -61,7 +61,25 @@ public class StudentSubmissionService {
             UserRepository userRepository,
             ApplicationEventPublisher eventPublisher) {
         this(submissionRepository, submissionMapper, examRepository, userRepository, eventPublisher,
-                null, null, null, null, null, new ZipSubmissionProperties(), null);
+                null, null, null, null, null, new ZipSubmissionProperties(), null, null, null, null);
+    }
+
+    public StudentSubmissionService(
+            SubmissionRepository submissionRepository,
+            SubmissionMapper submissionMapper,
+            ExamRepository examRepository,
+            UserRepository userRepository,
+            ApplicationEventPublisher eventPublisher,
+            ZipExtractionService zipExtractionService,
+            SourceHasherService sourceHasherService,
+            EntryPointDiscoveryService entryPointDiscoveryService,
+            DockerSandboxService dockerSandboxService,
+            AstPlagiarismService astPlagiarismService,
+            ZipSubmissionProperties zipProperties,
+            SubmissionPersistenceService submissionPersistenceService) {
+        this(submissionRepository, submissionMapper, examRepository, userRepository, eventPublisher,
+                zipExtractionService, sourceHasherService, entryPointDiscoveryService, dockerSandboxService,
+                astPlagiarismService, zipProperties, submissionPersistenceService, null, null, null);
     }
 
     @Autowired
@@ -77,7 +95,10 @@ public class StudentSubmissionService {
             DockerSandboxService dockerSandboxService,
             AstPlagiarismService astPlagiarismService,
             ZipSubmissionProperties zipProperties,
-            SubmissionPersistenceService submissionPersistenceService) {
+            SubmissionPersistenceService submissionPersistenceService,
+            @Autowired(required = false) InternalGradingService internalGradingService,
+            @Autowired(required = false) com.codeassess.testcase.service.AutomatedTestRunnerService automatedTestRunnerService,
+            @Autowired(required = false) com.codeassess.queue.service.BullMqJobDispatcher bullMqJobDispatcher) {
         this.submissionRepository = submissionRepository;
         this.submissionMapper = submissionMapper;
         this.examRepository = examRepository;
@@ -90,6 +111,9 @@ public class StudentSubmissionService {
         this.astPlagiarismService = astPlagiarismService;
         this.zipProperties = zipProperties;
         this.submissionPersistenceService = submissionPersistenceService;
+        this.internalGradingService = internalGradingService;
+        this.automatedTestRunnerService = automatedTestRunnerService;
+        this.bullMqJobDispatcher = bullMqJobDispatcher;
     }
 
     @Transactional(readOnly = true)
@@ -145,22 +169,62 @@ public class StudentSubmissionService {
 
         submission = submissionRepository.save(submission);
 
-        // Dispatch grading job to BullMQ queue after transaction commits
+        // Dispatch grading job to BullMQ queue after transaction commits, with immediate fallback if queue offline
         final String submissionId = submission.getId();
         final String examIdStr = exam.getId();
         if (org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()) {
             org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
                     new org.springframework.transaction.support.TransactionSynchronization() {
                         @Override
-                        public void afterCommit() {
-                            if (bullMqJobDispatcher != null) {
-                                bullMqJobDispatcher.dispatchGradingJob(submissionId, examIdStr, "SINGLE_FILE");
+                        public void afterCompletion(int status) {
+                            if (status == STATUS_COMMITTED) {
+                                java.util.concurrent.CompletableFuture.runAsync(() -> {
+                                    boolean enqueued = bullMqJobDispatcher != null && bullMqJobDispatcher.dispatchGradingJob(submissionId, examIdStr, "SINGLE_FILE");
+                                    if (!enqueued) {
+                                        if (internalGradingService != null) {
+                                            try {
+                                                internalGradingService.processGrading(submissionId);
+                                            } catch (Exception e) {
+                                                log.warn("Fallback direct grading error for submission {}: {}", submissionId, e.getMessage(), e);
+                                            }
+                                        } else if (automatedTestRunnerService != null) {
+                                            try {
+                                                Submission subToGrade = submissionRepository.findById(submissionId).orElse(null);
+                                                if (subToGrade != null) {
+                                                    automatedTestRunnerService.runAndGrade(subToGrade);
+                                                }
+                                            } catch (Exception e) {
+                                                log.warn("Direct test runner error for submission {}: {}", submissionId, e.getMessage(), e);
+                                            }
+                                        }
+                                    }
+                                });
                             }
                         }
                     }
             );
-        } else if (bullMqJobDispatcher != null) {
-            bullMqJobDispatcher.dispatchGradingJob(submissionId, examIdStr, "SINGLE_FILE");
+        } else {
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                boolean enqueued = bullMqJobDispatcher != null && bullMqJobDispatcher.dispatchGradingJob(submissionId, examIdStr, "SINGLE_FILE");
+                if (!enqueued) {
+                    if (internalGradingService != null) {
+                        try {
+                            internalGradingService.processGrading(submissionId);
+                        } catch (Exception e) {
+                            log.warn("Fallback direct grading error for submission {}: {}", submissionId, e.getMessage(), e);
+                        }
+                    } else if (automatedTestRunnerService != null) {
+                        try {
+                            Submission subToGrade = submissionRepository.findById(submissionId).orElse(null);
+                            if (subToGrade != null) {
+                                automatedTestRunnerService.runAndGrade(subToGrade);
+                            }
+                        } catch (Exception e) {
+                            log.warn("Direct test runner error for submission {}: {}", submissionId, e.getMessage(), e);
+                        }
+                    }
+                }
+            });
         }
 
         // Publish event for AST processing

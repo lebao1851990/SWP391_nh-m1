@@ -43,6 +43,15 @@ public class Submission {
     @Column(name = "override_score", precision = 5, scale = 2)
     private BigDecimal overrideScore;
 
+    @Column(name = "auto_score", precision = 5, scale = 2)
+    private BigDecimal autoScore;
+
+    @Column(name = "test_cases_passed")
+    private Integer testCasesPassed;
+
+    @Column(name = "test_cases_total")
+    private Integer testCasesTotal;
+
     @Column(name = "evaluated_at")
     private LocalDateTime evaluatedAt;
 

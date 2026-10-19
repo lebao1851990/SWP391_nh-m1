@@ -35,25 +35,27 @@ export function Sidebar({ role }: SidebarProps) {
   const { isMobileNavOpen, setMobileNavOpen } = useUiStore();
 
   const teacherNav: NavItem[] = [
-    { name: 'Dashboard', href: '/teacher/dashboard', icon: LayoutDashboard },
-    { name: 'Exams', href: '/teacher/exams', icon: FileCode2 },
-    { name: 'Submissions', href: '/teacher/submissions', icon: Code2 },
-    { name: 'Plagiarism Check', href: '/teacher/plagiarism', icon: GitCompare, badge: { text: 'AST', type: 'AST' } },
-    { name: 'Appeals', href: '/teacher/appeals', icon: Scale },
+    { name: 'Bảng điều khiển', href: '/teacher/dashboard', icon: LayoutDashboard },
+    { name: 'Quản lý bài thi', href: '/teacher/exams', icon: FileCode2 },
+    { name: 'Lớp học của tôi', href: '/teacher/classes', icon: GraduationCap },
+    { name: 'Bài nộp & Chấm điểm', href: '/teacher/submissions', icon: Code2 },
+    { name: 'Kiểm tra đạo văn AST', href: '/teacher/plagiarism', icon: GitCompare, badge: { text: 'AST', type: 'AST' } },
+    { name: 'Đơn khiếu nại', href: '/teacher/appeals', icon: Scale },
   ];
 
   const studentNav: NavItem[] = [
-    { name: 'Dashboard', href: '/student/dashboard', icon: LayoutDashboard },
-    { name: 'My Exams', href: '/student/exams', icon: FileCode2 },
-    { name: 'My Submissions', href: '/student/submissions', icon: Code2 },
-    { name: 'Appeals', href: '/student/appeals', icon: Scale },
+    { name: 'Bảng điều khiển', href: '/student/dashboard', icon: LayoutDashboard },
+    { name: 'Bài thi của tôi', href: '/student/exams', icon: FileCode2 },
+    { name: 'Bài nộp của tôi', href: '/student/submissions', icon: Code2 },
+    { name: 'Khiếu nại / Phúc khảo', href: '/student/appeals', icon: Scale },
   ];
 
   const adminNav: NavItem[] = [
-    { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
-    { name: 'Users', href: '/admin/users', icon: Users },
-    { name: 'Classes', href: '/admin/classes', icon: GraduationCap },
-    { name: 'Exams', href: '/admin/exams', icon: BookOpen },
+    { name: 'Bảng điều khiển', href: '/admin/dashboard', icon: LayoutDashboard },
+    { name: 'Người dùng', href: '/admin/users', icon: Users },
+    { name: 'Lớp học', href: '/admin/classes', icon: GraduationCap },
+    { name: 'Bài thi', href: '/admin/exams', icon: BookOpen },
+    { name: 'Quản lý khiếu nại', href: '/admin/appeals', icon: Scale },
   ];
 
   const navItems = role === 'ADMIN' ? adminNav : role === 'TEACHER' ? teacherNav : studentNav;
@@ -86,22 +88,22 @@ export function Sidebar({ role }: SidebarProps) {
               </div>
               <div className="flex flex-col">
                 <span className="font-semibold text-sm text-slate-100 tracking-tight leading-none group-hover:text-white transition-colors">
-                  CodeAssess
+                  AITA Intelligent
                 </span>
                 <span className="text-[10px] text-slate-400 font-mono tracking-wider mt-1">
-                  ACADEMIC PORTAL
+                  CỔNG HỌC THUẬT
                 </span>
               </div>
             </Link>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-950 border border-indigo-700/50 text-indigo-300 font-mono">
-                {role === 'TEACHER' ? 'FACULTY' : role}
+                {role === 'TEACHER' ? 'GIẢNG VIÊN' : role === 'STUDENT' ? 'SINH VIÊN' : 'QUẢN TRỊ'}
               </span>
               <button
                 type="button"
                 onClick={() => setMobileNavOpen(false)}
                 className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 lg:hidden transition-colors"
-                aria-label="Close navigation"
+                aria-label="Đóng điều hướng"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -111,7 +113,7 @@ export function Sidebar({ role }: SidebarProps) {
         {/* Section Title */}
         <div className="px-4 pt-5 pb-2">
           <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest font-mono">
-            Navigation
+            ĐIỀU HƯỚNG
           </span>
         </div>
 
@@ -158,9 +160,9 @@ export function Sidebar({ role }: SidebarProps) {
         <div className="flex items-center justify-between px-2 py-1.5 mb-2 rounded-md bg-slate-900 border border-slate-800 text-xs">
           <div className="flex items-center gap-1.5 text-slate-300">
             <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            <span className="text-[11px] text-slate-300 font-medium">AST Engine v2.0</span>
+            <span className="text-[11px] text-slate-300 font-medium">Hệ thống AST v2.0</span>
           </div>
-          <span className="text-[10px] font-mono text-emerald-400 font-semibold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/40">ONLINE</span>
+          <span className="text-[10px] font-mono text-emerald-400 font-semibold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/40">HOẠT ĐỘNG</span>
         </div>
         <LogoutButton />
       </div>

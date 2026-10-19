@@ -15,7 +15,7 @@ export function LogoutButton() {
     mutationFn: authApi.logout,
     onSettled: () => {
       clearSession();
-      toast.success('Signed out successfully');
+      toast.success('Đăng xuất thành công');
       router.push('/login');
     },
   });
@@ -25,17 +25,17 @@ export function LogoutButton() {
       onClick={() => mutation.mutate()}
       disabled={mutation.isPending}
       className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all w-full cursor-pointer disabled:opacity-50"
-      title="Sign out of CodeAssess"
+      title="Đăng xuất khỏi hệ thống"
     >
       {mutation.isPending ? (
         <>
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          <span>Signing out...</span>
+          <span>Đang đăng xuất...</span>
         </>
       ) : (
         <>
           <LogOut className="w-3.5 h-3.5" />
-          <span>Sign Out</span>
+          <span>Đăng xuất</span>
         </>
       )}
     </button>

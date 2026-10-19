@@ -44,7 +44,7 @@ public class StudentAppealServiceTest {
         student = User.builder().id("student1").build();
         
         Exam exam = Exam.builder().title("Midterm").build();
-        submission = Submission.builder().id("sub1").student(student).exam(exam).build();
+        submission = Submission.builder().id("sub1").student(student).exam(exam).status("GRADED").build();
         
         requestDto = new AppealCreateRequestDto();
         requestDto.setSubmissionId("sub1");

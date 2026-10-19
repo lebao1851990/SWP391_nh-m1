@@ -47,8 +47,13 @@ public class AiAssistantService {
             prompt.append("- [").append(e.getEvidenceType()).append("] ").append(e.getDescription()).append("\n");
         }
 
-        String aiResponse = aiClient.generateSimilarityExplanation(prompt.toString());
-        return new AiAnalysisResponse(aiResponse);
+        try {
+            String aiResponse = aiClient.generateSimilarityExplanation(prompt.toString());
+            return new AiAnalysisResponse(aiResponse);
+        } catch (com.codeassess.ai.exception.AiIntegrationException ex) {
+            org.slf4j.LoggerFactory.getLogger(AiAssistantService.class).warn("AI provider error: {}", ex.getMessage());
+            return new AiAnalysisResponse("[THÔNG BÁO] Không thể kết nối dịch vụ AI: " + ex.getMessage() + ". Vui lòng đối chiếu trực quan bằng cây AST.");
+        }
     }
 
     public AiAnalysisResponse getCodeReview(Long pairId, AiCodeReviewRequest request) {
@@ -74,8 +79,13 @@ public class AiAssistantService {
         prompt.append("Snippet A:\n```\n").append(sourceA).append("\n```\n\n");
         prompt.append("Snippet B:\n```\n").append(sourceB).append("\n```\n");
 
-        String aiResponse = aiClient.generateCodeReview(prompt.toString());
-        return new AiAnalysisResponse(aiResponse);
+        try {
+            String aiResponse = aiClient.generateCodeReview(prompt.toString());
+            return new AiAnalysisResponse(aiResponse);
+        } catch (com.codeassess.ai.exception.AiIntegrationException ex) {
+            org.slf4j.LoggerFactory.getLogger(AiAssistantService.class).warn("AI provider error: {}", ex.getMessage());
+            return new AiAnalysisResponse("[THÔNG BÁO] Dịch vụ AI tạm thời không phản hồi: " + ex.getMessage());
+        }
     }
 
     private SimilarityPair getAuthorizedPair(Long pairId) {

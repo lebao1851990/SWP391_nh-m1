@@ -54,18 +54,18 @@ export function StudentAiAssistantCard({
 
       if (status === 403) {
         setErrorMessage(
-          'AI Learning Assistant is locked during active examinations. Guidance will become accessible after the assessment has concluded.'
+          'Trợ lý học tập AI bị khóa trong thời gian diễn ra bài thi trực tiếp. Hướng dẫn sẽ tự động mở sau khi bài thi kết thúc.'
         );
       } else if (status === 429) {
         setErrorMessage(
-          'Request limit reached (maximum 10 requests/minute). Please wait a few moments before requesting more guidance.'
+          'Đã đạt giới hạn yêu cầu (tối đa 10 yêu cầu/phút). Vui lòng chờ ít phút trước khi yêu cầu trợ giúp tiếp.'
         );
       } else if (status === 404) {
-        setErrorMessage('Submission not found or unauthorized to view this submission.');
+        setErrorMessage('Không tìm thấy bài nộp hoặc bạn không có quyền xem bài nộp này.');
       } else if (axiosErr.response?.data?.message) {
         setErrorMessage(axiosErr.response.data.message);
       } else {
-        setErrorMessage('Unable to connect to the AI learning assistant. Please try again shortly.');
+        setErrorMessage('Không thể kết nối tới trợ lý học tập AI. Vui lòng thử lại sau giây lát.');
       }
     } finally {
       setIsLoading(false);
@@ -75,11 +75,11 @@ export function StudentAiAssistantCard({
   const getModeTitle = (m: StudentAiMode) => {
     switch (m) {
       case 'COMPILER_ERROR':
-        return 'Explain Compiler Error';
+        return 'Giải thích lỗi biên dịch';
       case 'CODE_EXPLANATION':
-        return 'Explain My Code';
+        return 'Giải thích mã nguồn';
       case 'DEBUG_HINTS':
-        return 'Incremental Debug Hints';
+        return 'Gợi ý gỡ lỗi từng bước';
     }
   };
 
@@ -94,14 +94,14 @@ export function StudentAiAssistantCard({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-headline-sm text-base font-bold text-on-surface tracking-tight">
-                AI Learning Assistant
+                Trợ lý Học tập AI
               </h3>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wider uppercase bg-primary/10 text-primary border border-primary/20">
-                Advisory Only
+                Chỉ mang tính tham vấn
               </span>
             </div>
             <p className="text-xs text-on-surface-variant mt-0.5">
-              Pedagogical feedback on compilation errors, code structure, and debugging hints.
+              Phản hồi sư phạm hỗ trợ phân tích lỗi biên dịch, cấu trúc mã nguồn và định hướng gỡ lỗi.
             </p>
           </div>
         </div>
@@ -122,7 +122,7 @@ export function StudentAiAssistantCard({
             }`}
           >
             <Terminal className="w-3.5 h-3.5" />
-            <span>Compiler Error</span>
+            <span>Lỗi biên dịch</span>
           </button>
 
           <button
@@ -139,7 +139,7 @@ export function StudentAiAssistantCard({
             }`}
           >
             <BookOpen className="w-3.5 h-3.5" />
-            <span>Explain Code</span>
+            <span>Giải thích mã</span>
           </button>
 
           <button
@@ -156,7 +156,7 @@ export function StudentAiAssistantCard({
             }`}
           >
             <Lightbulb className="w-3.5 h-3.5" />
-            <span>Debug Hints</span>
+            <span>Gợi ý gỡ lỗi</span>
           </button>
         </div>
       </div>
@@ -171,26 +171,26 @@ export function StudentAiAssistantCard({
           {showInputOverride ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           <span>
             {showInputOverride
-              ? 'Hide custom error / compiler output'
-              : 'Add or refine compiler output / test logs (optional)'}
+              ? 'Ẩn kết quả biên dịch tùy chỉnh'
+              : 'Thêm nhật ký biên dịch / lỗi kiểm thử (tùy chọn)'}
           </span>
         </button>
 
         {showInputOverride && (
           <div className="flex flex-col gap-1.5 p-3 rounded-xl bg-surface-container-high/30 border border-outline-variant/30 text-xs">
             <label htmlFor="compiler-output-textarea" className="font-medium text-on-surface">
-              Raw Compiler / Test Suite Output:
+              Nội dung thông báo lỗi từ trình biên dịch / bộ kiểm thử:
             </label>
             <textarea
               id="compiler-output-textarea"
               rows={4}
               value={compilerOutput}
               onChange={(e) => setCompilerOutput(e.target.value)}
-              placeholder="Paste custom compilation errors or failing test logs here..."
+              placeholder="Dán mã lỗi biên dịch hoặc nhật ký kiểm thử thất bại vào đây..."
               className="w-full p-2.5 font-mono text-xs rounded-lg bg-surface border border-outline-variant/50 text-on-surface focus:outline-none focus:ring-1 focus:ring-primary resize-y"
             />
             <span className="text-[11px] text-on-surface-variant">
-              If left blank, the assistant will automatically inspect the sandbox build for errors.
+              Nếu để trống, trợ lý sẽ tự động trích xuất thông tin lỗi từ sandbox chấm điểm.
             </span>
           </div>
         )}
@@ -199,7 +199,7 @@ export function StudentAiAssistantCard({
       {/* Action Trigger Area */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <p className="text-xs text-on-surface-variant">
-          Mode selected: <strong className="text-on-surface">{getModeTitle(mode)}</strong>
+          Chế độ đã chọn: <strong className="text-on-surface">{getModeTitle(mode)}</strong>
         </p>
 
         <button
@@ -212,12 +212,12 @@ export function StudentAiAssistantCard({
           {isLoading ? (
             <>
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span>Analyzing with Assistant...</span>
+              <span>Đang phân tích cùng trợ lý...</span>
             </>
           ) : (
             <>
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Get AI Guidance</span>
+              <span>Nhận hướng dẫn AI</span>
             </>
           )}
         </button>
@@ -233,10 +233,10 @@ export function StudentAiAssistantCard({
           <div className="flex flex-col gap-1">
             <span className="font-semibold">
               {errorCode === 403
-                ? 'Examination In Progress'
+                ? 'Bài thi đang diễn ra'
                 : errorCode === 429
-                ? 'Rate Limit Exceeded'
-                : 'Assistant Notice'}
+                ? 'Vượt quá giới hạn tần suất'
+                : 'Thông báo Trợ lý'}
             </span>
             <p className="leading-relaxed">{errorMessage}</p>
           </div>
@@ -250,16 +250,16 @@ export function StudentAiAssistantCard({
             <div className="flex items-center justify-between border-b border-primary/10 pb-2">
               <div className="flex items-center gap-2 text-primary font-semibold text-xs">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Assistant Guidance — {getModeTitle(response.mode)}</span>
+                <span>Hướng dẫn của Trợ lý — {getModeTitle(response.mode)}</span>
               </div>
               <button
                 type="button"
                 onClick={() => handleRequestAi()}
                 className="text-on-surface-variant hover:text-primary transition-colors flex items-center gap-1 text-[11px]"
-                title="Refresh response"
+                title="Tạo lại phản hồi"
               >
                 <RotateCcw className="w-3 h-3" />
-                <span>Regenerate</span>
+                <span>Tạo lại</span>
               </button>
             </div>
 
@@ -273,8 +273,7 @@ export function StudentAiAssistantCard({
           <div className="rounded-lg p-3 bg-amber-50/70 border border-amber-200/60 text-amber-900 text-[11px] flex items-start gap-2">
             <ShieldCheck className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
             <p className="leading-relaxed">
-              <strong>Advisory Notice:</strong> AI-generated learning guidance is educational only and may be incomplete
-              or inaccurate. It does not replace teacher assessment, alter test suite outcomes, or modify assignment scores.
+              <strong>Lưu ý tham vấn:</strong> Hướng dẫn học tập do AI cung cấp chỉ phục vụ mục đích giáo dục, có thể chưa hoàn chỉnh hoặc có độ trễ. Phản hồi AI không thay thế đánh giá chính thức của giảng viên, không thay đổi kết quả kiểm thử và không can thiệp vào điểm số.
             </p>
           </div>
         </div>
@@ -286,10 +285,9 @@ export function StudentAiAssistantCard({
           <div className="p-2.5 rounded-full bg-surface-container-high/50 text-on-surface-variant">
             <BookOpen className="w-5 h-5" />
           </div>
-          <h4 className="font-semibold text-xs text-on-surface">Ready to guide your learning</h4>
+          <h4 className="font-semibold text-xs text-on-surface">Sẵn sàng đồng hành cùng bạn</h4>
           <p className="text-[11px] text-on-surface-variant max-w-md">
-            Click <strong>Get AI Guidance</strong> above to receive pedagogical insights tailored to your code submission.
-            The assistant provides hints and concept explanations without solving problems for you.
+            Nhấn <strong>Nhận hướng dẫn AI</strong> phía trên để nhận những phân tích sư phạm phù hợp với bài nộp của bạn. Trợ lý cung cấp gợi ý và giải thích khái niệm mà không giải thay bài tập.
           </p>
         </div>
       )}

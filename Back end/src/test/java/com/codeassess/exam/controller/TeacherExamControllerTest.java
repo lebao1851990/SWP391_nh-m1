@@ -105,6 +105,35 @@ public class TeacherExamControllerTest {
     }
 
     @Test
+    public void testTeacherCanCreateExamWithIsoUtcDateAndQuickClass() throws Exception {
+        User mockUser = new User();
+        mockUser.setId("teacher-id");
+        mockUser.setRole(com.codeassess.user.entity.Role.TEACHER);
+
+        ExamResponse response = ExamResponse.builder().id("exam-iso-1").title("Final Exam ISO").build();
+        when(teacherExamService.createExam(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq("teacher-id"))).thenReturn(response);
+
+        // ISO-8601 with Z and milliseconds as sent by browser Date.toISOString()
+        String json = """
+            {
+                "title": "Final Exam ISO",
+                "newClassCode": "PRJ301",
+                "newClassName": "Java Web App",
+                "date": "2026-11-01T10:00:00.000Z",
+                "durationMinutes": 120
+            }
+        """;
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/teacher/exams")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .content(json)
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(mockUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("exam-iso-1"))
+                .andExpect(jsonPath("$.title").value("Final Exam ISO"));
+    }
+
+    @Test
     public void testTeacherCanUpdateExam() throws Exception {
         User mockUser = new User();
         mockUser.setId("teacher-id");

@@ -79,7 +79,7 @@ public class TeacherClassAwareExamServiceTest {
     @BeforeEach
     void setUp() {
         teacherExamService = new TeacherExamService(
-                examRepository, examMapper, classStudentRepository, courseClassRepository, submissionRepository
+                examRepository, examMapper, classStudentRepository, courseClassRepository, submissionRepository, userRepository
         );
         studentExamService = new StudentExamService(examRepository, examMapper);
         studentSubmissionService = new StudentSubmissionService(
@@ -150,6 +150,41 @@ public class TeacherClassAwareExamServiceTest {
         assertEquals(2, response.getClassIds().size());
         assertTrue(response.getClassCodes().contains("PRJ301-A1"));
         assertTrue(response.getClassCodes().contains("PRJ301-A2"));
+    }
+
+    @Test
+    @DisplayName("Teacher creates exam with new auto-provisioned class")
+    void testTeacherCreatesExamWithAutoProvisionedClass() {
+        CreateExamDto dto = CreateExamDto.builder()
+                .title("OOP Practical Exam")
+                .newClassCode("PRJ301-NEW")
+                .newClassName("New Java Class")
+                .date(LocalDateTime.now().plusDays(3))
+                .durationMinutes(90)
+                .build();
+
+        CourseClass newCreatedClass = CourseClass.builder()
+                .id("class-new-1")
+                .code("PRJ301-NEW")
+                .name("New Java Class")
+                .teacher(teacherA)
+                .build();
+
+        when(userRepository.findById("teacher-a")).thenReturn(Optional.of(teacherA));
+        when(courseClassRepository.findByCode("PRJ301-NEW")).thenReturn(Optional.empty());
+        when(courseClassRepository.save(any(CourseClass.class))).thenReturn(newCreatedClass);
+        when(examRepository.save(any(Exam.class))).thenAnswer(invocation -> {
+            Exam e = invocation.getArgument(0);
+            e.setId("exam-auto-class");
+            return e;
+        });
+
+        ExamResponse response = teacherExamService.createExam(dto, "teacher-a");
+
+        assertNotNull(response);
+        assertEquals("OOP Practical Exam", response.getTitle());
+        assertEquals("class-new-1", response.getClassId());
+        assertEquals(List.of("PRJ301-NEW"), response.getClassCodes());
     }
 
     @Test

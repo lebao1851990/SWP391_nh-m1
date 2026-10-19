@@ -35,7 +35,7 @@ export function AiAnalysisModal({
             </div>
             <div>
               <h2 className="font-headline-sm text-headline-sm font-semibold text-on-surface">{title}</h2>
-              <p className="text-[11px] text-on-surface-variant">Advisory AI Synthesizer — Neural Code Structure Analysis</p>
+              <p className="text-[11px] text-on-surface-variant">Tổng hợp Tham vấn AI — Phân tích Cấu trúc Mã nguồn Neural</p>
             </div>
           </div>
           <button 
@@ -52,9 +52,9 @@ export function AiAnalysisModal({
             <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
               <Loader2 className="w-8 h-8 text-primary animate-spin" />
               <div className="space-y-1">
-                <span className="font-headline-sm text-sm font-semibold text-on-surface">Synthesizing AI Forensic Review...</span>
+                <span className="font-headline-sm text-sm font-semibold text-on-surface">Đang tổng hợp báo cáo giám định AI...</span>
                 <p className="font-body-sm text-xs text-on-surface-variant">
-                  Analyzing subtree embeddings and compiling neutral academic comparison report.
+                  Đang phân tích vector nhúng cây con và tổng hợp báo cáo đối chiếu học thuật khách quan.
                 </p>
               </div>
             </div>
@@ -66,13 +66,13 @@ export function AiAnalysisModal({
                 <Bot className="w-7 h-7" />
               </div>
               <div className="space-y-1.5 max-w-md">
-                <h3 className="font-headline-sm text-sm font-bold text-on-surface">AI Assistant Not Configured</h3>
+                <h3 className="font-headline-sm text-sm font-bold text-on-surface">Chưa cấu hình Trợ lý AI</h3>
                 <p className="font-body-sm text-xs text-on-surface-variant leading-relaxed">
-                  {errorMessage || 'AI-assisted code analysis is currently unavailable in this environment. The backend StubAiClient requires external AI provider credentials (Gemini / OpenAI API key) to be configured.'}
+                  {errorMessage || 'Tính năng phân tích mã nguồn bằng AI hiện chưa khả dụng trong môi trường này. Backend StubAiClient cần cấu hình thông tin xác thực nhà cung cấp AI (khóa API Gemini / OpenAI).'}
                 </p>
               </div>
               <div className="mt-2 p-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant/30 text-[11px] text-outline font-mono">
-                Status: BLOCKED — StubAiClient active
+                Trạng thái: TẠM KHÓA — StubAiClient đang kích hoạt
               </div>
             </div>
           )}
@@ -82,7 +82,7 @@ export function AiAnalysisModal({
               <div className="flex items-start gap-2.5 p-3 bg-blue-50/70 text-blue-900 rounded-xl border border-blue-200/60 text-xs">
                 <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                 <span className="leading-relaxed">
-                  This analysis is advisory and synthesized from AST syntax tokens. The deterministic AST Plagiarism Engine remains authoritative for formal academic board review.
+                  Phân tích này chỉ mang tính chất tham vấn tổng hợp từ các token cú pháp AST. Công cụ kiểm tra gian lận xác định AST vẫn là nguồn căn cứ chính thức cho hội đồng học thuật.
                 </span>
               </div>
               <div className="p-4 rounded-xl bg-surface-container-low text-on-surface text-xs font-mono whitespace-pre-wrap leading-relaxed border border-outline-variant/30">
@@ -98,7 +98,7 @@ export function AiAnalysisModal({
             onClick={onClose}
             className="px-4 py-2 rounded-lg bg-primary text-on-primary font-label-md text-xs font-semibold hover:bg-primary/90 transition-colors cursor-pointer shadow-xs"
           >
-            Close Dossier
+            Đóng hồ sơ
           </button>
         </div>
 

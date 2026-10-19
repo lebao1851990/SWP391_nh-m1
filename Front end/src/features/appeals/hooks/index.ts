@@ -5,7 +5,9 @@ import {
   createStudentAppeal,
   getTeacherAppeals,
   getTeacherAppealDetail,
-  resolveTeacherAppeal
+  getAdminAppeals,
+  getAdminAppealDetail,
+  resolveAdminAppeal
 } from '../api';
 import { AppealFormData } from '../schemas';
 import { Appeal, AppealResolvePayload } from '../types';
@@ -56,14 +58,33 @@ export function useTeacherAppeal(id: string) {
   });
 }
 
-export function useResolveAppeal(appealId: string) {
+export function useAdminAppeals(status?: string) {
+  return useQuery({
+    queryKey: ['appeals', 'admin', 'list', status],
+    queryFn: () => getAdminAppeals(status),
+    retry: false,
+  });
+}
+
+export function useAdminAppeal(id: string) {
+  return useQuery({
+    queryKey: ['appeals', 'admin', 'detail', id],
+    queryFn: () => getAdminAppealDetail(id),
+    retry: false,
+    enabled: !!id,
+  });
+}
+
+export function useResolveAdminAppeal(appealId: string) {
   const queryClient = useQueryClient();
 
   return useMutation<Appeal, AxiosError, AppealResolvePayload>({
-    mutationFn: (payload: AppealResolvePayload) => resolveTeacherAppeal(appealId, payload),
+    mutationFn: (payload: AppealResolvePayload) => resolveAdminAppeal(appealId, payload),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appeals', 'admin'] });
       queryClient.invalidateQueries({ queryKey: ['appeals', 'teacher'] });
       queryClient.invalidateQueries({ queryKey: ['appeals', 'student'] });
+      queryClient.invalidateQueries({ queryKey: ['scoring', 'result'] });
     },
   });
 }

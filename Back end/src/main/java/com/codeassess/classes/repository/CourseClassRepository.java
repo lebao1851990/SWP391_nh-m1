@@ -17,6 +17,10 @@ public interface CourseClassRepository extends JpaRepository<CourseClass, String
 
     Optional<CourseClass> findByIdAndTeacherId(String id, String teacherId);
 
+    Optional<CourseClass> findByCode(String code);
+
+    boolean existsByCode(String code);
+
     @Query("SELECT c FROM CourseClass c JOIN ClassStudent cs ON c.id = cs.courseClass.id WHERE cs.student.id = :studentId")
     List<CourseClass> findByStudentId(@Param("studentId") String studentId);
 

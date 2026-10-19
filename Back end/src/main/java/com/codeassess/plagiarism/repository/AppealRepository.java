@@ -13,9 +13,14 @@ public interface AppealRepository extends JpaRepository<Appeal, Long> {
 
     boolean existsBySubmission_IdAndStatus(String submissionId, String status);
 
-    @org.springframework.data.jpa.repository.Query("SELECT a FROM Appeal a WHERE a.submission.exam.courseClass.teacher.id = :teacherId ORDER BY a.createdAt DESC")
+    @org.springframework.data.jpa.repository.Query("SELECT DISTINCT a FROM Appeal a LEFT JOIN a.submission.exam.classes c WHERE (a.submission.exam.courseClass.teacher.id = :teacherId OR c.teacher.id = :teacherId) ORDER BY a.createdAt DESC")
     java.util.List<Appeal> findByTeacherId(@org.springframework.data.repository.query.Param("teacherId") String teacherId);
 
-    @org.springframework.data.jpa.repository.Query("SELECT a FROM Appeal a WHERE a.id = :id AND a.submission.exam.courseClass.teacher.id = :teacherId")
+    @org.springframework.data.jpa.repository.Query("SELECT DISTINCT a FROM Appeal a LEFT JOIN a.submission.exam.classes c WHERE a.id = :id AND (a.submission.exam.courseClass.teacher.id = :teacherId OR c.teacher.id = :teacherId)")
     java.util.Optional<Appeal> findByIdAndTeacherId(@org.springframework.data.repository.query.Param("id") Long id, @org.springframework.data.repository.query.Param("teacherId") String teacherId);
+
+    java.util.List<Appeal> findAllByOrderByCreatedAtDesc();
+
+    java.util.List<Appeal> findByStatusOrderByCreatedAtDesc(String status);
 }
+

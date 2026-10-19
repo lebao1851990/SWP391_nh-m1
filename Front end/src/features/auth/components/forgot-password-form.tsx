@@ -41,16 +41,16 @@ export function ForgotPasswordForm() {
           <div className="w-16 h-16 rounded-xl bg-green-100 flex items-center justify-center p-2 mb-6">
             <CheckCircle className="w-8 h-8 text-green-700" />
           </div>
-          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Check your inbox</h1>
+          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Kiểm tra hộp thư của bạn</h1>
           <p className="text-sm text-muted-foreground mt-2 mb-6">
-            If an account exists for that ID, we have sent password reset instructions.
+            Nếu tài khoản tồn tại trong hệ thống, chúng tôi đã gửi hướng dẫn đặt lại mật khẩu đến email của bạn.
           </p>
           <Link
             href="/login"
             className="text-sm font-medium text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
           >
             <ArrowLeft className="w-4 h-4" />
-            Return to Login
+            Quay lại Đăng nhập
           </Link>
         </div>
       </main>
@@ -65,9 +65,9 @@ export function ForgotPasswordForm() {
           <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center p-2 mb-2 shadow-sm">
             <span className="font-bold text-2xl text-primary">CA</span>
           </div>
-          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Reset Password</h1>
+          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Đặt lại mật khẩu</h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-            Enter your university identity to receive recovery instructions.
+            Nhập email trường hoặc mã định danh của bạn để nhận hướng dẫn khôi phục.
           </p>
         </div>
 
@@ -75,44 +75,49 @@ export function ForgotPasswordForm() {
           <div className="mb-4 p-3 rounded-lg flex items-start gap-3 bg-destructive/10 text-destructive transition-all">
             <AlertCircle className="w-5 h-5 mt-0.5" />
             <div className="flex-1">
-              <p className="text-[13px] font-semibold">Request Failed</p>
-              <p className="text-xs mt-0.5">Could not process your request. Please try again later.</p>
+              <p className="text-[13px] font-semibold">Yêu cầu thất bại</p>
+              <p className="text-xs mt-0.5">Không thể xử lý yêu cầu lúc này. Vui lòng thử lại sau.</p>
             </div>
           </div>
         )}
 
-        <form className="flex flex-col gap-4" onSubmit={(e) => e.preventDefault()} noValidate>
-          {/* Identifier Field (Disabled) */}
-          <div className="flex flex-col gap-1.5 opacity-60">
+        <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)} noValidate>
+          {/* Identifier Field */}
+          <div className="flex flex-col gap-1.5">
             <label className="text-[13px] font-medium text-foreground" htmlFor="identity">
-              University Email or Student/Staff ID
+              Email trường hoặc Mã số Sinh viên / Cán bộ
             </label>
             <div className="relative flex items-center">
               <input
                 id="identity"
                 type="text"
-                disabled
-                placeholder="e.g., student@fpt.edu.vn"
-                className="w-full px-3 py-2 bg-muted text-muted-foreground text-sm rounded-lg border border-border shadow-sm cursor-not-allowed"
+                {...register('identity')}
+                disabled={mutation.isPending}
+                placeholder="Ví dụ: student@fpt.edu.vn"
+                className="w-full px-3 py-2 bg-background text-foreground text-sm rounded-lg border border-border shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
             </div>
-          </div>
-
-          <div className="mt-2 p-4 rounded-lg bg-surface-container-low border border-outline-variant/30 text-center flex flex-col items-center gap-2">
-            <AlertCircle className="w-6 h-6 text-outline" />
-            <span className="font-semibold text-on-surface text-sm">Password Recovery Not Configured</span>
-            <span className="text-xs text-on-surface-variant">
-              This feature is currently unavailable in this environment. Please contact your system administrator if you need to reset your password.
-            </span>
+            {errors.identity && (
+              <span className="text-xs text-destructive">{errors.identity.message}</span>
+            )}
           </div>
 
           <button
-            type="button"
-            disabled
-            className="w-full mt-2 py-2.5 px-4 rounded-lg bg-surface-container-highest text-on-surface-variant font-semibold text-base shadow-sm flex items-center justify-center gap-2 cursor-not-allowed opacity-70"
+            type="submit"
+            disabled={mutation.isPending}
+            className="w-full mt-2 py-2.5 px-4 rounded-lg bg-primary text-primary-foreground font-semibold text-base shadow-sm flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer"
           >
-            <span>Send Instructions</span>
-            <ArrowRight className="w-5 h-5" />
+            {mutation.isPending ? (
+              <>
+                <RefreshCcw className="w-5 h-5 animate-spin" />
+                <span>Đang gửi yêu cầu...</span>
+              </>
+            ) : (
+              <>
+                <span>Gửi hướng dẫn</span>
+                <ArrowRight className="w-5 h-5" />
+              </>
+            )}
           </button>
 
           <div className="mt-4 text-center">
@@ -121,7 +126,7 @@ export function ForgotPasswordForm() {
               className="text-sm font-medium text-primary hover:text-primary/80 transition-colors flex items-center justify-center gap-1"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back to Login
+              Quay lại Đăng nhập
             </Link>
           </div>
         </form>

@@ -46,9 +46,9 @@ export function TeacherPlagiarismDashboardView() {
     setReanalyzing(true);
     try {
       await refetch();
-      toast.success('Similarity matrix synchronized with latest database records');
+      toast.success('Ma trận tương đồng đã được đồng bộ với dữ liệu mới nhất');
     } catch {
-      toast.error('Failed to sync similarity records from server');
+      toast.error('Không thể đồng bộ dữ liệu tương đồng từ máy chủ');
     } finally {
       setReanalyzing(false);
     }
@@ -120,7 +120,7 @@ export function TeacherPlagiarismDashboardView() {
     return (
       <div className="flex flex-col h-72 items-center justify-center gap-3">
         <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-        <p className="text-on-surface-variant font-label-md text-xs">Loading AST plagiarism matrix...</p>
+        <p className="text-on-surface-variant font-label-md text-xs">Đang tải ma trận kiểm tra tương đồng AST...</p>
       </div>
     );
   }
@@ -133,18 +133,18 @@ export function TeacherPlagiarismDashboardView() {
           {status === 403 ? <Lock className="w-8 h-8" /> : <AlertCircle className="w-8 h-8" />}
         </div>
         <h2 className="font-headline-md text-headline-md text-on-surface">
-          {status === 403 ? 'Access Forbidden' : 'Integration Notice'}
+          {status === 403 ? 'Truy cập bị từ chối' : 'Thông báo tích hợp'}
         </h2>
         <p className="font-body-md text-on-surface-variant text-xs">
           {status === 403 
-            ? 'You do not have permission to view AST plagiarism records for this faculty cohort.'
+            ? 'Bạn không có quyền xem dữ liệu tương đồng AST của nhóm môn học này.'
             : (error as Error).message}
         </p>
         <button
           onClick={() => refetch()}
           className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-all cursor-pointer shadow-xs"
         >
-          Retry Connection
+          Thử lại kết nối
         </button>
       </div>
     );
@@ -160,16 +160,16 @@ export function TeacherPlagiarismDashboardView() {
           <div className="flex items-center gap-1.5 text-xs text-on-surface-variant font-mono">
             <span className="inline-flex items-center gap-1 text-secondary font-semibold">
               <Activity className="w-3.5 h-3.5" />
-              AST v4.2 Pipeline
+              Quy trình AST v4.2
             </span>
             <span>/</span>
-            <span className="text-on-surface font-semibold">Integrity Diagnostic Engine</span>
+            <span className="text-on-surface font-semibold">Bộ công cụ chẩn đoán liêm chính</span>
           </div>
           <h1 className="font-headline-xl text-headline-xl text-on-surface tracking-tight mt-1">
-            AST Code Plagiarism Detection &amp; Integrity Matrix
+            Kiểm tra Tương đồng Mã nguồn &amp; Ma trận Liêm chính AST
           </h1>
           <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
-            Automated structural similarity analysis using Abstract Syntax Tree (AST) sub-tree fingerprinting. Compares syntactic structures across all enrolled student submissions.
+            Phân tích tương đồng cấu trúc tự động sử dụng vân tay cây cú pháp trừu tượng (AST). So sánh cấu trúc cú pháp giữa toàn bộ bài nộp của sinh viên.
           </p>
         </div>
 
@@ -180,7 +180,7 @@ export function TeacherPlagiarismDashboardView() {
             className="px-4 py-2 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-lg text-xs font-semibold transition-all inline-flex items-center gap-2 border border-outline-variant/40 shadow-xs cursor-pointer disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-primary ${(reanalyzing || isRefetching) ? 'animate-spin' : ''}`} />
-            <span>{reanalyzing || isRefetching ? 'Synchronizing...' : 'Sync Similarity Matrix'}</span>
+            <span>{reanalyzing || isRefetching ? 'Đang đồng bộ...' : 'Đồng bộ ma trận tương đồng'}</span>
           </button>
         </div>
       </div>
@@ -193,17 +193,14 @@ export function TeacherPlagiarismDashboardView() {
         <div className="flex flex-col gap-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-title-md text-title-md text-on-surface font-bold">
-              Academic Rigor &amp; Neutral Interpretation Notice
+              Lưu ý về Tính nghiêm cẩn học thuật &amp; Đánh giá khách quan
             </span>
             <span className="font-mono text-[10px] bg-surface-container-high px-2 py-0.5 rounded font-semibold text-on-surface">
-              RBL-MODULE-4
+              QUY-DINH-4
             </span>
           </div>
           <p className="text-xs text-on-surface-variant leading-relaxed">
-            &ldquo;<strong>Similarity indicates structural or textual overlap between submissions. It is a review signal, not proof of plagiarism.</strong>&rdquo;
-          </p>
-          <p className="text-xs text-on-surface-variant/90 leading-relaxed italic border-t border-outline-variant/20 pt-1 mt-0.5">
-            &ldquo;Độ tương đồng phản ánh sự trùng lặp cấu trúc hoặc cú pháp AST giữa các bài nộp. Đây là tín hiệu tham vấn học thuật dành cho giảng viên đánh giá, không phải bằng chứng khẳng định gian lận.&rdquo;
+            &ldquo;<strong>Độ tương đồng phản ánh sự trùng lặp cấu trúc hoặc cú pháp AST giữa các bài nộp. Đây là tín hiệu tham vấn học thuật dành cho giảng viên đánh giá, không phải bằng chứng khẳng định gian lận.</strong>&rdquo;
           </p>
         </div>
       </div>
@@ -214,7 +211,7 @@ export function TeacherPlagiarismDashboardView() {
         <div className="bg-surface-container-lowest p-space-md rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between gap-2">
           <div className="flex items-center justify-between">
             <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">
-              Pairwise Comparisons
+              Cặp bài so sánh
             </span>
             <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
               <GitCompare className="w-4 h-4" />
@@ -223,9 +220,9 @@ export function TeacherPlagiarismDashboardView() {
           <div className="flex flex-col">
             <div className="flex items-baseline gap-1.5">
               <span className="font-display-lg text-display-lg font-bold text-on-surface">{totalPairs}</span>
-              <span className="text-xs text-outline font-mono">Evaluated</span>
+              <span className="text-xs text-outline font-mono">Đã đánh giá</span>
             </div>
-            <p className="text-xs text-on-surface-variant mt-0.5">AST sub-tree pairs verified</p>
+            <p className="text-xs text-on-surface-variant mt-0.5">Cặp nhánh AST đã đối soát</p>
           </div>
           <div className="w-full bg-blue-100 h-1.5 rounded-full overflow-hidden mt-1">
             <div className="bg-blue-600 h-full rounded-full" style={{ width: totalPairs ? '100%' : '0%' }}></div>
@@ -236,7 +233,7 @@ export function TeacherPlagiarismDashboardView() {
         <div className="bg-surface-container-lowest p-space-md rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between gap-2">
           <div className="flex items-center justify-between">
             <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">
-              Critical Flagged (&ge;70%)
+              Cảnh báo nghiêm trọng (&ge;70%)
             </span>
             <div className="p-1.5 rounded-lg bg-rose-50 text-rose-600">
               <ShieldAlert className="w-4 h-4" />
@@ -245,9 +242,9 @@ export function TeacherPlagiarismDashboardView() {
           <div className="flex flex-col">
             <div className="flex items-baseline gap-1.5">
               <span className="font-display-lg text-display-lg font-bold text-rose-600">{flaggedPairs}</span>
-              <span className="text-xs text-rose-600 font-mono">Pairs</span>
+              <span className="text-xs text-rose-600 font-mono">Cặp</span>
             </div>
-            <p className="text-xs text-on-surface-variant mt-0.5">Substantial structural congruence</p>
+            <p className="text-xs text-on-surface-variant mt-0.5">Mức độ trùng khớp cấu trúc đáng kể</p>
           </div>
           <div className="w-full bg-rose-100 h-1.5 rounded-full overflow-hidden mt-1">
             <div className="bg-rose-600 h-full rounded-full" style={{ width: totalPairs ? `${(flaggedPairs / totalPairs) * 100}%` : '0%' }}></div>
@@ -258,7 +255,7 @@ export function TeacherPlagiarismDashboardView() {
         <div className="bg-surface-container-lowest p-space-md rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between gap-2">
           <div className="flex items-center justify-between">
             <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">
-              Moderate (40–69%)
+              Mức độ trung bình (40–69%)
             </span>
             <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600">
               <Activity className="w-4 h-4" />
@@ -267,9 +264,9 @@ export function TeacherPlagiarismDashboardView() {
           <div className="flex flex-col">
             <div className="flex items-baseline gap-1.5">
               <span className="font-display-lg text-display-lg font-bold text-on-surface">{moderatePairs}</span>
-              <span className="text-xs text-outline font-mono">Pairs</span>
+              <span className="text-xs text-outline font-mono">Cặp</span>
             </div>
-            <p className="text-xs text-on-surface-variant mt-0.5">Partial node congruence detected</p>
+            <p className="text-xs text-on-surface-variant mt-0.5">Phát hiện trùng khớp một phần các nút AST</p>
           </div>
           <div className="w-full bg-amber-100 h-1.5 rounded-full overflow-hidden mt-1">
             <div className="bg-amber-500 h-full rounded-full" style={{ width: totalPairs ? `${(moderatePairs / totalPairs) * 100}%` : '0%' }}></div>
@@ -280,7 +277,7 @@ export function TeacherPlagiarismDashboardView() {
         <div className="bg-surface-container-lowest p-space-md rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between gap-2">
           <div className="flex items-center justify-between">
             <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">
-              Normal (&lt;40%)
+              Bình thường (&lt;40%)
             </span>
             <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
               <CheckCircle2 className="w-4 h-4" />
@@ -289,9 +286,9 @@ export function TeacherPlagiarismDashboardView() {
           <div className="flex flex-col">
             <div className="flex items-baseline gap-1.5">
               <span className="font-display-lg text-display-lg font-bold text-on-surface">{normalPairs}</span>
-              <span className="text-xs text-outline font-mono">Pairs</span>
+              <span className="text-xs text-outline font-mono">Cặp</span>
             </div>
-            <p className="text-xs text-on-surface-variant mt-0.5">Below plagiarism threshold</p>
+            <p className="text-xs text-on-surface-variant mt-0.5">Dưới ngưỡng cảnh báo vi phạm</p>
           </div>
           <div className="w-full bg-emerald-100 h-1.5 rounded-full overflow-hidden mt-1">
             <div className="bg-emerald-600 h-full rounded-full" style={{ width: totalPairs ? `${(normalPairs / totalPairs) * 100}%` : '0%' }}></div>
@@ -307,7 +304,7 @@ export function TeacherPlagiarismDashboardView() {
           <div className="flex items-center gap-2.5 flex-wrap">
             <div className="flex items-center gap-1.5">
               <Filter className="w-3.5 h-3.5 text-on-surface-variant" />
-              <span className="text-xs font-semibold text-on-surface">Filters:</span>
+              <span className="text-xs font-semibold text-on-surface">Bộ lọc:</span>
             </div>
 
             {/* Exam selector */}
@@ -317,7 +314,7 @@ export function TeacherPlagiarismDashboardView() {
                 onChange={(e) => setSelectedExam(e.target.value)}
                 className="px-2.5 py-1.5 text-xs bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-on-surface font-medium focus:outline-none focus:ring-1 focus:ring-primary shadow-xs cursor-pointer"
               >
-                <option value="ALL">All Assessments ({distinctExams.length})</option>
+                <option value="ALL">Tất cả bài kiểm tra ({distinctExams.length})</option>
                 {distinctExams.map(ex => (
                   <option key={ex} value={ex}>{ex}</option>
                 ))}
@@ -331,7 +328,7 @@ export function TeacherPlagiarismDashboardView() {
                 onChange={(e) => setSelectedClass(e.target.value)}
                 className="px-2.5 py-1.5 text-xs bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-on-surface font-medium focus:outline-none focus:ring-1 focus:ring-primary shadow-xs cursor-pointer"
               >
-                <option value="ALL">All Cohorts ({distinctClasses.length})</option>
+                <option value="ALL">Tất cả lớp học ({distinctClasses.length})</option>
                 {distinctClasses.map(cls => (
                   <option key={cls} value={cls}>{cls}</option>
                 ))}
@@ -341,7 +338,7 @@ export function TeacherPlagiarismDashboardView() {
 
           {/* View Mode Switcher */}
           <div className="flex items-center gap-2 self-start lg:self-center">
-            <span className="text-[11px] text-on-surface-variant font-medium">Display:</span>
+            <span className="text-[11px] text-on-surface-variant font-medium">Hiển thị:</span>
             <div className="inline-flex rounded-lg bg-surface-container p-0.5 border border-outline-variant/40">
               <button
                 onClick={() => setViewMode('table')}
@@ -352,7 +349,7 @@ export function TeacherPlagiarismDashboardView() {
                 }`}
               >
                 <ListFilter className="w-3.5 h-3.5" />
-                <span>Table List</span>
+                <span>Danh sách bảng</span>
               </button>
               <button
                 onClick={() => setViewMode('matrix')}
@@ -363,7 +360,7 @@ export function TeacherPlagiarismDashboardView() {
                 }`}
               >
                 <Grid3X3 className="w-3.5 h-3.5" />
-                <span>Matrix Heatmap</span>
+                <span>Bản đồ nhiệt ma trận</span>
               </button>
             </div>
           </div>
@@ -387,7 +384,7 @@ export function TeacherPlagiarismDashboardView() {
                       : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
                   }`}
                 >
-                  All Pairs ({totalPairs})
+                  Tất cả cặp bài ({totalPairs})
                 </button>
                 <button
                   onClick={() => setStatusFilter('FLAGGED')}
@@ -397,7 +394,7 @@ export function TeacherPlagiarismDashboardView() {
                       : 'text-rose-700 hover:bg-rose-50'
                   }`}
                 >
-                  Critical Flagged ({flaggedPairs})
+                  Cảnh báo cao ({flaggedPairs})
                 </button>
                 <button
                   onClick={() => setStatusFilter('MODERATE')}
@@ -407,7 +404,7 @@ export function TeacherPlagiarismDashboardView() {
                       : 'text-amber-700 hover:bg-amber-50'
                   }`}
                 >
-                  Moderate ({moderatePairs})
+                  Trung bình ({moderatePairs})
                 </button>
                 <button
                   onClick={() => setStatusFilter('CLEAN')}
@@ -417,7 +414,7 @@ export function TeacherPlagiarismDashboardView() {
                       : 'text-emerald-700 hover:bg-emerald-50'
                   }`}
                 >
-                  Clean ({normalPairs})
+                  An toàn ({normalPairs})
                 </button>
               </div>
 
@@ -425,7 +422,7 @@ export function TeacherPlagiarismDashboardView() {
                 <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
                 <input
                   type="text"
-                  placeholder="Search author, student ID, pair..."
+                  placeholder="Tìm tác giả, mã sinh viên, cặp bài..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-8 pr-7 py-1.5 text-xs bg-surface-container-lowest border border-outline-variant/60 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-on-surface placeholder:text-outline"
@@ -446,10 +443,10 @@ export function TeacherPlagiarismDashboardView() {
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-surface-container-low text-on-surface-variant font-label-xs uppercase tracking-wider border-b border-outline-variant/30 select-none">
-                    <th className="py-2.5 px-4 font-semibold w-1/4">Submission A (Author)</th>
-                    <th className="py-2.5 px-4 font-semibold w-1/4">Submission B (Author)</th>
-                    <th className="py-2.5 px-4 font-semibold w-1/4">Structural Match</th>
-                    <th className="py-2.5 px-4 font-semibold text-right">Investigation Action</th>
+                    <th className="py-2.5 px-4 font-semibold w-1/4">Bài nộp A (Tác giả)</th>
+                    <th className="py-2.5 px-4 font-semibold w-1/4">Bài nộp B (Tác giả)</th>
+                    <th className="py-2.5 px-4 font-semibold w-1/4">Mức độ tương đồng</th>
+                    <th className="py-2.5 px-4 font-semibold text-right">Thao tác thẩm tra</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant/20 text-on-surface">
@@ -457,8 +454,8 @@ export function TeacherPlagiarismDashboardView() {
                     <tr>
                       <td colSpan={4} className="py-12 text-center text-outline font-label-md">
                         {searchQuery || statusFilter !== 'ALL' || selectedExam !== 'ALL' || selectedClass !== 'ALL'
-                          ? 'No similarity pairs match your search and filter criteria.'
-                          : 'No plagiarism records detected for your active exams. All student submissions appear distinct.'}
+                          ? 'Không có cặp so sánh nào khớp với tiêu chí tìm kiếm và bộ lọc của bạn.'
+                          : 'Không phát hiện bản ghi tương đồng nào cho các bài thi hiện tại. Tất cả bài nộp của sinh viên đều độc lập.'}
                       </td>
                     </tr>
                   ) : (
@@ -472,7 +469,7 @@ export function TeacherPlagiarismDashboardView() {
                                 {(pair.studentAName ?? pair.studentAId).substring(0, 2).toUpperCase()}
                               </div>
                               <div className="flex flex-col min-w-0">
-                                <span className="font-semibold text-on-surface truncate">{pair.studentAName ?? 'Student A'}</span>
+                                <span className="font-semibold text-on-surface truncate">{pair.studentAName ?? 'Sinh viên A'}</span>
                                 <span className="font-mono text-[11px] text-on-surface-variant">{pair.studentAId}</span>
                                 {record.examName && (
                                   <span className="text-[10px] text-outline mt-0.5">{record.examName}</span>
@@ -487,7 +484,7 @@ export function TeacherPlagiarismDashboardView() {
                                 {(pair.studentBName ?? pair.studentBId).substring(0, 2).toUpperCase()}
                               </div>
                               <div className="flex flex-col min-w-0">
-                                <span className="font-semibold text-on-surface truncate">{pair.studentBName ?? 'Student B'}</span>
+                                <span className="font-semibold text-on-surface truncate">{pair.studentBName ?? 'Sinh viên B'}</span>
                                 <span className="font-mono text-[11px] text-on-surface-variant">{pair.studentBId}</span>
                                 {record.className && (
                                   <span className="text-[10px] text-outline mt-0.5">{record.className}</span>
@@ -507,7 +504,7 @@ export function TeacherPlagiarismDashboardView() {
                                 <span className={`text-[10px] uppercase font-semibold ${
                                   pair.isFlagged ? 'text-rose-600' : (pair.similarityRate >= 40 ? 'text-amber-600' : 'text-emerald-600')
                                 }`}>
-                                  {pair.isFlagged ? 'CRITICAL FLAG' : (pair.similarityRate >= 40 ? 'MODERATE' : 'CLEAN')}
+                                  {pair.isFlagged ? 'CẢNH BÁO CAO' : (pair.similarityRate >= 40 ? 'TRUNG BÌNH' : 'AN TOÀN')}
                                 </span>
                               </div>
                               <div className="w-full bg-surface-container h-2 rounded-full overflow-hidden">
@@ -526,7 +523,7 @@ export function TeacherPlagiarismDashboardView() {
                               href={`/teacher/plagiarism/${record.recordId}`} 
                               className="px-3 py-1.5 bg-primary text-on-primary hover:bg-primary/90 rounded-lg text-xs font-medium transition-all inline-flex items-center gap-1.5 shadow-xs"
                             >
-                              <span>Review Diff</span>
+                              <span>Xem so sánh</span>
                               <ExternalLink className="w-3 h-3" />
                             </Link>
                           </td>
@@ -542,9 +539,9 @@ export function TeacherPlagiarismDashboardView() {
             {filteredPairs.length > 0 && (
               <div className="p-4 border-t border-outline-variant/30 flex flex-col sm:flex-row items-center justify-between gap-3 bg-surface-container-low/30 text-xs">
                 <span className="text-on-surface-variant font-medium">
-                  Showing <strong className="text-on-surface">{(activePage - 1) * pageSize + 1}</strong> &ndash;{' '}
-                  <strong className="text-on-surface">{Math.min(activePage * pageSize, filteredPairs.length)}</strong> of{' '}
-                  <strong className="text-on-surface">{filteredPairs.length}</strong> comparisons
+                  Đang hiển thị <strong className="text-on-surface">{(activePage - 1) * pageSize + 1}</strong> &ndash;{' '}
+                  <strong className="text-on-surface">{Math.min(activePage * pageSize, filteredPairs.length)}</strong> trong tổng số{' '}
+                  <strong className="text-on-surface">{filteredPairs.length}</strong> cặp so sánh
                 </span>
 
                 <div className="flex items-center gap-1.5">

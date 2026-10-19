@@ -16,8 +16,6 @@ import {
   FileCheck, 
   CheckCircle2, 
   Loader2, 
-  FileCode2,
-  HelpCircle,
   ShieldAlert
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -39,7 +37,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
     return (
       <div className="flex flex-col h-72 items-center justify-center gap-3">
         <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-        <p className="text-on-surface-variant font-label-md text-xs">Loading exam specifications...</p>
+        <p className="text-on-surface-variant font-label-md text-xs">Đang tải thông số bài thi...</p>
       </div>
     );
   }
@@ -52,10 +50,10 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
           <div className="p-3 rounded-full bg-rose-50 text-rose-600">
             <Lock className="w-8 h-8" />
           </div>
-          <h2 className="font-headline-md text-headline-md text-on-surface">Access Restricted</h2>
-          <p className="font-body-md text-on-surface-variant text-xs">You are not enrolled in the class assigned to this assessment.</p>
+          <h2 className="font-headline-md text-headline-md text-on-surface">Truy cập bị giới hạn</h2>
+          <p className="font-body-md text-on-surface-variant text-xs">Bạn chưa được ghi danh vào lớp học được phân công bài thi này.</p>
           <Link href="/student/exams" className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium">
-            Back to Assessments
+            Quay lại danh sách bài thi
           </Link>
         </div>
       );
@@ -66,10 +64,10 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
           <div className="p-3 rounded-full bg-amber-50 text-amber-600">
             <AlertCircle className="w-8 h-8" />
           </div>
-          <h2 className="font-headline-md text-headline-md text-on-surface">Assessment Not Found</h2>
-          <p className="font-body-md text-on-surface-variant text-xs">This assessment does not exist or has been archived.</p>
+          <h2 className="font-headline-md text-headline-md text-on-surface">Không tìm thấy bài thi</h2>
+          <p className="font-body-md text-on-surface-variant text-xs">Bài thi này không tồn tại hoặc đã được lưu trữ.</p>
           <Link href="/student/exams" className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium">
-            Back to Assessments
+            Quay lại danh sách bài thi
           </Link>
         </div>
       );
@@ -79,10 +77,10 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
         <div className="p-3 rounded-full bg-rose-50 text-rose-600">
           <AlertCircle className="w-8 h-8" />
         </div>
-        <h2 className="font-headline-md text-headline-md text-on-surface">Error Loading Assessment</h2>
+        <h2 className="font-headline-md text-headline-md text-on-surface">Lỗi tải thông tin bài thi</h2>
         <p className="font-body-md text-on-surface-variant text-xs">{(error as Error).message}</p>
-        <button onClick={() => window.location.reload()} className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium">
-          Retry
+        <button onClick={() => window.location.reload()} className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium cursor-pointer">
+          Thử lại
         </button>
       </div>
     );
@@ -110,7 +108,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
       return;
     }
     if (!sourceCode.trim()) {
-      setLocalError('Source code cannot be empty.');
+      setLocalError('Mã nguồn không được để trống.');
       return;
     }
     setLocalError('');
@@ -123,7 +121,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
       { examId, sourceCode },
       {
         onSuccess: (data: { id?: string }) => {
-          toast.success('Source code submitted successfully! Running sandbox tests...');
+          toast.success('Nộp bài làm thành công! Hệ thống đang chuyển hướng...');
           if (data && data.id) {
             router.push(`/student/submissions/${data.id}`);
           } else {
@@ -131,7 +129,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
           }
         },
         onError: (err: unknown) => {
-          const msg = (err as AxiosError<{message?: string}>)?.response?.data?.message || (err as Error)?.message || 'Submission failed';
+          const msg = (err as AxiosError<{message?: string}>)?.response?.data?.message || (err as Error)?.message || 'Nộp bài thất bại.';
           setLocalError(msg);
           toast.error(msg);
         }
@@ -148,7 +146,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
             <nav className="flex items-center gap-2 text-on-surface-variant text-xs">
               <Link className="hover:text-primary transition-colors flex items-center gap-1 font-medium" href="/student/exams">
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Assessments</span>
+                <span>Danh sách bài thi</span>
               </Link>
               <span className="text-outline-variant">/</span>
               <span className="text-primary font-semibold truncate max-w-[200px]">{exam.title}</span>
@@ -169,20 +167,20 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                   </span>
                 )}
-                <span>{isUpcoming ? 'UPCOMING' : isDeadlinePassed ? 'CLOSED' : exam.status.toUpperCase()}</span>
+                <span>{isUpcoming ? 'SẮP DIỄN RA' : isDeadlinePassed ? 'ĐÃ ĐÓNG' : exam.status === 'active' ? 'ĐANG MỞ' : exam.status === 'completed' ? 'ĐÃ HOÀN THÀNH' : exam.status.toUpperCase()}</span>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-on-surface-variant">
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container font-mono font-medium text-on-surface border border-outline-variant/30">
                 <BookOpen className="w-3.5 h-3.5 text-primary" />
-                <span>Class: {exam.courseClassCode || 'SE-PRACTICAL'}</span>
+                <span>Lớp: {exam.courseClassCode || 'SE-PRACTICAL'}</span>
               </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container-high text-on-surface border border-outline-variant/30">
                 <Clock className="w-3.5 h-3.5 text-outline" />
-                <span>Deadline: {new Date(exam.endTime).toLocaleString()}</span>
-                {isDeadlinePassed && <span className="text-rose-600 font-semibold ml-1">(Concluded)</span>}
-                {isUpcoming && <span className="text-blue-600 font-semibold ml-1">(Not Started)</span>}
+                <span>Hạn nộp: {new Date(exam.endTime).toLocaleString('vi-VN')}</span>
+                {isDeadlinePassed && <span className="text-rose-600 font-semibold ml-1">(Đã kết thúc)</span>}
+                {isUpcoming && <span className="text-blue-600 font-semibold ml-1">(Chưa bắt đầu)</span>}
               </span>
             </div>
           </div>
@@ -204,8 +202,8 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
           <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
             <div>
-              <p className="font-semibold">Assessment Window Concluded</p>
-              <p className="text-amber-700 mt-0.5">The deadline for this assessment has passed ({new Date(exam.endTime).toLocaleString()}). Submissions are closed.</p>
+              <p className="font-semibold">Thời gian làm bài đã kết thúc</p>
+              <p className="text-amber-700 mt-0.5">Hạn nộp bài thi này đã qua ({new Date(exam.endTime).toLocaleString('vi-VN')}). Hệ thống đã đóng cổng nhận bài.</p>
             </div>
           </div>
         )}
@@ -215,8 +213,8 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
           <div className="p-4 rounded-xl bg-surface-container border border-outline-variant/40 text-on-surface-variant text-xs flex items-center gap-3">
             <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
             <div>
-              <p className="font-semibold">Assessment Status: {exam.status.toUpperCase()}</p>
-              <p className="text-on-surface-variant/80 mt-0.5">This assessment is no longer accepting new submissions.</p>
+              <p className="font-semibold">Trạng thái: {exam.status === 'completed' ? 'ĐÃ HOÀN THÀNH' : 'QUÁ HẠN'}</p>
+              <p className="text-on-surface-variant/80 mt-0.5">Bài thi này hiện không còn nhận bài nộp mới.</p>
             </div>
           </div>
         )}
@@ -224,7 +222,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
         {/* Exam Description Card */}
         {exam.description && (
           <div className="p-space-md rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs">
-            <h3 className="font-label-sm font-semibold text-outline uppercase tracking-wider mb-1">Problem Statement &amp; Requirements</h3>
+            <h3 className="font-label-sm font-semibold text-outline uppercase tracking-wider mb-1">Đề bài &amp; Yêu cầu kỹ thuật</h3>
             <p className="text-xs text-on-surface leading-relaxed whitespace-pre-wrap">{exam.description}</p>
           </div>
         )}
@@ -235,12 +233,12 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
             <div className="flex items-center justify-between border-b border-outline-variant/30 pb-3">
               <div className="flex items-center gap-2">
                 <Code2 className="w-5 h-5 text-primary" />
-                <h2 className="font-headline-sm text-headline-sm text-on-surface">Source Code Workspace</h2>
+                <h2 className="font-headline-sm text-headline-sm text-on-surface">Không gian soạn thảo mã nguồn</h2>
               </div>
               <div className="flex items-center gap-3 text-xs text-outline font-mono">
-                <span>{lineCount} lines</span>
+                <span>{lineCount} dòng</span>
                 <span>•</span>
-                <span>{charCount} chars</span>
+                <span>{charCount} ký tự</span>
                 <span>•</span>
                 <span className="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-semibold">Java 17</span>
               </div>
@@ -260,7 +258,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
 
               <textarea 
                 className="w-full h-96 p-4 bg-transparent font-mono text-xs text-slate-100 placeholder:text-slate-600 outline-none resize-y leading-relaxed"
-                placeholder="// Enter your Java solution here...&#10;public class Solution {&#10;    public static void main(String[] args) {&#10;        // Code goes here&#10;    }&#10;}"
+                placeholder="// Nhập mã nguồn Java của bạn tại đây...&#10;public class Solution {&#10;    public static void main(String[] args) {&#10;        // Viết mã nguồn của bạn tại đây&#10;    }&#10;}"
                 value={sourceCode}
                 onChange={(e) => setSourceCode(e.target.value)}
                 disabled={submitExam.isPending || isClosed}
@@ -278,7 +276,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
             <div className="flex items-center justify-between pt-2">
               <div className="text-xs text-outline flex items-center gap-1.5">
                 <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
-                <span>Submissions are audited for AST syntax duplication and run in Docker sandbox.</span>
+                <span>Bài làm sẽ được kiểm tra tương đồng cú pháp AST và chạy kiểm thử an toàn trong Docker sandbox.</span>
               </div>
 
               <div className="flex items-center gap-3">
@@ -288,7 +286,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                   onClick={() => router.push('/student/exams')}
                   disabled={submitExam.isPending}
                 >
-                  Cancel
+                  Hủy bỏ
                 </button>
                 
                 <button 
@@ -297,7 +295,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                   disabled={submitExam.isPending || isClosed || !sourceCode.trim()}
                 >
                   <Send className="w-3.5 h-3.5" />
-                  <span>{isUpcoming ? 'Opens at ' + (exam.startTime ? new Date(exam.startTime).toLocaleTimeString() : '') : isDeadlinePassed ? 'Deadline Passed' : 'Submit Code Artifact'}</span>
+                  <span>{isUpcoming ? 'Chưa mở nộp bài' : isDeadlinePassed ? 'Đã quá hạn nộp' : 'Nộp bài làm'}</span>
                 </button>
               </div>
             </div>
@@ -313,28 +311,28 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                   <FileCheck className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="font-headline-sm text-headline-sm font-semibold">Confirm Final Submission</h3>
-                  <p className="text-xs text-on-surface-variant">Are you ready to submit your code for grading?</p>
+                  <h3 className="font-headline-sm text-headline-sm font-semibold">Xác nhận nộp bài chính thức</h3>
+                  <p className="text-xs text-on-surface-variant">Bạn đã sẵn sàng nộp mã nguồn để tiến hành chấm điểm chưa?</p>
                 </div>
               </div>
 
               <div className="p-3 rounded-lg bg-surface-container-low border border-outline-variant/30 text-xs text-on-surface-variant space-y-1">
                 <div className="flex justify-between">
-                  <span>Lines of code:</span>
+                  <span>Số dòng code:</span>
                   <span className="font-mono font-semibold text-on-surface">{lineCount}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Character count:</span>
+                  <span>Số lượng ký tự:</span>
                   <span className="font-mono font-semibold text-on-surface">{charCount}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Language target:</span>
+                  <span>Môi trường biên dịch:</span>
                   <span className="font-mono font-semibold text-on-surface">Java 17 (OpenJDK)</span>
                 </div>
               </div>
 
               <p className="text-xs text-outline leading-relaxed">
-                Once submitted, your code will be immediately queued for Docker sandbox execution and AST plagiarism tokenization.
+                Sau khi nộp, mã nguồn của bạn sẽ được chuyển vào hàng đợi thực thi sandbox Docker và đối soát kiểm tra liêm chính học thuật AST.
               </p>
 
               <div className="flex justify-end gap-3 pt-2 border-t border-outline-variant/30">
@@ -343,7 +341,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                   onClick={() => setShowConfirmModal(false)}
                   className="px-4 py-2 text-xs rounded-lg border border-outline-variant/40 hover:bg-surface-container transition-colors cursor-pointer"
                 >
-                  Revise Code
+                  Chỉnh sửa lại mã nguồn
                 </button>
                 <button
                   type="button"
@@ -354,12 +352,12 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                   {submitExam.isPending ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Submitting...</span>
+                      <span>Đang nộp bài...</span>
                     </>
                   ) : (
                     <>
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Confirm &amp; Grade</span>
+                      <span>Xác nhận và gửi chấm điểm</span>
                     </>
                   )}
                 </button>
