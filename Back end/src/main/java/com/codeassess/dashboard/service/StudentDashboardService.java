@@ -17,12 +17,20 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class StudentDashboardService {
 
     private final UserRepository userRepository;
     private final StudentExamService studentExamService;
     private final SubmissionRepository submissionRepository;
+
+    public StudentDashboardService(
+            UserRepository userRepository,
+            StudentExamService studentExamService,
+            SubmissionRepository submissionRepository) {
+        this.userRepository = userRepository;
+        this.studentExamService = studentExamService;
+        this.submissionRepository = submissionRepository;
+    }
 
     @Transactional(readOnly = true)
     public StudentDashboardDto getDashboard(String studentId) {

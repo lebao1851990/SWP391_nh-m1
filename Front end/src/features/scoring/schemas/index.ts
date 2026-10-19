@@ -12,8 +12,8 @@ export const SaveScoringPayloadSchema = z.object({
   ),
   instructorEvaluationComments: z.string().optional(),
   
-  // Optional override fields. Backend contract is UNCONFIRMED.
-  overrideTotalScore: z.number().min(0).optional(),
+  // Optional override fields. Backend validates against 0 and maximum scale.
+  overrideTotalScore: z.number().min(0, 'Override score cannot be negative').optional(),
   overrideRationale: z.string().optional(),
 });
 

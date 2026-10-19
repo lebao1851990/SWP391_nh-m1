@@ -1,7 +1,7 @@
 package com.codeassess.submission.controller;
 
 import com.codeassess.submission.dto.response.SubmissionDetailResponse;
-import com.codeassess.submission.dto.response.SubmissionListResponse;
+import com.codeassess.submission.dto.response.TeacherSubmissionListResponse;
 import com.codeassess.submission.service.TeacherSubmissionService;
 import com.codeassess.user.entity.User;
 import lombok.RequiredArgsConstructor;
@@ -20,10 +20,11 @@ import java.util.List;
 public class TeacherSubmissionController {
 
     private final TeacherSubmissionService teacherSubmissionService;
+    private final com.codeassess.scoring.service.TeacherScoringService teacherScoringService;
 
     @PreAuthorize("hasRole('TEACHER')")
     @GetMapping
-    public List<SubmissionListResponse> getMySubmissions(@AuthenticationPrincipal User currentUser) {
+    public List<TeacherSubmissionListResponse> getMySubmissions(@AuthenticationPrincipal User currentUser) {
         return teacherSubmissionService.getTeacherSubmissions(currentUser.getId());
     }
 
@@ -31,5 +32,11 @@ public class TeacherSubmissionController {
     @GetMapping("/{id}")
     public SubmissionDetailResponse getSubmissionById(@PathVariable String id, @AuthenticationPrincipal User currentUser) {
         return teacherSubmissionService.getTeacherSubmissionById(id, currentUser.getId());
+    }
+
+    @PreAuthorize("hasRole('TEACHER')")
+    @GetMapping("/{id}/audit-logs")
+    public List<com.codeassess.scoring.dto.response.GradeAuditLogDto> getAuditLogs(@PathVariable String id, @AuthenticationPrincipal User currentUser) {
+        return teacherScoringService.getAuditLogs(id, currentUser.getId());
     }
 }

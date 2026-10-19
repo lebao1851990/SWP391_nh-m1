@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -18,6 +19,10 @@ public class CodeComparisonDataDto {
     private String sourceCodeA;
     private String sourceCodeB;
     private List<MatchDto> matches;
+    private String adjudicationStatus;
+    private String adjudicationNotes;
+    private String adjudicatedBy;
+    private LocalDateTime adjudicatedAt;
 
     @Data
     @Builder

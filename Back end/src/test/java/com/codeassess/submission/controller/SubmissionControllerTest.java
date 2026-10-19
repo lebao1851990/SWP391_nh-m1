@@ -2,6 +2,8 @@ package com.codeassess.submission.controller;
 
 import com.codeassess.common.exception.ResourceNotFoundException;
 import com.codeassess.submission.dto.response.SubmissionDetailResponse;
+import com.codeassess.submission.dto.response.SubmissionListResponse;
+import com.codeassess.submission.dto.response.TeacherSubmissionListResponse;
 import com.codeassess.submission.service.AdminSubmissionService;
 import com.codeassess.submission.service.StudentSubmissionService;
 import com.codeassess.submission.service.TeacherSubmissionService;
@@ -17,6 +19,11 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.List;
+
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -111,5 +118,75 @@ class SubmissionControllerTest {
         mockMvc.perform(get("/api/admin/submissions/sub-1").with(user(adminUser)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("GRADED"));
+    }
+
+    @Test
+    void teacherCanGetMySubmissions() throws Exception {
+        TeacherSubmissionListResponse sub1 = TeacherSubmissionListResponse.builder()
+                .id("sub-1")
+                .studentName("Student A")
+                .studentEmail("studenta@fpt.edu.vn")
+                .examTitle("Java Midterm Exam")
+                .courseCode("PRJ301")
+                .status("GRADED")
+                .totalScore(new BigDecimal("85.50"))
+                .build();
+
+        Mockito.when(teacherSubmissionService.getTeacherSubmissions("teacher-1"))
+                .thenReturn(List.of(sub1));
+
+        mockMvc.perform(get("/api/teacher/submissions").with(user(teacherUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value("sub-1"))
+                .andExpect(jsonPath("$[0].studentName").value("Student A"))
+                .andExpect(jsonPath("$[0].examTitle").value("Java Midterm Exam"))
+                .andExpect(jsonPath("$[0].courseCode").value("PRJ301"))
+                .andExpect(jsonPath("$[0].status").value("GRADED"))
+                .andExpect(jsonPath("$[0].totalScore").value(85.50));
+    }
+
+    @Test
+    void teacherGetMySubmissionsEmpty() throws Exception {
+        Mockito.when(teacherSubmissionService.getTeacherSubmissions("teacher-1"))
+                .thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/teacher/submissions").with(user(teacherUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    void studentCanGetMySubmissions() throws Exception {
+        SubmissionListResponse sub1 = SubmissionListResponse.builder()
+                .id("sub-student-1")
+                .examId("exam-1")
+                .examTitle("Java Final Exam")
+                .studentId("student-1")
+                .status("GRADED")
+                .totalScore(new BigDecimal("90.00"))
+                .build();
+
+        Mockito.when(studentSubmissionService.getStudentSubmissions("student-1"))
+                .thenReturn(List.of(sub1));
+
+        mockMvc.perform(get("/api/student/submissions").with(user(studentUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value("sub-student-1"))
+                .andExpect(jsonPath("$[0].examId").value("exam-1"))
+                .andExpect(jsonPath("$[0].examTitle").value("Java Final Exam"))
+                .andExpect(jsonPath("$[0].status").value("GRADED"))
+                .andExpect(jsonPath("$[0].totalScore").value(90.00));
+    }
+
+    @Test
+    void studentGetMySubmissionsEmpty() throws Exception {
+        Mockito.when(studentSubmissionService.getStudentSubmissions("student-1"))
+                .thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/student/submissions").with(user(studentUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
     }
 }

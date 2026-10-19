@@ -19,4 +19,13 @@ public interface AiClient {
      * @throws AiIntegrationException if integration fails.
      */
     String generateCodeReview(String prompt) throws AiIntegrationException;
+
+    /**
+     * Generates student-facing educational feedback (compiler error explanations, code explanations, or debug hints).
+     * @param systemPrompt System instructions specifying role, pedagogical tone, and safety constraints.
+     * @param userPrompt Bounded student code and/or error output.
+     * @return AI generated guidance.
+     * @throws AiIntegrationException if provider integration fails.
+     */
+    String generateStudentFeedback(String systemPrompt, String userPrompt) throws AiIntegrationException;
 }

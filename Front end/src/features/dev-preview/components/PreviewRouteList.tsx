@@ -23,6 +23,7 @@ const TEACHER_ROUTES = [
   { path: '/teacher/dashboard', name: 'Teacher Dashboard' },
   { path: '/teacher/exams', name: 'Exams List' },
   { path: '/teacher/exams/exam_preview_001', name: 'Exam Detail' },
+  { path: '/teacher/submissions', name: 'Submissions List' },
   { path: '/teacher/submissions/sub_preview_001', name: 'Submission Detail' },
   { path: '/teacher/scoring/sub_preview_001', name: 'Scoring View' },
   { path: '/teacher/plagiarism', name: 'Plagiarism Dashboard' },

@@ -20,5 +20,10 @@ public class ScoringDetail {
     private BigDecimal totalScore;
     private BigDecimal overrideTotalScore;
     private BigDecimal effectiveScore;
+    private BigDecimal maxTotalScore;
+    private BigDecimal autoScore;
+    private Integer testCasesPassed;
+    private Integer testCasesTotal;
+    private List<com.codeassess.testcase.dto.response.SubmissionTestResultDto> testResults;
     private List<CriterionScoreDto> criteria;
 }

@@ -32,10 +32,16 @@ export interface ScoringDetail {
   
   // Scoring Data
   totalScore: number; // Official backend total
+  overrideTotalScore?: number | null;
+  effectiveScore?: number;
   maxTotalScore: number;
   gradeEquivalent?: string;
   percentile?: string;
-  classMedian?: number;
+  // Automated Test Cases Data
+  autoScore?: number | null;
+  testCasesPassed?: number;
+  testCasesTotal?: number;
+  testResults?: SubmissionTestResultDto[];
   
   criteria: CriterionScore[];
   
@@ -45,17 +51,42 @@ export interface ScoringDetail {
   instructorEvaluationComments?: string;
 }
 
+export interface SubmissionTestResultDto {
+  id: string;
+  testCaseId?: string;
+  testCaseName?: string;
+  isHidden: boolean;
+  status: 'PASSED' | 'FAILED' | 'COMPILE_ERROR' | 'TIMEOUT' | 'RUNTIME_ERROR' | string;
+  actualOutput?: string;
+  expectedOutput?: string;
+  executionTimeMs?: number;
+  exitCode?: number;
+  errorMessage?: string;
+  pointsAwarded: number;
+  maxPoints?: number;
+}
+
 export interface StudentSubmissionResult {
   submissionId: string;
   examName: string;
   status: ScoringStatus;
+  executionStatus?: string;
+  compileOutput?: string;
   evaluatedAt?: string;
   evaluatorName?: string;
   
   totalScore: number;
+  overrideTotalScore?: number | null;
+  effectiveScore?: number;
   maxTotalScore: number;
   gradeEquivalent?: string;
   percentile?: string;
+
+  // Automated Test Cases Data
+  autoScore?: number | null;
+  testCasesPassed?: number;
+  testCasesTotal?: number;
+  testResults?: SubmissionTestResultDto[];
   
   criteria: CriterionScore[];
   
@@ -82,3 +113,29 @@ export interface ApiError {
   code?: string;
   status?: number;
 }
+
+export type GradeAuditActionType = 
+  | 'INITIAL_GRADING'
+  | 'OVERRIDE_SET'
+  | 'OVERRIDE_CLEARED'
+  | 'OVERRIDE_UPDATE'
+  | 'RUBRIC_UPDATE'
+  | string;
+
+export interface GradeAuditLog {
+  id: string;
+  submissionId: string;
+  actorId: string | null;
+  actorName: string | null;
+  actorEmail: string | null;
+  actionType: GradeAuditActionType;
+  preRubricScore: number | null;
+  postRubricScore: number | null;
+  preOverrideScore: number | null;
+  postOverrideScore: number | null;
+  preEffectiveScore: number | null;
+  postEffectiveScore: number | null;
+  rationale: string | null;
+  createdAt: string;
+}
+

@@ -41,6 +41,12 @@ public class PlagiarismEvidence {
     @Column(name = "submission_b_end_line")
     private Integer endLineB;
 
+    @Column(name = "submission_a_location")
+    private String locationA;
+
+    @Column(name = "submission_b_location")
+    private String locationB;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

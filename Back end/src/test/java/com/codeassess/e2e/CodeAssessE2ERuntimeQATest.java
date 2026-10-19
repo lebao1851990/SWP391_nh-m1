@@ -65,7 +65,16 @@ public class CodeAssessE2ERuntimeQATest {
     private PlagiarismEvidenceRepository plagiarismEvidenceRepository;
 
     @Autowired
+    private com.codeassess.plagiarism.repository.AstFingerprintRepository astFingerprintRepository;
+
+    @Autowired
+    private com.codeassess.plagiarism.repository.AppealRepository appealRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private javax.sql.DataSource dataSource;
 
     private User teacher;
     private User student1;
@@ -73,15 +82,22 @@ public class CodeAssessE2ERuntimeQATest {
     private Exam exam;
     private CourseClass courseClass;
 
-    @BeforeEach
-    public void setupDb() {
-        // Clean up previously created test data
-        submissionRepository.deleteAll();
+    private void cleanUpTestData() {
+        appealRepository.deleteAll();
+        plagiarismEvidenceRepository.deleteAll();
         similarityPairRepository.deleteAll();
+        astFingerprintRepository.deleteAll();
+        submissionRepository.deleteAll();
         examRepository.deleteAll();
         classStudentRepository.deleteAll();
         courseClassRepository.deleteAll();
         userRepository.deleteAll();
+    }
+
+    @BeforeEach
+    public void setupDb() {
+        com.codeassess.testconfig.DatabaseSafetyGuard.assertSafeTestDatabase(dataSource);
+        cleanUpTestData();
 
         // 1. Seed Users
         String encodedPassword = passwordEncoder.encode("testpass123");
@@ -187,9 +203,9 @@ public class CodeAssessE2ERuntimeQATest {
         
         assertThat(subResponse2.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         
-        // Await similarity matrix creation
+        // Await similarity matrix and evidence creation
         await().atMost(15, TimeUnit.SECONDS).until(() -> 
-            similarityPairRepository.count() > 0
+            plagiarismEvidenceRepository.count() > 0
         );
         
         var pairs = similarityPairRepository.findAll();

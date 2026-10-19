@@ -1,13 +1,28 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LogoutButton } from '@/features/auth/components/logout-button';
+import { useUiStore } from '@/stores/ui.store';
+import {
+  LayoutDashboard,
+  FileCode2,
+  Code2,
+  GitCompare,
+  Scale,
+  Users,
+  GraduationCap,
+  BookOpen,
+  Activity,
+  ShieldCheck,
+  X,
+} from 'lucide-react';
 
 interface NavItem {
   name: string;
   href: string;
-  icon: string;
+  icon: React.ComponentType<{ className?: string }>;
   badge?: { text: string; type: 'AST' | 'Count' };
 }
 
@@ -17,78 +32,120 @@ interface SidebarProps {
 
 export function Sidebar({ role }: SidebarProps) {
   const pathname = usePathname();
+  const { isMobileNavOpen, setMobileNavOpen } = useUiStore();
 
   const teacherNav: NavItem[] = [
-    { name: 'Dashboard', href: '/teacher/dashboard', icon: 'dashboard' },
-    { name: 'Exams', href: '/teacher/exams', icon: 'terminal' },
-    { name: 'Submissions', href: '/teacher/submissions', icon: 'code_blocks' },
-    { name: 'Plagiarism Check', href: '/teacher/plagiarism', icon: 'compare_arrows', badge: { text: 'AST', type: 'AST' } },
+    { name: 'Bảng điều khiển', href: '/teacher/dashboard', icon: LayoutDashboard },
+    { name: 'Quản lý bài thi', href: '/teacher/exams', icon: FileCode2 },
+    { name: 'Lớp học của tôi', href: '/teacher/classes', icon: GraduationCap },
+    { name: 'Bài nộp & Chấm điểm', href: '/teacher/submissions', icon: Code2 },
+    { name: 'Kiểm tra đạo văn AST', href: '/teacher/plagiarism', icon: GitCompare, badge: { text: 'AST', type: 'AST' } },
+    { name: 'Đơn khiếu nại', href: '/teacher/appeals', icon: Scale },
   ];
 
   const studentNav: NavItem[] = [
-    { name: 'Dashboard', href: '/student/dashboard', icon: 'dashboard' },
-    { name: 'My Exams', href: '/student/exams', icon: 'terminal' },
-    { name: 'My Submissions', href: '/student/submissions', icon: 'code_blocks' },
-    { name: 'Appeals', href: '/student/appeals', icon: 'gavel' },
+    { name: 'Bảng điều khiển', href: '/student/dashboard', icon: LayoutDashboard },
+    { name: 'Bài thi của tôi', href: '/student/exams', icon: FileCode2 },
+    { name: 'Bài nộp của tôi', href: '/student/submissions', icon: Code2 },
+    { name: 'Khiếu nại / Phúc khảo', href: '/student/appeals', icon: Scale },
   ];
 
   const adminNav: NavItem[] = [
-    { name: 'Dashboard', href: '/admin/dashboard', icon: 'dashboard' },
-    { name: 'Users', href: '/admin/users', icon: 'group' },
-    { name: 'Classes', href: '/admin/classes', icon: 'school' },
-    { name: 'Exams', href: '/admin/exams', icon: 'assignment_turned_in' },
+    { name: 'Bảng điều khiển', href: '/admin/dashboard', icon: LayoutDashboard },
+    { name: 'Người dùng', href: '/admin/users', icon: Users },
+    { name: 'Lớp học', href: '/admin/classes', icon: GraduationCap },
+    { name: 'Bài thi', href: '/admin/exams', icon: BookOpen },
+    { name: 'Quản lý khiếu nại', href: '/admin/appeals', icon: Scale },
   ];
 
   const navItems = role === 'ADMIN' ? adminNav : role === 'TEACHER' ? teacherNav : studentNav;
+
   return (
-    <aside className="fixed left-0 top-0 h-full w-[260px] bg-surface-container-low border-r border-outline-variant/30 z-50 flex flex-col justify-between select-none">
-      <div className="flex flex-col">
-        {/* Logo Area */}
-        <div className="h-16 px-space-md border-b border-outline-variant/30 flex items-center justify-between bg-surface-container-lowest">
-          <div className="flex items-center gap-space-sm">
-            <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center font-bold text-on-primary">
-              CA
-            </div>
-            <div className="flex flex-col">
-              <span className="font-headline-sm text-headline-sm text-on-surface leading-tight">CodeAssess</span>
-              <span className="font-label-sm text-label-sm text-on-surface-variant leading-none">AY 2025–2026</span>
+    <>
+      {/* Mobile Backdrop Overlay */}
+      {isMobileNavOpen && (
+        <div
+          data-testid="sidebar-backdrop"
+          onClick={() => setMobileNavOpen(false)}
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 lg:hidden animate-in fade-in duration-150"
+          aria-hidden="true"
+        />
+      )}
+
+      <aside className={`fixed left-0 top-0 h-full w-[260px] bg-slate-900 border-r border-slate-800 z-50 flex flex-col justify-between select-none shadow-xl transition-transform duration-200 ease-in-out ${
+        isMobileNavOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      }`}>
+        <div className="flex flex-col">
+          {/* Brand Header */}
+          <div className="h-16 px-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
+            <Link 
+              href={role === 'TEACHER' ? '/teacher/dashboard' : role === 'STUDENT' ? '/student/dashboard' : '/admin/dashboard'} 
+              onClick={() => setMobileNavOpen(false)}
+              className="flex items-center gap-2.5 group"
+            >
+              <div className="w-8 h-8 bg-gradient-to-tr from-indigo-600 to-sky-500 rounded-lg flex items-center justify-center font-bold text-white shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
+                <ShieldCheck className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-semibold text-sm text-slate-100 tracking-tight leading-none group-hover:text-white transition-colors">
+                  AITA Intelligent
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono tracking-wider mt-1">
+                  CỔNG HỌC THUẬT
+                </span>
+              </div>
+            </Link>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-950 border border-indigo-700/50 text-indigo-300 font-mono">
+                {role === 'TEACHER' ? 'GIẢNG VIÊN' : role === 'STUDENT' ? 'SINH VIÊN' : 'QUẢN TRỊ'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setMobileNavOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 lg:hidden transition-colors"
+                aria-label="Đóng điều hướng"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
           </div>
-          <span className="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-primary-fixed text-on-primary-fixed border border-primary/20">
-            EDU
+
+        {/* Section Title */}
+        <div className="px-4 pt-5 pb-2">
+          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest font-mono">
+            ĐIỀU HƯỚNG
           </span>
         </div>
 
-        {/* Navigation */}
-        <div className="px-space-md py-space-sm">
-          <span className="font-label-sm text-label-sm text-outline font-semibold uppercase tracking-wider">
-            Assessment Portal
-          </span>
-        </div>
-        <nav className="px-space-xs space-y-0.5">
+        {/* Nav Items */}
+        <nav className="px-2 space-y-1">
           {navItems.map((item) => {
-            const isActive = pathname.startsWith(item.href) || pathname === item.href;
+            const Icon = item.icon;
+            const isActive = pathname === item.href || (item.href !== `/${role.toLowerCase()}/dashboard` && pathname.startsWith(item.href));
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center justify-between px-space-sm py-2 rounded transition-colors ${
+                onClick={() => setMobileNavOpen(false)}
+                className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                   isActive
-                    ? 'bg-primary-container text-on-primary font-semibold'
-                    : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
+                    ? 'bg-indigo-600/90 text-white shadow-sm shadow-indigo-600/20 font-semibold'
+                    : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'
                 }`}
               >
-                <div className="flex items-center gap-space-sm">
-                  <span className="material-symbols-outlined text-[18px]">{item.icon}</span>
-                  <span className="font-body-md text-body-md">{item.name}</span>
+                <div className="flex items-center gap-2.5">
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`} />
+                  <span>{item.name}</span>
                 </div>
                 {item.badge && item.badge.type === 'AST' && (
-                  <span className="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-secondary-fixed text-on-secondary-fixed border border-secondary/20">
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-semibold ${
+                    isActive ? 'bg-white/20 text-white' : 'bg-indigo-950 text-indigo-300 border border-indigo-800/50'
+                  }`}>
                     {item.badge.text}
                   </span>
                 )}
                 {item.badge && item.badge.type === 'Count' && (
-                  <span className="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-error-container text-on-error-container font-semibold">
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-rose-500/20 text-rose-300 font-semibold border border-rose-500/30">
                     {item.badge.text}
                   </span>
                 )}
@@ -99,16 +156,17 @@ export function Sidebar({ role }: SidebarProps) {
       </div>
 
       {/* Footer System Status & Logout */}
-      <div className="p-space-sm border-t border-outline-variant/30 bg-surface-container-lowest">
-        <div className="flex items-center justify-between p-space-xs mb-space-xs rounded bg-surface-container-low">
-          <div className="flex items-center gap-space-xs">
-            <span className="h-2 w-2 rounded-full bg-tertiary-fixed-dim"></span>
-            <span className="font-label-sm text-label-sm text-on-surface">AST Engine Online</span>
+      <div className="p-3 border-t border-slate-800 bg-slate-950/60">
+        <div className="flex items-center justify-between px-2 py-1.5 mb-2 rounded-md bg-slate-900 border border-slate-800 text-xs">
+          <div className="flex items-center gap-1.5 text-slate-300">
+            <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+            <span className="text-[11px] text-slate-300 font-medium">Hệ thống AST v2.0</span>
           </div>
-          <span className="font-label-sm text-label-sm text-outline">99.9%</span>
+          <span className="text-[10px] font-mono text-emerald-400 font-semibold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/40">HOẠT ĐỘNG</span>
         </div>
         <LogoutButton />
       </div>
     </aside>
+  </>
   );
 }

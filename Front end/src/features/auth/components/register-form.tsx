@@ -76,7 +76,7 @@ export function RegisterForm() {
                   Code<span className="text-primary">Assess</span>
                 </div>
                 <div className="text-[9px] font-semibold tracking-wider uppercase text-muted-foreground font-mono">
-                  Academic Integrity & Exams
+                  Liêm chính Học thuật &amp; Bài thi
                 </div>
               </div>
             </div>
@@ -85,14 +85,14 @@ export function RegisterForm() {
           {/* Institutional Badge */}
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-100/80 text-[11px] font-medium text-blue-700 mb-2 font-mono">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse"></span>
-            SE DEPARTMENT DIRECTORY SSO • ENROLLMENT
+            ĐĂNG KÝ HỆ THỐNG • CỔNG TRƯỜNG
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-            Create your CodeAssess account
+            Tạo tài khoản CodeAssess
           </h1>
           <p className="text-sm text-muted-foreground mt-1.5 max-w-md">
-            Register to access programming assessments, submissions, scoring, and academic integrity tools.
+            Đăng ký để truy cập các bài thi lập trình, nộp bài, chấm điểm tự động và công cụ liêm chính học thuật.
           </p>
         </div>
 
@@ -102,8 +102,8 @@ export function RegisterForm() {
             <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive flex items-start gap-3 transition-all">
               <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <div className="text-xs sm:text-sm">
-                <p className="font-semibold">This email is already registered</p>
-                <p className="mt-0.5 opacity-90">An account with this institutional address already exists. Please <Link href="/login" className="underline font-medium hover:opacity-80">sign in instead</Link> or request a password reset.</p>
+                <p className="font-semibold">Email này đã được đăng ký</p>
+                <p className="mt-0.5 opacity-90">Một tài khoản với địa chỉ email trường này đã tồn tại. Vui lòng <Link href="/login" className="underline font-medium hover:opacity-80">đăng nhập</Link> hoặc yêu cầu đặt lại mật khẩu.</p>
               </div>
             </div>
           )}
@@ -112,8 +112,8 @@ export function RegisterForm() {
              <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive flex items-start gap-3 transition-all">
              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
              <div className="text-xs sm:text-sm">
-               <p className="font-semibold">Registration Failed</p>
-               <p className="mt-0.5 opacity-90">We couldn&apos;t create your account right now. Please try again or check if the backend is running.</p>
+               <p className="font-semibold">Đăng ký thất bại</p>
+               <p className="mt-0.5 opacity-90">Không thể tạo tài khoản vào lúc này. Vui lòng thử lại sau.</p>
              </div>
            </div>
           )}
@@ -124,13 +124,13 @@ export function RegisterForm() {
                 <CheckCircle className="w-5 h-5" />
               </div>
               <div className="text-xs sm:text-sm">
-                <p className="font-bold text-green-950 text-base">Registration submitted successfully</p>
+                <p className="font-bold text-green-950 text-base">Đăng ký thành công</p>
                 <p className="text-green-800 mt-1 leading-relaxed">
-                  We&apos;ve dispatched a cryptographic verification link to your institutional inbox. Please verify your address to activate portal access.
+                  Liên kết xác minh đã được gửi đến hộp thư trường của bạn. Vui lòng xác minh địa chỉ để kích hoạt tài khoản.
                 </p>
                 <div className="mt-3 flex gap-2">
                   <Link href="/login" className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-green-700 hover:bg-green-800 text-white rounded-lg text-xs font-semibold shadow-sm transition">
-                    Proceed to Sign In
+                    Đến trang Đăng nhập
                   </Link>
                 </div>
               </div>
@@ -145,7 +145,7 @@ export function RegisterForm() {
             {/* Full Name Field */}
             <div>
               <label htmlFor="fullName" className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
-                Full Name <span className="text-destructive">*</span>
+                Họ và Tên <span className="text-destructive">*</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted-foreground">
@@ -154,7 +154,7 @@ export function RegisterForm() {
                 <input 
                   type="text" 
                   id="fullName" 
-                  placeholder="Enter your full name" 
+                  placeholder="Nhập họ và tên đầy đủ" 
                   className={`w-full pl-10 pr-3.5 py-2.5 rounded-xl border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition placeholder:text-muted-foreground ${errors.fullName ? 'border-destructive bg-destructive/5' : 'border-border'}`}
                   {...register('fullName')}
                 />
@@ -171,9 +171,9 @@ export function RegisterForm() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label htmlFor="email" className="block text-xs font-semibold text-foreground uppercase tracking-wider">
-                  University Email <span className="text-destructive">*</span>
+                  Email trường <span className="text-destructive">*</span>
                 </label>
-                <span className="text-[11px] font-mono text-muted-foreground">SSO Supported</span>
+                <span className="text-[11px] font-mono text-muted-foreground">Hỗ trợ SSO</span>
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted-foreground">
@@ -182,7 +182,7 @@ export function RegisterForm() {
                 <input 
                   type="email" 
                   id="email" 
-                  placeholder="Enter your email (e.g. s.nguyen@university.edu)" 
+                  placeholder="Nhập email trường (Ví dụ: s.nguyen@university.edu)" 
                   className={`w-full pl-10 pr-3.5 py-2.5 rounded-xl border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition placeholder:text-muted-foreground ${errors.email ? 'border-destructive bg-destructive/5' : 'border-border'}`}
                   {...register('email')}
                 />
@@ -199,9 +199,9 @@ export function RegisterForm() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-xs font-semibold text-foreground uppercase tracking-wider">
-                  Account Role <span className="text-destructive">*</span>
+                  Vai trò tài khoản <span className="text-destructive">*</span>
                 </label>
-                <span className="text-[11px] font-mono text-muted-foreground">Department Controlled</span>
+                <span className="text-[11px] font-mono text-muted-foreground">Phân quyền theo bộ môn</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -215,7 +215,7 @@ export function RegisterForm() {
                       <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
                         <User className="w-3.5 h-3.5" />
                       </div>
-                      <span className="text-sm font-bold text-foreground">Student</span>
+                      <span className="text-sm font-bold text-foreground">Sinh viên</span>
                     </div>
                     <input 
                       type="radio" 
@@ -225,16 +225,16 @@ export function RegisterForm() {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground leading-snug">
-                    Take timed exams, inspect automatic test execution, and review your AST similarity analysis.
+                    Làm bài thi tính giờ, xem kết quả test case tự động và xem phân tích tương đồng AST.
                   </p>
                   <div className="mt-2 text-[10px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded inline-block w-fit">
-                    Instant Automatic Provisioning
+                    Kích hoạt tự động ngay lập tức
                   </div>
                 </div>
 
                 {/* Teacher Option */}
                 <div 
-                  onClick={() => setValue('accountRole', 'teacher')}
+                  onClick={() => setValue('accountRole', 'teacher')} 
                   className={`relative flex flex-col p-3.5 rounded-xl border cursor-pointer transition-all hover:border-primary ${accountRole === 'teacher' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border bg-card'}`}
                 >
                   <div className="flex items-center justify-between mb-1.5">
@@ -242,7 +242,7 @@ export function RegisterForm() {
                       <div className="w-6 h-6 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
                         <Shield className="w-3.5 h-3.5" />
                       </div>
-                      <span className="text-sm font-bold text-foreground">Teacher</span>
+                      <span className="text-sm font-bold text-foreground">Giảng viên</span>
                     </div>
                     <input 
                       type="radio" 
@@ -252,10 +252,10 @@ export function RegisterForm() {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground leading-snug">
-                    Publish exams, batch grade submissions, and investigate pairwise code similarity reports.
+                    Tạo đề bài thi, chấm bài hàng loạt và kiểm tra báo cáo độ tương đồng mã nguồn.
                   </p>
                   <div className="mt-2 text-[10px] font-medium text-amber-800 bg-amber-50 px-2 py-0.5 rounded inline-block w-fit">
-                    Requires Faculty Registry Verification
+                    Yêu cầu xác minh danh sách giảng viên
                   </div>
                 </div>
               </div>
@@ -264,7 +264,7 @@ export function RegisterForm() {
               <div className="mt-2.5 p-2.5 rounded-lg bg-secondary/20 border border-border/70 text-[11px] text-muted-foreground flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-muted-foreground" />
                 <span className="leading-tight">
-                  <strong>Notice on Privileged Access:</strong> Selecting Teacher requests faculty grading privileges. Full instructor access is unlocked once cross-referenced against the academic division roster.
+                  <strong>Lưu ý về quyền đặc quyền:</strong> Chọn Giảng viên sẽ yêu cầu quyền chấm bài và quản lý kỳ thi. Toàn bộ quyền sẽ được mở sau khi đối chiếu với danh sách cán bộ giảng dạy.
                 </span>
               </div>
             </div>
@@ -273,7 +273,7 @@ export function RegisterForm() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="password" className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
-                  Password <span className="text-destructive">*</span>
+                  Mật khẩu <span className="text-destructive">*</span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted-foreground">
@@ -282,7 +282,7 @@ export function RegisterForm() {
                   <input 
                     type={showPassword ? 'text' : 'password'}
                     id="password" 
-                    placeholder="Create a password" 
+                    placeholder="Tạo mật khẩu" 
                     className={`w-full pl-10 pr-10 py-2.5 rounded-xl border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition placeholder:text-muted-foreground ${errors.password ? 'border-destructive bg-destructive/5' : 'border-border'}`}
                     {...register('password')}
                   />
@@ -301,7 +301,7 @@ export function RegisterForm() {
 
               <div>
                 <label htmlFor="confirmPassword" className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
-                  Confirm Password <span className="text-destructive">*</span>
+                  Xác nhận mật khẩu <span className="text-destructive">*</span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted-foreground">
@@ -310,7 +310,7 @@ export function RegisterForm() {
                   <input 
                     type={showConfirmPassword ? 'text' : 'password'}
                     id="confirmPassword" 
-                    placeholder="Re-enter your password" 
+                    placeholder="Nhập lại mật khẩu" 
                     className={`w-full pl-10 pr-10 py-2.5 rounded-xl border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition placeholder:text-muted-foreground ${errors.confirmPassword ? 'border-destructive bg-destructive/5' : 'border-border'}`}
                     {...register('confirmPassword')}
                   />
@@ -331,25 +331,25 @@ export function RegisterForm() {
             {/* Password Requirements Checklist */}
             <div className="p-3 bg-secondary/10 border border-border/60 rounded-xl">
               <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 font-mono flex items-center justify-between">
-                <span>Security Requirements</span>
+                <span>Yêu cầu bảo mật</span>
                 <span className="text-primary lowercase font-normal">NIST SP 800-63B</span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className={`flex items-center gap-1.5 ${getPasswordReqClasses(hasLength)}`}>
                   {getPasswordReqIcon(hasLength)}
-                  <span>Min. 10 characters</span>
+                  <span>Tối thiểu 10 ký tự</span>
                 </div>
                 <div className={`flex items-center gap-1.5 ${getPasswordReqClasses(hasUpperLower)}`}>
                   {getPasswordReqIcon(hasUpperLower)}
-                  <span>Upper & lowercase</span>
+                  <span>Chữ hoa &amp; chữ thường</span>
                 </div>
                 <div className={`flex items-center gap-1.5 ${getPasswordReqClasses(hasNumber)}`}>
                   {getPasswordReqIcon(hasNumber)}
-                  <span>At least one number</span>
+                  <span>Ít nhất một chữ số</span>
                 </div>
                 <div className={`flex items-center gap-1.5 ${getPasswordReqClasses(hasSymbol)}`}>
                   {getPasswordReqIcon(hasSymbol)}
-                  <span>Special symbol (!@#$)</span>
+                  <span>Ký tự đặc biệt (!@#$)</span>
                 </div>
               </div>
             </div>
@@ -364,7 +364,7 @@ export function RegisterForm() {
               />
               <div className="flex flex-col">
                 <label htmlFor="terms" className="text-xs text-muted-foreground leading-relaxed">
-                  I agree to abide by the university&apos;s <span className="text-primary font-medium hover:underline cursor-pointer">Code of Academic Integrity</span>, honor system, and automated AST similarity review guidelines.
+                  Tôi đồng ý tuân thủ <span className="text-primary font-medium hover:underline cursor-pointer">Quy tắc Liêm chính Học thuật</span> của nhà trường và hướng dẫn kiểm tra tương đồng mã tự động AST.
                 </label>
                 {errors.terms && <span className="text-destructive text-xs mt-1">{errors.terms.message}</span>}
               </div>
@@ -378,20 +378,20 @@ export function RegisterForm() {
             >
               {registerMutation.isPending ? (
                 <>
-                  <span>Registering Account...</span>
+                  <span>Đang đăng ký tài khoản...</span>
                   <Loader2 className="w-4 h-4 animate-spin" />
                 </>
               ) : (
-                <span>Create Account</span>
+                <span>Tạo tài khoản</span>
               )}
             </button>
 
             {/* Secondary Navigation */}
             <div className="text-center pt-2">
               <p className="text-xs text-muted-foreground">
-                Already have an account? 
+                Đã có tài khoản? 
                 <Link href="/login" className="font-semibold text-primary hover:text-primary/80 hover:underline transition ml-1">
-                  Sign in
+                  Đăng nhập
                 </Link>
               </p>
             </div>
@@ -404,10 +404,10 @@ export function RegisterForm() {
       <div className="mt-8 text-center text-xs text-muted-foreground space-y-2">
         <div className="flex items-center justify-center gap-2">
           <Shield className="w-4 h-4 text-emerald-600" />
-          <span className="font-medium">Protected by University SSO & AST Automated Proctoring</span>
+          <span className="font-medium">Được bảo vệ bởi SSO Trường học &amp; Giám sát Liêm chính AST</span>
         </div>
         <p className="font-mono text-[11px] opacity-70">
-          Academic Year 2025–2026 • Computing Assessment Division • Protocol CA-AUTH-v4
+          Năm học 2025–2026 • Ban Khảo thí &amp; Đánh giá Năng lực Tin học • Giao thức CA-AUTH-v4
         </p>
       </div>
     </div>

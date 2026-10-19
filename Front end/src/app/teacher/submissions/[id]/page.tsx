@@ -3,6 +3,8 @@
 import React, { use } from 'react';
 import { useTeacherSubmissionDetail } from '@/features/exams/hooks/use-teacher-exams';
 import { AppLink as Link } from '@/components/ui/app-link';
+import { GradeAuditHistory } from '@/features/scoring/components';
+
 export default function TeacherSubmissionDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data: submission, isLoading, isError, error } = useTeacherSubmissionDetail(id);
@@ -100,6 +102,8 @@ export default function TeacherSubmissionDetail({ params }: { params: Promise<{ 
                 </pre>
               </div>
             </div>
+
+            <GradeAuditHistory submissionId={submission.id} />
           </div>
 
           <div className="lg:col-span-4 flex flex-col gap-space-lg">
