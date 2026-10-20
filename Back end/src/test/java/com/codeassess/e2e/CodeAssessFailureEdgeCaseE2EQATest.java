@@ -220,7 +220,7 @@ public class CodeAssessFailureEdgeCaseE2EQATest {
     @Order(8)
     public void testAppeal_ConcurrentAndDuplicate() throws Exception {
         Exam isolatedExam = examRepository.save(Exam.builder().title("Appeal Exam").courseClass(classA).examDate(LocalDateTime.now().plusDays(1)).duration(90).status("ACTIVE").build());
-        Submission sub = submissionRepository.save(Submission.builder().id(UUID.randomUUID().toString()).exam(isolatedExam).student(studentA).sourceCode("A").status("PENDING").build());
+        Submission sub = submissionRepository.save(Submission.builder().id(UUID.randomUUID().toString()).exam(isolatedExam).student(studentA).sourceCode("A").status("GRADED").build());
         
         HttpHeaders headers = getAuthHeaders(studentA.getEmail());
         AppealCreateRequestDto req = new AppealCreateRequestDto();

@@ -28,6 +28,9 @@ class StudentScoringServiceTest {
     @Mock
     private RuleScoreRepository ruleScoreRepository;
 
+    @Mock
+    private com.codeassess.testcase.repository.SubmissionTestResultRepository submissionTestResultRepository;
+
     @InjectMocks
     private StudentScoringService studentScoringService;
 

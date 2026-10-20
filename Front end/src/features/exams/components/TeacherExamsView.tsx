@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useTeacherExams, useTeacherClasses, useCreateExam, useCreateTeacherClass } from '../hooks/use-teacher-exams';
+import { useTeacherExams, useTeacherClasses, useCreateExam, useCreateTeacherClass, useDeleteExam } from '../hooks/use-teacher-exams';
+import { ExamResponse } from '../api/teacher-exams.api';
 import { AppLink as Link } from '@/components/ui/app-link';
+import { useTranslation } from '@/i18n';
 import { 
   Search, 
   PlusCircle, 
@@ -16,15 +18,21 @@ import {
   AlertCircle,
   Loader2,
   Users,
-  FolderPlus
+  FolderPlus,
+  Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function TeacherExamsView() {
+  const { t } = useTranslation();
   const { data: exams, isLoading, isError, error } = useTeacherExams();
   const { data: classes, refetch: refetchClasses } = useTeacherClasses();
   const createExam = useCreateExam();
   const createTeacherClass = useCreateTeacherClass();
+  const deleteExamMutation = useDeleteExam();
+
+  const [examToDelete, setExamToDelete] = useState<ExamResponse | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   const [searchQuery, setSearchQuery] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -197,6 +205,25 @@ export function TeacherExamsView() {
     );
   };
 
+  const handleOpenDeleteModal = (exam: ExamResponse) => {
+    setExamToDelete(exam);
+    setDeleteError('');
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!examToDelete) return;
+    setDeleteError('');
+    try {
+      await deleteExamMutation.mutateAsync(examToDelete.id);
+      toast.success(t('teacherExams.deleteSuccess'));
+      setExamToDelete(null);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message || (err as { message?: string })?.message || t('teacherExams.deleteError');
+      setDeleteError(msg);
+      toast.error(msg);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col h-72 items-center justify-center gap-3">
@@ -362,13 +389,24 @@ export function TeacherExamsView() {
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <Link 
-                          href={`/teacher/exams/${exam.id}`} 
-                          className="inline-flex items-center gap-1 px-3 py-1 bg-surface-container hover:bg-surface-container-high text-primary rounded-lg font-medium transition-colors"
-                        >
-                          <span>Quản lý</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </Link>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Link 
+                            href={`/teacher/exams/${exam.id}`} 
+                            className="inline-flex items-center gap-1 px-3 py-1 bg-surface-container hover:bg-surface-container-high text-primary rounded-lg font-medium transition-colors"
+                          >
+                            <span>{t('teacherExams.manage')}</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDeleteModal(exam)}
+                            className="inline-flex items-center justify-center p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-rose-200"
+                            title={t('teacherExams.deleteButton')}
+                            aria-label={t('teacherExams.deleteButton')}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -546,17 +584,37 @@ export function TeacherExamsView() {
                     />
                   </div>
 
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-semibold text-on-surface">Thời lượng (Phút) *</label>
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-on-surface">Thời lượng (Phút) *</label>
+                      <span className="text-[11px] text-outline">Đơn vị: phút</span>
+                    </div>
                     <input
                       type="number"
                       required
                       min={1}
-                      max={480}
+                      max={1440}
                       value={durationMinutes}
                       onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                      className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant/40 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary transition-colors"
+                      className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant/40 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary transition-colors font-mono"
+                      placeholder="Ví dụ: 90"
                     />
+                    <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                      {[45, 60, 90, 120, 180].map((mins) => (
+                        <button
+                          key={mins}
+                          type="button"
+                          onClick={() => setDurationMinutes(mins)}
+                          className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer border ${
+                            durationMinutes === mins
+                              ? 'bg-primary text-on-primary border-primary'
+                              : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border-outline-variant/40'
+                          }`}
+                        >
+                          {mins} phút {mins === 60 ? '(1h)' : mins === 90 ? '(1.5h)' : mins === 120 ? '(2h)' : ''}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -589,6 +647,73 @@ export function TeacherExamsView() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Exam Confirmation Modal */}
+        {examToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+            <div className="bg-surface-container-lowest rounded-2xl max-w-md w-full p-6 shadow-2xl border border-rose-200/60 flex flex-col gap-4 animate-in zoom-in-95 duration-150">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-full bg-rose-50 text-rose-600 shrink-0">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-headline-sm text-headline-sm font-semibold text-on-surface">
+                    {t('teacherExams.deleteModalTitle')}
+                  </h3>
+                  <p className="text-xs text-on-surface-variant font-medium truncate max-w-[280px]">
+                    {examToDelete.title}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-surface-container-low border border-outline-variant/30 text-xs text-on-surface-variant space-y-2">
+                <p>
+                  {t('teacherExams.deleteModalWarning').replace('{title}', examToDelete.title)}
+                </p>
+                <p className="text-[11px] text-outline italic">
+                  {t('teacherExams.deleteModalActiveGradingWarning')}
+                </p>
+              </div>
+
+              {deleteError && (
+                <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2 text-xs">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{deleteError}</span>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-2 border-t border-outline-variant/30">
+                <button
+                  type="button"
+                  onClick={() => setExamToDelete(null)}
+                  disabled={deleteExamMutation.isPending}
+                  className="px-4 py-2 text-xs rounded-lg border border-outline-variant/40 hover:bg-surface-container transition-colors cursor-pointer"
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  type="button"
+                  id="confirm-delete-exam-btn"
+                  onClick={handleConfirmDelete}
+                  disabled={deleteExamMutation.isPending}
+                  className="inline-flex items-center gap-2 px-5 py-2 bg-rose-600 text-white rounded-lg text-xs font-medium hover:bg-rose-700 transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
+                >
+                  {deleteExamMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>{t('teacherExams.deleting')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{t('common.confirmDelete')}</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}

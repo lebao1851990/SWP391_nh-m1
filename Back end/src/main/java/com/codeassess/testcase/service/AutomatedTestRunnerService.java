@@ -41,6 +41,21 @@ public class AutomatedTestRunnerService {
     private final SubmissionRepository submissionRepository;
     private final org.springframework.transaction.support.TransactionTemplate transactionTemplate;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.codeassess.submission.service.SubmissionStorageService submissionStorageService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.codeassess.submission.service.ZipExtractionService zipExtractionService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.codeassess.submission.service.EntryPointDiscoveryService entryPointDiscoveryService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.codeassess.plagiarism.service.AstPlagiarismService astPlagiarismService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.codeassess.plagiarism.service.SimilarityMatrixService similarityMatrixService;
+
     public AutomatedTestRunnerService(
             DockerSandboxService dockerSandboxService,
             TestCaseRepository testCaseRepository,
@@ -78,20 +93,56 @@ public class AutomatedTestRunnerService {
         }
 
         List<TestCase> testCases = testCaseRepository.findByExam_IdOrderByDisplayOrderAscCreatedAtAsc(examId);
+        boolean isZip = "ZIP".equalsIgnoreCase(submission.getSubmissionType());
 
         // Case 1: No test cases configured for this exam
         if (testCases.isEmpty()) {
             log.info("Exam {} has no test cases configured; performing compile-and-run check without auto-score", examId);
-            SandboxResult sandboxResult;
-            try {
-                sandboxResult = dockerSandboxService.execute(submission.getSourceCode());
-            } catch (Exception e) {
-                log.error("Sandbox execution error for submission {}: {}", submission.getId(), e.getMessage(), e);
-                sandboxResult = SandboxResult.builder()
-                        .status(SandboxResult.Status.INTERNAL_ERROR)
-                        .stderr("Sandbox execution failure: " + e.getMessage())
-                        .executionTimeMs(0L)
-                        .build();
+            SandboxResult sandboxResult = null;
+
+            if (isZip && submissionStorageService != null && submissionStorageService.hasZip(submission.getId()) && zipExtractionService != null) {
+                byte[] zipBytes = submissionStorageService.getZipBytes(submission.getId());
+                try (com.codeassess.submission.dto.ExtractedWorkspace workspace = zipExtractionService.extract(zipBytes)) {
+                    String epClass = (entryPointDiscoveryService != null)
+                            ? entryPointDiscoveryService.discoverEntryPoint(workspace).entryPointClass()
+                            : submission.getEntryPointClass();
+                    try {
+                        sandboxResult = dockerSandboxService.executeWorkspace(workspace, epClass);
+                    } catch (Exception e) {
+                        log.error("Sandbox workspace execution error for submission {}: {}", submission.getId(), e.getMessage(), e);
+                        sandboxResult = SandboxResult.builder()
+                                .status(SandboxResult.Status.INTERNAL_ERROR)
+                                .stderr("Sandbox execution failure: " + e.getMessage())
+                                .executionTimeMs(0L)
+                                .build();
+                    }
+
+                    if (astPlagiarismService != null) {
+                        try {
+                            astPlagiarismService.generateFingerprintsForWorkspace(submission, workspace);
+                        } catch (Exception e) {
+                            log.error("Failed to generate AST fingerprints for workspace {}: {}", submission.getId(), e.getMessage());
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to extract workspace for submission {}: {}", submission.getId(), e.getMessage(), e);
+                    sandboxResult = SandboxResult.builder()
+                            .status(SandboxResult.Status.INTERNAL_ERROR)
+                            .stderr("Workspace extraction failure: " + e.getMessage())
+                            .executionTimeMs(0L)
+                            .build();
+                }
+            } else {
+                try {
+                    sandboxResult = dockerSandboxService.execute(submission.getSourceCode());
+                } catch (Exception e) {
+                    log.error("Sandbox execution error for submission {}: {}", submission.getId(), e.getMessage(), e);
+                    sandboxResult = SandboxResult.builder()
+                            .status(SandboxResult.Status.INTERNAL_ERROR)
+                            .stderr("Sandbox execution failure: " + e.getMessage())
+                            .executionTimeMs(0L)
+                            .build();
+                }
             }
 
             if (sandboxResult == null) {
@@ -127,6 +178,15 @@ public class AutomatedTestRunnerService {
                 submissionRepository.save(submission);
             }
 
+            if (similarityMatrixService != null) {
+                try {
+                    similarityMatrixService.requestRefresh(examId);
+                    similarityMatrixService.generateMatrixForExam(examId);
+                } catch (Exception e) {
+                    log.warn("Matrix refresh error for exam {}: {}", examId, e.getMessage());
+                }
+            }
+
             return TestCaseBatchSuiteResult.builder()
                     .compiled("SUCCESS".equals(execStatus))
                     .compileOutput(sandboxResult.getCompilerOutput())
@@ -147,27 +207,87 @@ public class AutomatedTestRunnerService {
                 .build()).collect(Collectors.toList());
 
         TestCaseBatchSuiteResult suiteResult;
-        try {
-            suiteResult = dockerSandboxService.executeTestCaseSuite(submission.getSourceCode(), batchItems);
-        } catch (Exception e) {
-            log.error("Sandbox test suite execution failure for submission {}: {}", submission.getId(), e.getMessage(), e);
-            List<TestCaseExecutionItemResult> errorItems = testCases.stream().map(tc -> TestCaseExecutionItemResult.builder()
-                    .testCaseId(tc.getId())
-                    .testCaseName(tc.getName())
-                    .isHidden(tc.getIsHidden())
-                    .status("INTERNAL_ERROR")
-                    .errorMessage("Sandbox failure: " + e.getMessage())
-                    .pointsAwarded(BigDecimal.ZERO)
-                    .maxPoints(tc.getPoints())
-                    .executionTimeMs(0L)
-                    .build()).collect(Collectors.toList());
 
-            suiteResult = TestCaseBatchSuiteResult.builder()
-                    .compiled(false)
-                    .compileOutput("Sandbox failure: " + e.getMessage())
-                    .itemResults(errorItems)
-                    .totalDurationMs(0L)
-                    .build();
+        if (isZip && submissionStorageService != null && submissionStorageService.hasZip(submission.getId()) && zipExtractionService != null) {
+            byte[] zipBytes = submissionStorageService.getZipBytes(submission.getId());
+            try (com.codeassess.submission.dto.ExtractedWorkspace workspace = zipExtractionService.extract(zipBytes)) {
+                String epClass = (entryPointDiscoveryService != null)
+                        ? entryPointDiscoveryService.discoverEntryPoint(workspace).entryPointClass()
+                        : submission.getEntryPointClass();
+
+                try {
+                    suiteResult = dockerSandboxService.executeTestCaseSuiteForWorkspace(workspace, epClass, batchItems);
+                } catch (Exception e) {
+                    log.error("Sandbox workspace test suite execution failure for submission {}: {}", submission.getId(), e.getMessage(), e);
+                    List<TestCaseExecutionItemResult> errorItems = testCases.stream().map(tc -> TestCaseExecutionItemResult.builder()
+                            .testCaseId(tc.getId())
+                            .testCaseName(tc.getName())
+                            .isHidden(tc.getIsHidden())
+                            .status("INTERNAL_ERROR")
+                            .errorMessage("Sandbox failure: " + e.getMessage())
+                            .pointsAwarded(BigDecimal.ZERO)
+                            .maxPoints(tc.getPoints())
+                            .executionTimeMs(0L)
+                            .build()).collect(Collectors.toList());
+
+                    suiteResult = TestCaseBatchSuiteResult.builder()
+                            .compiled(false)
+                            .compileOutput("Sandbox failure: " + e.getMessage())
+                            .itemResults(errorItems)
+                            .totalDurationMs(0L)
+                            .build();
+                }
+
+                if (astPlagiarismService != null) {
+                    try {
+                        astPlagiarismService.generateFingerprintsForWorkspace(submission, workspace);
+                    } catch (Exception e) {
+                        log.error("Failed to generate AST fingerprints for workspace {}: {}", submission.getId(), e.getMessage());
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Failed to extract workspace for submission {}: {}", submission.getId(), e.getMessage(), e);
+                List<TestCaseExecutionItemResult> errorItems = testCases.stream().map(tc -> TestCaseExecutionItemResult.builder()
+                        .testCaseId(tc.getId())
+                        .testCaseName(tc.getName())
+                        .isHidden(tc.getIsHidden())
+                        .status("INTERNAL_ERROR")
+                        .errorMessage("Workspace extraction failure: " + e.getMessage())
+                        .pointsAwarded(BigDecimal.ZERO)
+                        .maxPoints(tc.getPoints())
+                        .executionTimeMs(0L)
+                        .build()).collect(Collectors.toList());
+
+                suiteResult = TestCaseBatchSuiteResult.builder()
+                        .compiled(false)
+                        .compileOutput("Workspace extraction failure: " + e.getMessage())
+                        .itemResults(errorItems)
+                        .totalDurationMs(0L)
+                        .build();
+            }
+        } else {
+            try {
+                suiteResult = dockerSandboxService.executeTestCaseSuite(submission.getSourceCode(), batchItems);
+            } catch (Exception e) {
+                log.error("Sandbox test suite execution failure for submission {}: {}", submission.getId(), e.getMessage(), e);
+                List<TestCaseExecutionItemResult> errorItems = testCases.stream().map(tc -> TestCaseExecutionItemResult.builder()
+                        .testCaseId(tc.getId())
+                        .testCaseName(tc.getName())
+                        .isHidden(tc.getIsHidden())
+                        .status("INTERNAL_ERROR")
+                        .errorMessage("Sandbox failure: " + e.getMessage())
+                        .pointsAwarded(BigDecimal.ZERO)
+                        .maxPoints(tc.getPoints())
+                        .executionTimeMs(0L)
+                        .build()).collect(Collectors.toList());
+
+                suiteResult = TestCaseBatchSuiteResult.builder()
+                        .compiled(false)
+                        .compileOutput("Sandbox failure: " + e.getMessage())
+                        .itemResults(errorItems)
+                        .totalDurationMs(0L)
+                        .build();
+            }
         }
 
         Map<String, TestCase> testCaseMap = testCases.stream()

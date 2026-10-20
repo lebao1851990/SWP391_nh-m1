@@ -38,7 +38,7 @@ export function LoginForm() {
   const loginMutation = useMutation({
     mutationFn: authApi.login,
     onSuccess: (data) => {
-      // Set Zustand session (only minimal metadata, no token)
+      // Update local tab session cache with authenticated user
       setSession(data.user);
 
       // (The backend will set the HttpOnly cookie for real authentication)

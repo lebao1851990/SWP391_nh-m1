@@ -17,6 +17,7 @@ export interface ExamResponse {
   title: string;
   examDate: string;
   duration: number;
+  durationMinutes?: number;
   status: string;
   createdAt: string;
   courseName: string;
@@ -34,6 +35,21 @@ export interface TeacherSubmissionListResponse {
   status: string;
   totalScore: number;
   submittedAt: string;
+  originalFilename?: string;
+  executionStatus?: string;
+  autoScore?: number;
+  testCasesPassed?: number;
+  testCasesTotal?: number;
+  plagiarismStatus?: string;
+  maxSimilarityRate?: number;
+  instructorFeedback?: string;
+}
+
+export interface SubmissionFileDto {
+  filename: string;
+  relativePath: string;
+  sizeBytes: number;
+  content: string;
 }
 
 export interface SubmissionDetailResponse {
@@ -46,6 +62,14 @@ export interface SubmissionDetailResponse {
   overrideScore: number;
   evaluatedAt: string;
   createdAt: string;
+  originalFilename?: string;
+  submissionType?: string;
+  archiveHash?: string;
+  executionStatus?: string;
+  autoScore?: number;
+  testCasesPassed?: number;
+  testCasesTotal?: number;
+  instructorFeedback?: string;
 }
 
 export interface TeacherClassResponse {
@@ -107,6 +131,10 @@ export const teacherExamsApi = {
     return response.data;
   },
 
+  deleteExam: async (id: string): Promise<void> => {
+    await apiClient.delete(`/teacher/exams/${id}`);
+  },
+
   getMySubmissions: async (): Promise<TeacherSubmissionListResponse[]> => {
     const response = await apiClient.get('/teacher/submissions');
     return response.data;
@@ -120,6 +148,15 @@ export const teacherExamsApi = {
   getSubmissionById: async (id: string): Promise<SubmissionDetailResponse> => {
     const response = await apiClient.get(`/teacher/submissions/${id}`);
     return response.data;
+  },
+
+  getSubmissionFiles: async (id: string): Promise<SubmissionFileDto[]> => {
+    const response = await apiClient.get(`/teacher/submissions/${id}/files`);
+    return response.data;
+  },
+
+  updateInstructorFeedback: async (id: string, feedback: string): Promise<void> => {
+    await apiClient.put(`/teacher/submissions/${id}/feedback`, { feedback });
   },
 
   getClassStudents: async (classId: string): Promise<{ id: string; studentId: string; email: string; fullName?: string }[]> => {

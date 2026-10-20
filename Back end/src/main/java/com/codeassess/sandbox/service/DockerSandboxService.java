@@ -301,11 +301,13 @@ public class DockerSandboxService {
         String tcErr = "TC_ERR_" + runToken + "_";
         String tcEnd = "TC_END_" + runToken + "_";
 
+        String mainClassName = extractMainClassName(sourceCode);
+        String sourceFilePath = TMP_DIR + "/" + mainClassName + ".java";
         StringBuilder script = new StringBuilder();
         script.append("set -e; ");
         script.append("mkdir -p ").append(TMP_DIR).append(" ").append(CLASS_DIR).append("; ");
-        script.append("echo '").append(base64Source).append("' | base64 -d > ").append(SOURCE_FILE).append("; ");
-        script.append("if ! javac -d ").append(CLASS_DIR).append(" ").append(SOURCE_FILE).append(" 2>/tmp/sandbox/compile.err; then ");
+        script.append("echo '").append(base64Source).append("' | base64 -d > ").append(sourceFilePath).append("; ");
+        script.append("if ! javac -d ").append(CLASS_DIR).append(" ").append(sourceFilePath).append(" 2>/tmp/sandbox/compile.err; then ");
         script.append("  echo '<<<").append(compileMarker).append(":FAILED>>>'; ");
         script.append("  cat /tmp/sandbox/compile.err; ");
         script.append("  exit 1; ");
@@ -549,6 +551,355 @@ public class DockerSandboxService {
             throw new SandboxException("Docker engine error: " + sanitizeDockerError(e), e);
         } catch (Exception e) {
             log.error("Unexpected sandbox error during test suite execution", e);
+            throw new SandboxException("Sandbox infrastructure failure", e);
+        } finally {
+            if (containerId != null) {
+                removeContainer(containerId);
+            }
+        }
+    }
+
+    /**
+     * Executes a batch test suite against a multi-file extracted workspace inside the Docker Sandbox.
+     *
+     * @param workspace extracted student workspace
+     * @param entryPointClass validated fully-qualified or simple main class
+     * @param testCases list of test cases with input, expected output, and timeout
+     * @return test suite execution results
+     */
+    public TestCaseBatchSuiteResult executeTestCaseSuiteForWorkspace(
+            ExtractedWorkspace workspace,
+            String entryPointClass,
+            List<TestCaseBatchItem> testCases) {
+
+        if (workspace == null || workspace.files() == null || workspace.files().isEmpty()) {
+            throw new IllegalArgumentException("workspace must not be empty");
+        }
+        if (testCases == null || testCases.isEmpty()) {
+            throw new IllegalArgumentException("testCases list must not be empty");
+        }
+
+        if (!getSemaphore().tryAcquire()) {
+            log.warn("Sandbox concurrency limit ({}) reached — rejecting request",
+                    props.getMaxConcurrentExecutions());
+            throw new SandboxException("Sandbox is at capacity. Try again shortly.");
+        }
+
+        try {
+            return runTestCaseSuiteForWorkspaceInContainer(workspace, entryPointClass, testCases);
+        } finally {
+            getSemaphore().release();
+        }
+    }
+
+    private TestCaseBatchSuiteResult runTestCaseSuiteForWorkspaceInContainer(
+            ExtractedWorkspace workspace,
+            String entryPointClass,
+            List<TestCaseBatchItem> testCases) {
+
+        byte[] tarBytes;
+        try {
+            tarBytes = createWorkspaceTar(workspace);
+        } catch (IOException e) {
+            throw new SandboxException("Failed to create workspace archive", e);
+        }
+
+        if (tarBytes.length > MAX_INLINE_TAR_BYTES) {
+            log.warn("Workspace archive size ({} bytes) exceeds inline transfer limit ({} bytes)",
+                    tarBytes.length, MAX_INLINE_TAR_BYTES);
+            throw new SandboxException("Workspace archive size exceeds container inline transfer limit");
+        }
+
+        String base64Tar = Base64.getEncoder().encodeToString(tarBytes);
+        String runToken = UUID.randomUUID().toString().replace("-", "");
+        String compileMarker = "TC_COMPILE_" + runToken;
+        String tcStart = "TC_START_" + runToken + "_";
+        String tcExit = "TC_EXIT_" + runToken + "_";
+        String tcTime = "TC_TIME_" + runToken + "_";
+        String tcOut = "TC_OUT_" + runToken + "_";
+        String tcErr = "TC_ERR_" + runToken + "_";
+        String tcEnd = "TC_END_" + runToken + "_";
+
+        StringBuilder script = new StringBuilder();
+        script.append("set -e -o pipefail 2>/dev/null || set -e; ");
+        script.append("if ! ( echo '").append(base64Tar).append("' | base64 -d | tar -xf - -C /tmp ); then ");
+        script.append("  echo 'Failed to unpack workspace archive' >&2; exit 43; ");
+        script.append("fi; ");
+        script.append("mkdir -p ").append(CLASS_DIR).append("; ");
+        script.append("if ! javac -d ").append(CLASS_DIR).append(" @/tmp/sandbox/sources.txt 2>/tmp/sandbox/compile.err; then ");
+        script.append("  echo '<<<").append(compileMarker).append(":FAILED>>>'; ");
+        script.append("  cat /tmp/sandbox/compile.err; ");
+        script.append("  exit 1; ");
+        script.append("fi; ");
+        script.append("echo '<<<").append(compileMarker).append(":SUCCESS>>>'; ");
+        script.append("set +e; ");
+
+        boolean hasValidEntryPoint = entryPointClass != null && !entryPointClass.isBlank();
+        int totalTimeoutSeconds = 15; // 15s startup and compilation budget
+
+        if (hasValidEntryPoint) {
+            for (int i = 0; i < testCases.size(); i++) {
+                TestCaseBatchItem tc = testCases.get(i);
+                String input = tc.getInputData() != null ? tc.getInputData() : "";
+                String base64Input = Base64.getEncoder().encodeToString(input.getBytes(StandardCharsets.UTF_8));
+                int timeoutSec = tc.getTimeoutSeconds() > 0 ? tc.getTimeoutSeconds() : 5;
+                totalTimeoutSeconds += timeoutSec;
+
+                script.append("echo '").append(base64Input).append("' | base64 -d > /tmp/sandbox/in_").append(i).append(".txt; ");
+                script.append("echo '<<<").append(tcStart).append(i).append(">>>'; ");
+                script.append("START_TS=$(date +%s%3N 2>/dev/null || date +%s000); ");
+                script.append("timeout ").append(timeoutSec).append(" java -cp ").append(CLASS_DIR)
+                      .append(" -Xmx256m -Xms32m -Djava.security.manager=disallow ").append(entryPointClass)
+                      .append(" < /tmp/sandbox/in_").append(i).append(".txt > /tmp/sandbox/out_").append(i)
+                      .append(".txt 2> /tmp/sandbox/err_").append(i).append(".txt; ");
+                script.append("ec=$?; ");
+                script.append("END_TS=$(date +%s%3N 2>/dev/null || date +%s000); ");
+                script.append("DUR=$((END_TS - START_TS)); ");
+                script.append("echo '<<<").append(tcExit).append(i).append(":'$ec'>>>'; ");
+                script.append("echo '<<<").append(tcTime).append(i).append(":'$DUR'>>>'; ");
+                script.append("echo '<<<").append(tcOut).append(i).append(">>>'; ");
+                script.append("cat /tmp/sandbox/out_").append(i).append(".txt; ");
+                script.append("echo '<<<").append(tcErr).append(i).append(">>>'; ");
+                script.append("cat /tmp/sandbox/err_").append(i).append(".txt; ");
+                script.append("echo '<<<").append(tcEnd).append(i).append(">>>'; ");
+            }
+        }
+        script.append("exit 0;");
+
+        String containerId = null;
+        long startMs = System.currentTimeMillis();
+        AtomicBoolean timedOut = new AtomicBoolean(false);
+
+        try {
+            containerId = createContainer(script.toString());
+            dockerClient.startContainerCmd(containerId).exec();
+
+            final String finalContainerId = containerId;
+            final int maxWaitSec = Math.max(totalTimeoutSeconds, props.getTimeoutSeconds());
+            Thread timeoutThread = new Thread(() -> {
+                try {
+                    Thread.sleep(maxWaitSec * 1000L);
+                    log.warn("Workspace test suite container {} timed out after {}s — stopping", finalContainerId, maxWaitSec);
+                    timedOut.set(true);
+                    stopContainer(finalContainerId);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }, "sandbox-ws-tc-timeout-" + finalContainerId.substring(0, 12));
+            timeoutThread.setDaemon(true);
+            timeoutThread.start();
+
+            OutputCollector collector = new OutputCollector(props.getMaxOutputBytes());
+            try (RawLogResultCallback logCallback = dockerClient.logContainerCmd(containerId)
+                    .withStdOut(true)
+                    .withStdErr(true)
+                    .withFollowStream(true)
+                    .exec(new RawLogResultCallback(collector))) {
+
+                dockerClient.waitContainerCmd(containerId)
+                        .exec(new WaitContainerResultCallback())
+                        .awaitStatusCode(maxWaitSec + 2L, TimeUnit.SECONDS);
+
+                try {
+                    logCallback.awaitCompletion(3, TimeUnit.SECONDS);
+                } catch (Exception ignored) {}
+
+                timeoutThread.interrupt();
+                long totalElapsedMs = System.currentTimeMillis() - startMs;
+
+                String fullLog = collector.getStdout() + "\n" + collector.getStderr();
+                log.info("Full workspace test suite container output for {}: [{}]", containerId, fullLog);
+
+                // Check compile marker
+                String failedMarker = "<<<" + compileMarker + ":FAILED>>>";
+                String successMarker = "<<<" + compileMarker + ":SUCCESS>>>";
+
+                if (fullLog.contains(failedMarker)) {
+                    int idx = fullLog.indexOf(failedMarker);
+                    String compileErr = fullLog.substring(idx + failedMarker.length()).trim();
+                    List<TestCaseExecutionItemResult> items = new ArrayList<>();
+                    for (TestCaseBatchItem tc : testCases) {
+                        items.add(TestCaseExecutionItemResult.builder()
+                                .testCaseId(tc.getId())
+                                .testCaseName(tc.getName())
+                                .isHidden(tc.getIsHidden())
+                                .status("COMPILE_ERROR")
+                                .errorMessage(compileErr)
+                                .actualOutput("")
+                                .expectedOutput(tc.getExpectedOutput())
+                                .pointsAwarded(BigDecimal.ZERO)
+                                .maxPoints(tc.getPoints())
+                                .executionTimeMs(0L)
+                                .exitCode(1)
+                                .build());
+                    }
+                    return TestCaseBatchSuiteResult.builder()
+                            .compiled(false)
+                            .compileOutput(compileErr)
+                            .itemResults(items)
+                            .totalDurationMs(totalElapsedMs)
+                            .build();
+                }
+
+                if (!hasValidEntryPoint) {
+                    List<TestCaseExecutionItemResult> items = new ArrayList<>();
+                    for (TestCaseBatchItem tc : testCases) {
+                        items.add(TestCaseExecutionItemResult.builder()
+                                .testCaseId(tc.getId())
+                                .testCaseName(tc.getName())
+                                .isHidden(tc.getIsHidden())
+                                .status("COMPILE_ERROR")
+                                .errorMessage("No public static void main(String[] args) entry point found in submission")
+                                .actualOutput("")
+                                .expectedOutput(tc.getExpectedOutput())
+                                .pointsAwarded(BigDecimal.ZERO)
+                                .maxPoints(tc.getPoints())
+                                .executionTimeMs(0L)
+                                .exitCode(1)
+                                .build());
+                    }
+                    return TestCaseBatchSuiteResult.builder()
+                            .compiled(true)
+                            .compileOutput("Compiled successfully, but no valid main entry point discovered")
+                            .itemResults(items)
+                            .totalDurationMs(totalElapsedMs)
+                            .build();
+                }
+
+                boolean compiled = fullLog.contains(successMarker);
+                List<TestCaseExecutionItemResult> items = new ArrayList<>();
+
+                for (int i = 0; i < testCases.size(); i++) {
+                    TestCaseBatchItem tc = testCases.get(i);
+                    String startTag = "<<<" + tcStart + i + ">>>";
+                    String exitTagPrefix = "<<<" + tcExit + i + ":";
+                    String timeTagPrefix = "<<<" + tcTime + i + ":";
+                    String outTag = "<<<" + tcOut + i + ">>>";
+                    String errTag = "<<<" + tcErr + i + ">>>";
+                    String endTag = "<<<" + tcEnd + i + ">>>";
+
+                    if (!fullLog.contains(startTag) || !fullLog.contains(endTag)) {
+                        items.add(TestCaseExecutionItemResult.builder()
+                                .testCaseId(tc.getId())
+                                .testCaseName(tc.getName())
+                                .isHidden(tc.getIsHidden())
+                                .status(timedOut.get() ? "TIMEOUT" : "NOT_EXECUTED")
+                                .errorMessage(timedOut.get() ? "Execution timed out" : "Process terminated prematurely")
+                                .actualOutput("")
+                                .expectedOutput(tc.getExpectedOutput())
+                                .pointsAwarded(BigDecimal.ZERO)
+                                .maxPoints(tc.getPoints())
+                                .executionTimeMs(0L)
+                                .exitCode(null)
+                                .build());
+                        continue;
+                    }
+
+                    // Extract exit code
+                    Integer exitCode = null;
+                    int exitStart = fullLog.indexOf(exitTagPrefix);
+                    if (exitStart >= 0) {
+                        int exitEnd = fullLog.indexOf(">>>", exitStart);
+                        if (exitEnd > exitStart) {
+                            String codeStr = fullLog.substring(exitStart + exitTagPrefix.length(), exitEnd).trim();
+                            try {
+                                exitCode = Integer.parseInt(codeStr);
+                            } catch (NumberFormatException ignored) {}
+                        }
+                    }
+
+                    // Extract time ms
+                    Long execDurationMs = null;
+                    int timeStart = fullLog.indexOf(timeTagPrefix);
+                    if (timeStart >= 0) {
+                        int timeEnd = fullLog.indexOf(">>>", timeStart);
+                        if (timeEnd > timeStart) {
+                            String timeStr = fullLog.substring(timeStart + timeTagPrefix.length(), timeEnd).trim();
+                            try {
+                                execDurationMs = Long.parseLong(timeStr);
+                            } catch (NumberFormatException ignored) {}
+                        }
+                    }
+
+                    // Extract stdout
+                    String stdout = "";
+                    int outStart = fullLog.indexOf(outTag);
+                    int errStart = fullLog.indexOf(errTag);
+                    if (outStart >= 0 && errStart > outStart) {
+                        stdout = fullLog.substring(outStart + outTag.length(), errStart);
+                        if (stdout.startsWith("\r\n")) {
+                            stdout = stdout.substring(2);
+                        } else if (stdout.startsWith("\n")) {
+                            stdout = stdout.substring(1);
+                        }
+                    }
+
+                    // Extract stderr
+                    String stderr = "";
+                    int endStart = fullLog.indexOf(endTag);
+                    if (errStart >= 0 && endStart > errStart) {
+                        stderr = fullLog.substring(errStart + errTag.length(), endStart);
+                        if (stderr.startsWith("\r\n")) {
+                            stderr = stderr.substring(2);
+                        } else if (stderr.startsWith("\n")) {
+                            stderr = stderr.substring(1);
+                        }
+                    }
+
+                    String status;
+                    BigDecimal pointsAwarded = BigDecimal.ZERO;
+                    String errorMessage = null;
+
+                    if (exitCode != null && (exitCode == 124 || exitCode == 137 || exitCode == 143)) {
+                        status = "TIMEOUT";
+                        errorMessage = "Execution timed out (exceeded " + tc.getTimeoutSeconds() + "s limit)";
+                    } else if (exitCode != null && exitCode != 0) {
+                        status = "RUNTIME_ERROR";
+                        errorMessage = stderr.trim();
+                    } else {
+                        boolean matches = OutputNormalizer.matches(stdout, tc.getExpectedOutput());
+                        if (matches) {
+                            status = "PASSED";
+                            pointsAwarded = tc.getPoints() != null ? tc.getPoints() : BigDecimal.valueOf(10.00);
+                        } else {
+                            status = "FAILED";
+                        }
+                    }
+
+                    items.add(TestCaseExecutionItemResult.builder()
+                            .testCaseId(tc.getId())
+                            .testCaseName(tc.getName())
+                            .isHidden(tc.getIsHidden())
+                            .status(status)
+                            .actualOutput(stdout)
+                            .expectedOutput(tc.getExpectedOutput())
+                            .pointsAwarded(pointsAwarded)
+                            .maxPoints(tc.getPoints())
+                            .executionTimeMs(execDurationMs)
+                            .exitCode(exitCode)
+                            .errorMessage(errorMessage)
+                            .build());
+                }
+
+                return TestCaseBatchSuiteResult.builder()
+                        .compiled(compiled)
+                        .compileOutput(compiled ? "Compilation successful" : "Failed")
+                        .itemResults(items)
+                        .totalDurationMs(totalElapsedMs)
+                        .build();
+
+            } catch (Exception e) {
+                timeoutThread.interrupt();
+                log.error("Error collecting workspace container test suite output for {}", containerId, e);
+                throw new SandboxException("Failed to collect workspace container test suite output", e);
+            }
+        } catch (SandboxException | IllegalArgumentException e) {
+            throw e;
+        } catch (DockerException e) {
+            log.error("Docker error during workspace sandbox test suite execution", e);
+            throw new SandboxException("Docker engine error: " + sanitizeDockerError(e), e);
+        } catch (Exception e) {
+            log.error("Unexpected sandbox error during workspace test suite execution", e);
             throw new SandboxException("Sandbox infrastructure failure", e);
         } finally {
             if (containerId != null) {
@@ -924,8 +1275,9 @@ public class DockerSandboxService {
 
     private byte[] createWorkspaceTar(ExtractedWorkspace workspace) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (TarArchiveOutputStream taos = new TarArchiveOutputStream(baos)) {
+        try (TarArchiveOutputStream taos = new TarArchiveOutputStream(baos, StandardCharsets.UTF_8.name())) {
             taos.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
+            taos.setAddPaxHeadersForNonAsciiNames(true);
 
             // Pre-register directories to ensure explicit 0755 directory entries in TAR
             Set<String> createdDirs = new HashSet<>();
@@ -1030,8 +1382,8 @@ public class DockerSandboxService {
                 .withUser("65534:65534")
                 // Disable all networking
                 .withNetworkDisabled(true)
-                // Empty environment — no host vars leaked
-                .withEnv(List.of())
+                // Safe UTF-8 environment — no host vars leaked
+                .withEnv(List.of("LANG=C.UTF-8", "LC_ALL=C.UTF-8"))
                 // No bind mounts — see HostConfig above (no Binds set)
                 .withHostConfig(hostConfig)
                 // Entrypoint: sh -c '<script>'

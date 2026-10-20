@@ -39,6 +39,28 @@ public class StudentSubmissionController {
     }
 
     @PreAuthorize("hasRole('STUDENT')")
+    @GetMapping("/submissions/{id}/download")
+    public ResponseEntity<byte[]> downloadSubmissionZip(@PathVariable String id, @AuthenticationPrincipal User currentUser) {
+        byte[] zipBytes = studentSubmissionService.getSubmissionZip(id, currentUser.getId());
+        SubmissionDetailResponse detail = studentSubmissionService.getStudentSubmissionById(id, currentUser.getId());
+        String filename = detail.getOriginalFilename() != null && !detail.getOriginalFilename().isBlank()
+                ? detail.getOriginalFilename()
+                : "submission-" + id + ".zip";
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .body(zipBytes);
+    }
+
+    @PreAuthorize("hasRole('STUDENT')")
+    @GetMapping("/submissions/{id}/files")
+    public List<com.codeassess.submission.dto.response.SubmissionFileDto> getSubmissionFiles(
+            @PathVariable String id,
+            @AuthenticationPrincipal User currentUser) {
+        return studentSubmissionService.getSubmissionFiles(id, currentUser.getId());
+    }
+
+    @PreAuthorize("hasRole('STUDENT')")
     @PostMapping(value = "/exams/{examId}/submissions", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<SubmissionDetailResponse> submitCode(
             @PathVariable String examId,

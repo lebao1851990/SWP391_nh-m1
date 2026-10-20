@@ -106,14 +106,19 @@ public class InternalGradingService {
                     .message("Successfully graded single-file submission with automated test cases")
                     .build();
         } else {
-            // ZIP submission: execution telemetry was persisted during upload; complete with fencing check
+            // ZIP submission: execute automated test runner if not already completed
+            if (!"COMPLETED".equalsIgnoreCase(submission.getStatus()) && !"EVALUATED".equalsIgnoreCase(submission.getStatus())) {
+                automatedTestRunnerService.runAndGrade(submission);
+                submission = submissionRepository.findById(submissionId).orElse(submission);
+            }
+
             int completed = submissionRepository.completeZipGradingWithToken(
                     submissionId,
                     claimToken,
                     LocalDateTime.now()
             );
 
-            if (completed == 0) {
+            if (completed == 0 && !"COMPLETED".equalsIgnoreCase(submission.getStatus())) {
                 log.warn("ZIP submission {} lost its claim lease during execution (claimToken={}); discarding obsolete results",
                         submissionId, claimToken);
                 return InternalGradingResponse.builder()

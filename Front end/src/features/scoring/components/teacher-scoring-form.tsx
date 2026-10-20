@@ -16,9 +16,21 @@ import {
   CheckCircle2, 
   AlertCircle, 
   Loader2,
-  FileCheck
+  FileCheck,
+  Download,
+  FileArchive,
+  Code2,
+  ChevronDown,
+  ChevronRight,
+  ShieldAlert,
+  FileText,
+  AlertTriangle,
+  ExternalLink,
+  MessageSquare
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
+import { teacherExamsApi, SubmissionFileDto } from '@/features/exams/api/teacher-exams.api';
 import { GradeAuditHistory } from './grade-audit-history';
 
 interface TeacherScoringFormProps {
@@ -28,6 +40,17 @@ interface TeacherScoringFormProps {
 
 export function TeacherScoringForm({ submissionId, initialData }: TeacherScoringFormProps) {
   const [showOverride, setShowOverride] = useState(false);
+  const [showSourceViewer, setShowSourceViewer] = useState(false);
+  const [selectedFileIdx, setSelectedFileIdx] = useState(0);
+  const [isSavingFeedback, setIsSavingFeedback] = useState(false);
+  const [expandedTestIdx, setExpandedTestIdx] = useState<number | null>(null);
+
+  const { data: submissionFiles, isLoading: isLoadingFiles } = useQuery<SubmissionFileDto[]>({
+    queryKey: ['teacher-submission-files', submissionId],
+    queryFn: () => teacherExamsApi.getSubmissionFiles(submissionId),
+    enabled: showSourceViewer,
+  });
+
   const updateMutation = useUpdateTeacherScoring(submissionId);
   const maxTotalScore = initialData.maxTotalScore ?? (initialData.criteria?.length ? initialData.criteria.reduce((s, c) => s + (c.maxScore || 0), 0) : 100);
 
@@ -44,7 +67,7 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
         criterionId: c.criterionId,
         score: c.score,
       })),
-      instructorEvaluationComments: initialData.instructorEvaluationComments || '',
+      instructorEvaluationComments: initialData.instructorEvaluationComments || initialData.instructorFeedback || '',
       overrideTotalScore: initialData.overrideTotalScore != null ? initialData.overrideTotalScore : undefined,
     },
   });
@@ -70,6 +93,19 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
     }, 0);
   }, [watchedCriteria, initialData.totalScore]);
 
+  const handleSaveFeedbackOnly = async () => {
+    const currentComment = control._formValues?.instructorEvaluationComments || '';
+    setIsSavingFeedback(true);
+    try {
+      await teacherExamsApi.updateInstructorFeedback(submissionId, currentComment);
+      toast.success('Đã lưu nhận xét của giảng viên thành công!');
+    } catch (err: unknown) {
+      toast.error((err as Error).message || 'Không thể lưu nhận xét');
+    } finally {
+      setIsSavingFeedback(false);
+    }
+  };
+
   const onSubmit = (data: SaveScoringPayloadType) => {
     updateMutation.mutate(data, {
       onSuccess: () => {
@@ -85,7 +121,7 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="max-w-7xl mx-auto px-space-lg py-space-lg flex flex-col w-full space-y-space-lg">
-      {/* Header Info */}
+      {/* Header Info & Actions */}
       <div className="flex flex-col gap-space-sm border-b border-outline-variant/30 pb-space-md">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-space-md">
           <div>
@@ -94,17 +130,104 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
                 Bảng điểm Đánh giá — Bài nộp #{initialData.submissionId.slice(0, 8)}
               </h1>
               <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                {initialData.status.toUpperCase()}
+                {(initialData.executionStatus || initialData.status).toUpperCase()}
               </span>
             </div>
             <p className="font-body-md text-body-md text-on-surface-variant mt-1 text-xs">
-              Chi tiết tiêu chí chấm điểm, trọng số và phản hồi của giảng viên cho{' '}
+              Chi tiết bài thi, test cases, mã nguồn Java và tiêu chí đánh giá cho{' '}
               <strong className="text-on-surface">{initialData.studentName}</strong> (MSSV:{' '}
               <span className="font-mono">{initialData.studentId}</span>).
             </p>
           </div>
+
+          {/* Action Buttons: Download ZIP & Toggle Source Code */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <a
+              href={`/api/teacher/submissions/${submissionId}/download`}
+              download
+              className="px-3.5 py-2 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:bg-primary/90 transition-all flex items-center gap-1.5 shadow-xs"
+            >
+              <Download className="w-4 h-4" />
+              <span>Tải file ZIP ({initialData.originalFilename || 'submission.zip'})</span>
+            </a>
+
+            <button
+              type="button"
+              onClick={() => setShowSourceViewer(prev => !prev)}
+              className={`px-3.5 py-2 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer ${
+                showSourceViewer
+                  ? 'bg-primary/10 border-primary text-primary'
+                  : 'bg-surface-container border-outline-variant/30 text-on-surface hover:bg-surface-container-high'
+              }`}
+            >
+              <Code2 className="w-4 h-4" />
+              <span>{showSourceViewer ? 'Ẩn mã nguồn' : 'Xem mã nguồn đã nộp'}</span>
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Source Code Viewer Panel */}
+      {showSourceViewer && (
+        <div className="rounded-2xl border border-outline-variant/40 bg-surface-container-lowest overflow-hidden shadow-md animate-in fade-in duration-150">
+          <div className="p-4 bg-slate-900 border-b border-slate-800 text-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Code2 className="w-4 h-4 text-primary" />
+              <h3 className="font-semibold text-xs text-white">Mã nguồn đã trích xuất từ file ZIP</h3>
+            </div>
+            <span className="text-[11px] font-mono text-slate-400">
+              {submissionFiles ? `${submissionFiles.length} file Java` : 'Đang tải...'}
+            </span>
+          </div>
+
+          {isLoadingFiles ? (
+            <div className="p-8 flex items-center justify-center gap-2 text-xs text-outline">
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              <span>Đang đọc các file mã nguồn từ lưu trữ an toàn...</span>
+            </div>
+          ) : !submissionFiles || submissionFiles.length === 0 ? (
+            <div className="p-8 text-center text-xs text-outline">
+              Không tìm thấy file mã nguồn .java trong bài nộp này.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-12 divide-y md:divide-y-0 md:divide-x divide-outline-variant/30">
+              {/* File list */}
+              <div className="md:col-span-4 p-3 bg-surface-container-low max-h-96 overflow-y-auto space-y-1">
+                {submissionFiles.map((file, idx) => (
+                  <button
+                    key={file.relativePath || idx}
+                    type="button"
+                    onClick={() => setSelectedFileIdx(idx)}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-mono transition-colors flex items-center justify-between cursor-pointer ${
+                      selectedFileIdx === idx
+                        ? 'bg-primary text-on-primary font-semibold'
+                        : 'hover:bg-surface-container text-on-surface'
+                    }`}
+                  >
+                    <span className="truncate">{file.relativePath || file.filename}</span>
+                    <span className="text-[10px] opacity-75 shrink-0 ml-2">{(file.sizeBytes / 1024).toFixed(1)} KB</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* File Code Display */}
+              <div className="md:col-span-8 bg-slate-950 p-4 max-h-96 overflow-y-auto font-mono text-xs text-slate-100">
+                <pre className="whitespace-pre-wrap leading-relaxed">
+                  {submissionFiles[selectedFileIdx]?.content || '// File rỗng'}
+                </pre>
+              </div>
+            </div>
+          )}
+
+          {/* Compiler Output if exists */}
+          {initialData.compileOutput && (
+            <div className="p-4 bg-rose-950/40 border-t border-rose-900/60 text-xs text-rose-200 font-mono">
+              <span className="font-semibold block mb-1 text-rose-300">Thông báo từ trình biên dịch Java (javac):</span>
+              <pre className="whitespace-pre-wrap max-h-32 overflow-y-auto">{initialData.compileOutput}</pre>
+            </div>
+          )}
+        </div>
+      )}
 
       {updateMutation.isError && (
         <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
@@ -121,7 +244,7 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-space-lg items-start">
-        {/* Left: Criteria List & Instructor Comments */}
+        {/* Left: Test Results & Criteria List & Instructor Comments */}
         <div className="xl:col-span-8 flex flex-col space-y-space-md">
           {/* Automated Test Case Execution Overview */}
           {initialData.testResults && initialData.testResults.length > 0 && (
@@ -138,19 +261,63 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
                   Điểm tự động: {initialData.autoScore ?? 0} đ
                 </span>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                {initialData.testResults.map((tr, idx) => (
-                  <div key={tr.id || idx} className="p-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant/30 flex items-center justify-between">
-                    <span className="truncate max-w-[200px] text-on-surface font-medium">
-                      #{idx + 1}: {tr.testCaseName || `Test ${idx + 1}`} {tr.isHidden ? '(Ẩn)' : ''}
-                    </span>
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold border ${
-                      tr.status === 'PASSED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'
-                    }`}>
-                      {tr.status} ({tr.pointsAwarded ?? 0} đ)
-                    </span>
-                  </div>
-                ))}
+              <div className="space-y-2 text-xs">
+                {initialData.testResults.map((tr, idx) => {
+                  const isExpanded = expandedTestIdx === idx;
+                  const isPassed = tr.status === 'PASSED';
+                  return (
+                    <div key={tr.id || idx} className="rounded-lg bg-surface-container-lowest border border-outline-variant/30 overflow-hidden">
+                      <div 
+                        onClick={() => setExpandedTestIdx(isExpanded ? null : idx)}
+                        className="p-3 flex items-center justify-between cursor-pointer hover:bg-surface-container-low/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-outline" /> : <ChevronRight className="w-3.5 h-3.5 text-outline" />}
+                          <span className="font-semibold text-on-surface">
+                            #{idx + 1}: {tr.testCaseName || `Test ${idx + 1}`}
+                          </span>
+                          {tr.isHidden && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-container-high text-outline">Ẩn với sinh viên</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {tr.executionTimeMs != null && (
+                            <span className="text-[11px] text-outline">{tr.executionTimeMs} ms</span>
+                          )}
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold border ${
+                            isPassed ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'
+                          }`}>
+                            {tr.status} ({tr.pointsAwarded ?? 0} đ)
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Expanded Test Details for Teacher */}
+                      {isExpanded && (
+                        <div className="p-3 bg-surface-container-low border-t border-outline-variant/20 grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] font-mono">
+                          {tr.expectedOutput && (
+                            <div className="p-2 rounded bg-surface-container-lowest border border-outline-variant/20">
+                              <span className="text-outline font-semibold block mb-0.5">Expected Output:</span>
+                              <pre className="whitespace-pre-wrap max-h-20 overflow-y-auto">{tr.expectedOutput}</pre>
+                            </div>
+                          )}
+                          {tr.actualOutput && (
+                            <div className="p-2 rounded bg-surface-container-lowest border border-outline-variant/20">
+                              <span className="text-outline font-semibold block mb-0.5">Actual Output:</span>
+                              <pre className="whitespace-pre-wrap max-h-20 overflow-y-auto">{tr.actualOutput}</pre>
+                            </div>
+                          )}
+                          {tr.errorMessage && (
+                            <div className="md:col-span-2 p-2 rounded bg-rose-50 text-rose-800 border border-rose-200">
+                              <span className="font-semibold block mb-0.5">Stderr / Error:</span>
+                              <pre className="whitespace-pre-wrap max-h-20 overflow-y-auto">{tr.errorMessage}</pre>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -188,28 +355,39 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
             </div>
           ))}
 
-          {/* Instructor Evaluation Feedback */}
+          {/* Instructor Evaluation Feedback & Independent Save */}
           <div className="rounded-xl bg-surface-container-lowest border border-outline-variant/40 p-space-md shadow-xs space-y-2">
-            <h4 className="font-label-md font-semibold text-on-surface text-xs uppercase tracking-wider">
-              Nhận xét và Phản hồi của Giảng viên
-            </h4>
+            <div className="flex items-center justify-between">
+              <h4 className="font-label-md font-semibold text-on-surface text-xs uppercase tracking-wider">
+                Nhận xét và Phản hồi của Giảng viên
+              </h4>
+              <button
+                type="button"
+                onClick={handleSaveFeedbackOnly}
+                disabled={isSavingFeedback || isSaving}
+                className="px-3 py-1 rounded-md bg-surface-container hover:bg-surface-container-high text-primary text-[11px] font-semibold border border-outline-variant/30 flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                {isSavingFeedback ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                <span>Lưu riêng nhận xét</span>
+              </button>
+            </div>
             <textarea 
               {...register('instructorEvaluationComments')}
               className="w-full p-3 rounded-lg bg-surface-container-low font-body-sm text-xs text-on-surface border border-outline-variant/40 focus:outline-none focus:border-primary transition-colors" 
-              placeholder="Nhập nhận xét mang tính xây dựng, giải thích trường hợp kiểm thử không đạt hoặc đánh giá chất lượng mã nguồn..." 
+              placeholder="Nhập nhận xét mang tính xây dựng, giải thích trường hợp kiểm thử không đạt hoặc đánh giá chất lượng mã nguồn (không bắt buộc)..." 
               rows={4}
               disabled={isSaving}
             />
           </div>
         </div>
 
-        {/* Right Sidebar: Student Info & Official Score Display */}
+        {/* Right Sidebar: Student Info & Official Score Display & Plagiarism */}
         <div className="xl:col-span-4 flex flex-col space-y-space-md">
-          {/* Student Info Card */}
+          {/* Student & Submission Info Card */}
           <div className="rounded-xl bg-surface-container-lowest border border-outline-variant/40 p-space-md shadow-xs space-y-2 text-xs">
             <div className="flex items-center gap-1.5 pb-2 border-b border-outline-variant/20">
               <User className="w-4 h-4 text-primary" />
-              <h4 className="font-semibold text-on-surface">Thông tin Sinh viên</h4>
+              <h4 className="font-semibold text-on-surface">Thông tin Bài nộp</h4>
             </div>
             <div className="space-y-1.5 text-on-surface-variant">
               <div className="flex justify-between">
@@ -224,7 +402,50 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
                 <span className="text-outline">Lớp học:</span>
                 <span className="font-mono text-on-surface">{initialData.className}</span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-outline">Tệp ZIP:</span>
+                <span className="font-mono text-primary truncate max-w-[150px]">{initialData.originalFilename || 'submission.zip'}</span>
+              </div>
+              {initialData.archiveHash && (
+                <div className="flex justify-between">
+                  <span className="text-outline">SHA-256:</span>
+                  <span className="font-mono text-[10px] text-outline truncate max-w-[130px]" title={initialData.archiveHash}>
+                    {initialData.archiveHash.slice(0, 16)}...
+                  </span>
+                </div>
+              )}
             </div>
+          </div>
+
+          {/* AST Plagiarism Card */}
+          <div className="rounded-xl bg-surface-container-lowest border border-outline-variant/40 p-space-md shadow-xs space-y-2 text-xs">
+            <div className="flex items-center gap-1.5 pb-2 border-b border-outline-variant/20">
+              <ShieldAlert className="w-4 h-4 text-primary" />
+              <h4 className="font-semibold text-on-surface">Kiểm tra Đạo văn AST</h4>
+            </div>
+            {initialData.astSimilarityPercentage !== undefined && initialData.astSimilarityPercentage !== null ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-outline">Tương đồng cao nhất:</span>
+                  <span className="font-bold text-sm font-mono text-on-surface">
+                    {Number(initialData.astSimilarityPercentage).toFixed(0)}%
+                  </span>
+                </div>
+                <div className={`p-2 rounded-lg border text-[11px] ${
+                  initialData.astSimilarityPercentage >= 70
+                    ? 'bg-rose-50 border-rose-200 text-rose-800'
+                    : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                }`}>
+                  {initialData.astSimilarityPercentage >= 70
+                    ? 'Phát hiện cấu trúc AST tương đồng đáng ngờ (≥ 70%). Cần giảng viên đối chiếu mã nguồn.'
+                    : 'Cấu trúc AST an toàn (< 70%). Không phát hiện tương đồng bất thường.'}
+                </div>
+              </div>
+            ) : (
+              <p className="text-[11px] text-outline leading-relaxed">
+                Chưa có dữ liệu so sánh đạo văn hoặc bài nộp đầu tiên trong kỳ thi.
+              </p>
+            )}
           </div>
           
           {/* Dynamic Score Card */}

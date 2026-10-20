@@ -1,14 +1,36 @@
 'use client';
 
-import React from 'react';
-import { useAdminExams } from '../hooks';
+import React, { useState, useMemo } from 'react';
+import { useAdminExams, useDeleteAdminExam } from '../hooks';
+import { AdminExam } from '../api/admin.api';
 import { AppLink as Link } from '@/components/ui/app-link';
+import { useTranslation } from '@/i18n';
+import { Trash2, AlertCircle, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function AdminExamListView() {
+  const { t } = useTranslation();
   const { data: exams, isLoading, isError } = useAdminExams();
-  const [searchQuery, setSearchQuery] = React.useState('');
+  const deleteExamMutation = useDeleteAdminExam();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [examToDelete, setExamToDelete] = useState<AdminExam | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
-  const filteredExams = React.useMemo(() => {
+  const handleConfirmDelete = async () => {
+    if (!examToDelete) return;
+    setDeleteError('');
+    try {
+      await deleteExamMutation.mutateAsync(examToDelete.id);
+      toast.success(t('teacherExams.deleteSuccess'));
+      setExamToDelete(null);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message || (err as { message?: string })?.message || t('teacherExams.deleteError');
+      setDeleteError(msg);
+      toast.error(msg);
+    }
+  };
+
+  const filteredExams = useMemo(() => {
     if (!exams) return [];
     if (!searchQuery) return exams;
     const lowerQuery = searchQuery.toLowerCase();
@@ -95,14 +117,93 @@ export function AdminExamListView() {
                       </span>
                     </td>
                     <td className="py-3 px-space-md text-right">
-                      <Link href={`/admin/exams/${exam.id}`} className="px-2.5 py-1 rounded bg-surface-container-low group-hover:bg-primary group-hover:text-on-primary text-on-surface-variant font-label-sm text-label-sm font-medium transition-colors">
-                        View Details
-                      </Link>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Link href={`/admin/exams/${exam.id}`} className="px-2.5 py-1 rounded bg-surface-container-low group-hover:bg-primary group-hover:text-on-primary text-on-surface-variant font-label-sm text-label-sm font-medium transition-colors">
+                          View Details
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExamToDelete(exam);
+                            setDeleteError('');
+                          }}
+                          className="p-1 rounded text-rose-600 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
+                          title={t('teacherExams.deleteButton')}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Delete Exam Confirmation Modal */}
+        {examToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+            <div className="bg-surface-container-lowest rounded-2xl max-w-md w-full p-6 shadow-2xl border border-rose-200/60 flex flex-col gap-4 animate-in zoom-in-95 duration-150">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-full bg-rose-50 text-rose-600 shrink-0">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-headline-sm text-headline-sm font-semibold text-on-surface">
+                    {t('teacherExams.deleteModalTitle')}
+                  </h3>
+                  <p className="text-xs text-on-surface-variant font-medium truncate max-w-[280px]">
+                    {examToDelete.title}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-surface-container-low border border-outline-variant/30 text-xs text-on-surface-variant space-y-2">
+                <p>
+                  {t('teacherExams.deleteModalWarning').replace('{title}', examToDelete.title)}
+                </p>
+                <p className="text-[11px] text-outline italic">
+                  {t('teacherExams.deleteModalActiveGradingWarning')}
+                </p>
+              </div>
+
+              {deleteError && (
+                <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2 text-xs">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{deleteError}</span>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-2 border-t border-outline-variant/30">
+                <button
+                  type="button"
+                  onClick={() => setExamToDelete(null)}
+                  disabled={deleteExamMutation.isPending}
+                  className="px-4 py-2 text-xs rounded-lg border border-outline-variant/40 hover:bg-surface-container transition-colors cursor-pointer"
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  disabled={deleteExamMutation.isPending}
+                  className="inline-flex items-center gap-2 px-5 py-2 bg-rose-600 text-white rounded-lg text-xs font-medium hover:bg-rose-700 transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
+                >
+                  {deleteExamMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>{t('teacherExams.deleting')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{t('common.confirmDelete')}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

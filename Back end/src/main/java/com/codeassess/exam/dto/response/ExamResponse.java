@@ -26,4 +26,14 @@ public class ExamResponse {
     private java.util.List<String> classCodes;
     private java.util.List<String> classNames;
     private java.util.List<ClassSummaryDto> assignedClasses;
+
+    // Time tracking & auto-lock metadata
+    private LocalDateTime endTime;
+    private LocalDateTime serverTime;
+    private Boolean isExpired;
+
+    @com.fasterxml.jackson.annotation.JsonProperty("durationMinutes")
+    public Integer getDurationMinutes() {
+        return duration;
+    }
 }

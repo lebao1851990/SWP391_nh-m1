@@ -69,6 +69,7 @@ class AuthServiceTest {
         sessionDto.setRole("TEACHER");
 
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class))).thenReturn(authentication);
+        when(session.getId()).thenReturn("mock-session-123");
         when(request.getSession(true)).thenReturn(session);
         when(userRepository.findByEmail("teacher@codeassess.com")).thenReturn(Optional.of(user));
         when(authMapper.toUserSessionDto(user)).thenReturn(sessionDto);

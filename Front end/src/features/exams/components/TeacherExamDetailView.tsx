@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   useTeacherExamDetail, 
   useTeacherExamSubmissions, 
   useUpdateExam, 
+  useDeleteExam,
   useTeacherClasses,
   useTeacherExamTestCases,
   useCreateTestCase,
@@ -14,6 +16,7 @@ import {
 import { TestCaseResponse } from '../api/teacher-exams.api';
 import { AxiosError } from 'axios';
 import { AppLink as Link } from '@/components/ui/app-link';
+import { useTranslation } from '@/i18n';
 import { 
   ArrowLeft, 
   Search, 
@@ -34,7 +37,13 @@ import {
   Lock,
   FileCheck,
   Eye,
-  EyeOff
+  EyeOff,
+  ShieldAlert,
+  FileArchive,
+  AlertTriangle,
+  FileText,
+  Download,
+  MessageSquare
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -43,10 +52,30 @@ interface TeacherExamDetailViewProps {
 }
 
 export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
+  const router = useRouter();
+  const { t } = useTranslation();
   const { data: exam, isLoading: isLoadingExam, isError: isErrorExam, error: examError } = useTeacherExamDetail(examId || '');
   const { data: submissions, isLoading: isLoadingSubmissions } = useTeacherExamSubmissions(examId || '');
   const { data: classes } = useTeacherClasses();
   const updateExam = useUpdateExam();
+  const deleteExamMutation = useDeleteExam();
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  const handleDeleteExam = async () => {
+    if (!exam) return;
+    setDeleteError('');
+    try {
+      await deleteExamMutation.mutateAsync(exam.id);
+      toast.success(t('teacherExams.deleteSuccess'));
+      router.push('/teacher/exams');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message || (err as { message?: string })?.message || t('teacherExams.deleteError');
+      setDeleteError(msg);
+      toast.error(msg);
+    }
+  };
 
   // Test Case Queries & Mutations
   const { data: testCases, isLoading: isLoadingTestCases } = useTeacherExamTestCases(examId || '');
@@ -84,21 +113,43 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
   const filteredSubmissions = useMemo(() => {
     if (!submissions) return [];
     return submissions.filter(sub => {
-      if (statusFilter !== 'all' && sub.status?.toLowerCase() !== statusFilter.toLowerCase()) return false;
+      if (statusFilter === 'pending') {
+        const isPending = sub.status === 'PENDING' || sub.status === 'SUBMITTED' || sub.executionStatus === 'PENDING';
+        if (!isPending) return false;
+      } else if (statusFilter === 'processing') {
+        const isProc = sub.status === 'PROCESSING' || sub.executionStatus === 'RUNNING';
+        if (!isProc) return false;
+      } else if (statusFilter === 'graded') {
+        const isGraded = sub.status === 'GRADED' || sub.status === 'COMPLETED' || sub.status === 'EVALUATED';
+        if (!isGraded) return false;
+      } else if (statusFilter === 'failed') {
+        const isFailed = sub.status === 'FAILED' || sub.executionStatus === 'FAILED' || sub.executionStatus === 'COMPILATION_ERROR' || sub.executionStatus === 'RUNTIME_ERROR' || sub.executionStatus === 'TIMEOUT';
+        if (!isFailed) return false;
+      } else if (statusFilter === 'flagged') {
+        if (sub.plagiarismStatus !== 'FLAGGED') return false;
+      }
+
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        return sub.studentName?.toLowerCase().includes(query) || sub.studentEmail?.toLowerCase().includes(query);
+        return (
+          sub.studentName?.toLowerCase().includes(query) ||
+          sub.studentEmail?.toLowerCase().includes(query) ||
+          sub.originalFilename?.toLowerCase().includes(query)
+        );
       }
       return true;
     });
   }, [submissions, searchQuery, statusFilter]);
 
   const stats = useMemo(() => {
-    if (!submissions) return { all: 0, submitted: 0, graded: 0 };
+    if (!submissions) return { all: 0, pending: 0, processing: 0, graded: 0, failed: 0, flagged: 0 };
     return {
       all: submissions.length,
-      submitted: submissions.filter(s => s.status === 'SUBMITTED').length,
-      graded: submissions.filter(s => s.status === 'GRADED').length,
+      pending: submissions.filter(s => s.status === 'PENDING' || s.status === 'SUBMITTED' || s.executionStatus === 'PENDING').length,
+      processing: submissions.filter(s => s.status === 'PROCESSING' || s.executionStatus === 'RUNNING').length,
+      graded: submissions.filter(s => s.status === 'GRADED' || s.status === 'COMPLETED' || s.status === 'EVALUATED').length,
+      failed: submissions.filter(s => s.status === 'FAILED' || s.executionStatus === 'FAILED' || s.executionStatus === 'COMPILATION_ERROR' || s.executionStatus === 'RUNTIME_ERROR' || s.executionStatus === 'TIMEOUT').length,
+      flagged: submissions.filter(s => s.plagiarismStatus === 'FLAGGED').length,
     };
   }, [submissions]);
 
@@ -357,6 +408,10 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
                 <Clock className="w-3.5 h-3.5 text-outline" />
                 <span>Thời gian: {exam.examDate ? new Date(exam.examDate).toLocaleString('vi-VN') : 'Linh hoạt'}</span>
               </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container-high text-on-surface border border-outline-variant/30 font-medium" data-testid="exam-duration-badge">
+                <Clock className="w-3.5 h-3.5 text-primary" />
+                <span>Thời lượng: {exam.duration || exam.durationMinutes || 90} phút</span>
+              </span>
               {exam.enrolledCount !== undefined && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container text-on-surface border border-outline-variant/30">
                   <Users className="w-3.5 h-3.5 text-secondary" />
@@ -374,6 +429,18 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
             >
               <Edit3 className="w-3.5 h-3.5 text-on-surface-variant" />
               <span>Cấu hình bài thi</span>
+            </button>
+            <button
+              onClick={() => {
+                setIsDeleteModalOpen(true);
+                setDeleteError('');
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-medium transition-all border border-rose-200 shadow-xs cursor-pointer"
+              type="button"
+              id="btn-delete-exam"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+              <span>{t('teacherExams.deleteButton')}</span>
             </button>
           </div>
         </div>
@@ -411,121 +478,257 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
           <>
             {/* Filter & Search Toolbar */}
             <div className="p-3.5 rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 text-xs">
-            <button 
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
-                statusFilter === 'all' 
-                  ? 'bg-primary text-on-primary shadow-xs' 
-                  : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
-              }`}
-              onClick={() => setStatusFilter('all')}
-            >
-              Tất cả bài nộp ({stats.all})
-            </button>
-            <button 
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
-                statusFilter === 'submitted' 
-                  ? 'bg-primary text-on-primary shadow-xs' 
-                  : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
-              }`}
-              onClick={() => setStatusFilter('submitted')}
-            >
-              Chờ chấm điểm ({stats.submitted})
-            </button>
-            <button 
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
-                statusFilter === 'graded' 
-                  ? 'bg-primary text-on-primary shadow-xs' 
-                  : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
-              }`}
-              onClick={() => setStatusFilter('graded')}
-            >
-              Đã chấm điểm ({stats.graded})
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2 flex-1 lg:max-w-md justify-end">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-outline w-4 h-4" />
-              <input 
-                className="w-full pl-9 pr-8 py-1.5 bg-surface-container-low rounded-lg text-on-surface text-xs border border-outline-variant/40 focus:outline-none focus:border-primary transition-all" 
-                placeholder="Tìm kiếm tên sinh viên hoặc email..." 
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              {searchQuery && (
-                <button className="absolute right-2.5 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface cursor-pointer" onClick={() => setSearchQuery('')}>
-                  <X className="w-3.5 h-3.5" />
+              <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 text-xs">
+                <button 
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                    statusFilter === 'all' 
+                      ? 'bg-primary text-on-primary shadow-xs' 
+                      : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
+                  }`}
+                  onClick={() => setStatusFilter('all')}
+                >
+                  Tất cả ({stats.all})
                 </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Detailed Submissions Table */}
-        <div className="rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs overflow-hidden flex flex-col">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs" id="submissions-table">
-              <thead>
-                <tr className="bg-surface-container-low text-on-surface-variant font-label-xs uppercase tracking-wider border-b border-outline-variant/30">
-                  <th className="py-2.5 px-4 font-semibold">Tên sinh viên</th>
-                  <th className="py-2.5 px-4 font-semibold">Email</th>
-                  <th className="py-2.5 px-4 font-semibold">Thời gian nộp</th>
-                  <th className="py-2.5 px-4 font-semibold">Điểm số</th>
-                  <th className="py-2.5 px-4 font-semibold">Trạng thái</th>
-                  <th className="py-2.5 px-4 font-semibold text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-outline-variant/20 text-on-surface">
-                {filteredSubmissions.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-12 text-center text-outline">
-                      Chưa có bài nộp nào phù hợp với bộ lọc tìm kiếm.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredSubmissions.map(sub => (
-                    <tr key={sub.id} className="hover:bg-surface-container-low/60 transition-colors">
-                      <td className="py-3 px-4 font-semibold text-on-surface">{sub.studentName}</td>
-                      <td className="py-3 px-4 text-on-surface-variant text-[11px]">{sub.studentEmail}</td>
-                      <td className="py-3 px-4 text-on-surface-variant">
-                        {sub.submittedAt ? new Date(sub.submittedAt).toLocaleString('vi-VN') : 'N/A'}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="font-mono bg-surface-container px-2 py-0.5 rounded font-bold text-on-surface">
-                          {sub.totalScore ?? 0}
-                        </span>
-                        <span className="text-outline text-[10px] ml-0.5">/100</span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                          sub.status === 'GRADED' 
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                            : 'bg-amber-50 text-amber-700 border border-amber-200'
-                        }`}>
-                          {sub.status === 'GRADED' ? 'Đã chấm' : 'Chờ chấm'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <Link 
-                          href={`/teacher/submissions/${sub.id}`} 
-                          className="inline-flex items-center gap-1 px-3 py-1 bg-surface-container hover:bg-surface-container-high text-primary rounded-lg font-medium transition-colors"
-                        >
-                          <span>Xem &amp; Chấm điểm</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </Link>
-                      </td>
-                    </tr>
-                  ))
+                <button 
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                    statusFilter === 'pending' 
+                      ? 'bg-primary text-on-primary shadow-xs' 
+                      : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
+                  }`}
+                  onClick={() => setStatusFilter('pending')}
+                >
+                  Chờ xử lý ({stats.pending})
+                </button>
+                <button 
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                    statusFilter === 'processing' 
+                      ? 'bg-primary text-on-primary shadow-xs' 
+                      : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
+                  }`}
+                  onClick={() => setStatusFilter('processing')}
+                >
+                  Đang chấm ({stats.processing})
+                </button>
+                <button 
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                    statusFilter === 'graded' 
+                      ? 'bg-primary text-on-primary shadow-xs' 
+                      : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
+                  }`}
+                  onClick={() => setStatusFilter('graded')}
+                >
+                  Hoàn tất ({stats.graded})
+                </button>
+                {stats.failed > 0 && (
+                  <button 
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                      statusFilter === 'failed' 
+                        ? 'bg-rose-600 text-white shadow-xs' 
+                        : 'text-rose-700 hover:bg-rose-50'
+                    }`}
+                    onClick={() => setStatusFilter('failed')}
+                  >
+                    Lỗi thi hành ({stats.failed})
+                  </button>
                 )}
-              </tbody>
-            </table>
-          </div>
-          <div className="px-4 py-2.5 bg-surface-container-low/40 border-t border-outline-variant/30 flex items-center justify-between text-xs text-outline">
-            <span>Hiển thị <strong className="text-on-surface">{filteredSubmissions.length}</strong> trên tổng số <strong className="text-on-surface">{stats.all}</strong> bài nộp</span>
-          </div>
-        </div>
+                <button 
+                  className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                    statusFilter === 'flagged' 
+                      ? 'bg-rose-600 text-white shadow-xs' 
+                      : 'text-rose-600 hover:bg-rose-50'
+                  }`}
+                  onClick={() => setStatusFilter('flagged')}
+                >
+                  Cần xem xét đạo văn ({stats.flagged})
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 flex-1 lg:max-w-md justify-end">
+                <div className="relative w-full">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-outline w-4 h-4" />
+                  <input 
+                    className="w-full pl-9 pr-8 py-1.5 bg-surface-container-low rounded-lg text-on-surface text-xs border border-outline-variant/40 focus:outline-none focus:border-primary transition-all" 
+                    placeholder="Tìm sinh viên, email, tệp ZIP..." 
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  {searchQuery && (
+                    <button className="absolute right-2.5 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface cursor-pointer" onClick={() => setSearchQuery('')}>
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Detailed Submissions Table */}
+            <div className="rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs overflow-hidden flex flex-col">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs" id="submissions-table">
+                  <thead>
+                    <tr className="bg-surface-container-low text-on-surface-variant font-label-xs uppercase tracking-wider border-b border-outline-variant/30">
+                      <th className="py-2.5 px-4 font-semibold">Sinh viên</th>
+                      <th className="py-2.5 px-4 font-semibold">Tệp mã nguồn</th>
+                      <th className="py-2.5 px-4 font-semibold">Thời gian nộp</th>
+                      <th className="py-2.5 px-4 font-semibold">Trạng thái chấm</th>
+                      <th className="py-2.5 px-4 font-semibold">Test Cases</th>
+                      <th className="py-2.5 px-4 font-semibold">Điểm số</th>
+                      <th className="py-2.5 px-4 font-semibold">Đạo văn AST</th>
+                      <th className="py-2.5 px-4 font-semibold">Nhận xét</th>
+                      <th className="py-2.5 px-4 font-semibold text-right">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-outline-variant/20 text-on-surface">
+                    {filteredSubmissions.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="py-12 text-center text-outline">
+                          Chưa có bài nộp nào phù hợp với bộ lọc tìm kiếm.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredSubmissions.map(sub => {
+                        const isPending = sub.status === 'PENDING' || sub.status === 'SUBMITTED' || sub.executionStatus === 'PENDING';
+                        const isProcessing = sub.status === 'PROCESSING' || sub.executionStatus === 'RUNNING';
+                        const isFailed = sub.status === 'FAILED' || sub.executionStatus === 'FAILED' || sub.executionStatus === 'COMPILATION_ERROR' || sub.executionStatus === 'RUNTIME_ERROR' || sub.executionStatus === 'TIMEOUT';
+                        const isGraded = (sub.status === 'GRADED' || sub.status === 'COMPLETED' || sub.status === 'EVALUATED') && !isFailed;
+
+                        return (
+                          <tr key={sub.id} className="hover:bg-surface-container-low/60 transition-colors">
+                            {/* Student */}
+                            <td className="py-3 px-4">
+                              <p className="font-semibold text-on-surface">{sub.studentName}</p>
+                              <p className="text-[11px] text-on-surface-variant">{sub.studentEmail}</p>
+                            </td>
+
+                            {/* ZIP Archive */}
+                            <td className="py-3 px-4 font-mono text-[11px]">
+                              <span className="inline-flex items-center gap-1 text-on-surface font-medium">
+                                <FileArchive className="w-3.5 h-3.5 text-primary" />
+                                <span className="truncate max-w-[140px]" title={sub.originalFilename || 'submission.zip'}>
+                                  {sub.originalFilename || 'submission.zip'}
+                                </span>
+                              </span>
+                            </td>
+
+                            {/* Submitted At */}
+                            <td className="py-3 px-4 text-on-surface-variant text-[11px]">
+                              {sub.submittedAt ? new Date(sub.submittedAt).toLocaleString('vi-VN') : 'N/A'}
+                            </td>
+
+                            {/* Status */}
+                            <td className="py-3 px-4">
+                              {isProcessing ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 animate-pulse">
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  <span>Đang chấm</span>
+                                </span>
+                              ) : isPending ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                  <Clock className="w-3 h-3" />
+                                  <span>Chờ chấm</span>
+                                </span>
+                              ) : isFailed ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                                  <AlertTriangle className="w-3 h-3" />
+                                  <span>{sub.executionStatus || 'Lỗi thi hành'}</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  <span>Hoàn tất</span>
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Test Cases */}
+                            <td className="py-3 px-4 font-mono">
+                              {isPending || isProcessing ? (
+                                <span className="text-outline text-[11px]">Đang chạy...</span>
+                              ) : sub.testCasesTotal !== undefined && sub.testCasesTotal > 0 ? (
+                                <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
+                                  sub.testCasesPassed === sub.testCasesTotal
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-surface-container text-on-surface'
+                                }`}>
+                                  {sub.testCasesPassed ?? 0}/{sub.testCasesTotal} test
+                                </span>
+                              ) : (
+                                <span className="text-outline text-[11px]">-</span>
+                              )}
+                            </td>
+
+                            {/* Score */}
+                            <td className="py-3 px-4">
+                              {isPending || isProcessing ? (
+                                <span className="text-[11px] text-amber-600 font-medium italic">Đang chấm...</span>
+                              ) : isGraded ? (
+                                <div>
+                                  <span className="font-mono bg-surface-container px-2 py-0.5 rounded font-bold text-on-surface">
+                                    {sub.totalScore ?? sub.autoScore ?? 0}
+                                  </span>
+                                  <span className="text-outline text-[10px] ml-0.5">/100</span>
+                                  {sub.autoScore !== undefined && sub.autoScore !== sub.totalScore && (
+                                    <p className="text-[10px] text-outline font-mono mt-0.5">Auto: {sub.autoScore}</p>
+                                  )}
+                                </div>
+                              ) : isFailed ? (
+                                <span className="text-[11px] text-rose-600 font-medium">0/100 (Lỗi)</span>
+                              ) : (
+                                <span className="text-[11px] text-outline">Chưa có điểm</span>
+                              )}
+                            </td>
+
+                            {/* AST Plagiarism */}
+                            <td className="py-3 px-4">
+                              {sub.plagiarismStatus === 'FLAGGED' ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                                  <ShieldAlert className="w-3 h-3" />
+                                  <span>Cần xem xét {sub.maxSimilarityRate != null ? `(${Number(sub.maxSimilarityRate).toFixed(0)}%)` : ''}</span>
+                                </span>
+                              ) : sub.plagiarismStatus === 'SAFE' ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  <span>An toàn {sub.maxSimilarityRate != null ? `(${Number(sub.maxSimilarityRate).toFixed(0)}%)` : ''}</span>
+                                </span>
+                              ) : (
+                                <span className="text-outline text-[10px]">Chưa kiểm tra</span>
+                              )}
+                            </td>
+
+                            {/* Instructor Feedback */}
+                            <td className="py-3 px-4 text-[11px]">
+                              {sub.instructorFeedback ? (
+                                <span className="inline-flex items-center gap-1 text-primary truncate max-w-[120px]" title={sub.instructorFeedback}>
+                                  <MessageSquare className="w-3 h-3" />
+                                  <span className="truncate">{sub.instructorFeedback}</span>
+                                </span>
+                              ) : (
+                                <span className="text-outline text-[10px]">-</span>
+                              )}
+                            </td>
+
+                            {/* Action */}
+                            <td className="py-3 px-4 text-right">
+                              <Link 
+                                href={`/teacher/submissions/${sub.id}`} 
+                                className="inline-flex items-center gap-1 px-3 py-1 bg-surface-container hover:bg-surface-container-high text-primary rounded-lg font-medium transition-colors"
+                              >
+                                <span>Xem &amp; Chấm</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </Link>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-4 py-2.5 bg-surface-container-low/40 border-t border-outline-variant/30 flex items-center justify-between text-xs text-outline">
+                <span>Hiển thị <strong className="text-on-surface">{filteredSubmissions.length}</strong> trên tổng số <strong className="text-on-surface">{stats.all}</strong> bài nộp</span>
+              </div>
+            </div>
           </>
         )}
 
@@ -778,17 +981,36 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
                     />
                   </div>
 
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-semibold text-on-surface">Thời lượng (Phút) *</label>
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-on-surface">Thời lượng (Phút) *</label>
+                      <span className="text-[11px] text-outline">Đơn vị: phút</span>
+                    </div>
                     <input
                       type="number"
                       required
                       min={1}
-                      max={480}
+                      max={1440}
                       value={editDuration}
                       onChange={(e) => setEditDuration(Number(e.target.value))}
-                      className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant/40 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary transition-colors"
+                      className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant/40 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary transition-colors font-mono"
                     />
+                    <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                      {[45, 60, 90, 120, 180].map((mins) => (
+                        <button
+                          key={mins}
+                          type="button"
+                          onClick={() => setEditDuration(mins)}
+                          className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer border ${
+                            editDuration === mins
+                              ? 'bg-primary text-on-primary border-primary'
+                              : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border-outline-variant/40'
+                          }`}
+                        >
+                          {mins} phút {mins === 60 ? '(1h)' : mins === 90 ? '(1.5h)' : mins === 120 ? '(2h)' : ''}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -986,6 +1208,73 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Exam Confirmation Modal */}
+        {isDeleteModalOpen && exam && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+            <div className="bg-surface-container-lowest rounded-2xl max-w-md w-full p-6 shadow-2xl border border-rose-200/60 flex flex-col gap-4 animate-in zoom-in-95 duration-150">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-full bg-rose-50 text-rose-600 shrink-0">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-headline-sm text-headline-sm font-semibold text-on-surface">
+                    {t('teacherExams.deleteModalTitle')}
+                  </h3>
+                  <p className="text-xs text-on-surface-variant font-medium truncate max-w-[280px]">
+                    {exam.title}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-surface-container-low border border-outline-variant/30 text-xs text-on-surface-variant space-y-2">
+                <p>
+                  {t('teacherExams.deleteModalWarning').replace('{title}', exam.title)}
+                </p>
+                <p className="text-[11px] text-outline italic">
+                  {t('teacherExams.deleteModalActiveGradingWarning')}
+                </p>
+              </div>
+
+              {deleteError && (
+                <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2 text-xs">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{deleteError}</span>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-2 border-t border-outline-variant/30">
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  disabled={deleteExamMutation.isPending}
+                  className="px-4 py-2 text-xs rounded-lg border border-outline-variant/40 hover:bg-surface-container transition-colors cursor-pointer"
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  type="button"
+                  id="confirm-delete-exam-detail-btn"
+                  onClick={handleDeleteExam}
+                  disabled={deleteExamMutation.isPending}
+                  className="inline-flex items-center gap-2 px-5 py-2 bg-rose-600 text-white rounded-lg text-xs font-medium hover:bg-rose-700 transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
+                >
+                  {deleteExamMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>{t('teacherExams.deleting')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{t('common.confirmDelete')}</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}

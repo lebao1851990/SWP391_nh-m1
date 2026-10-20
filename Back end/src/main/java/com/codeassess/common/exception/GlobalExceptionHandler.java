@@ -47,6 +47,12 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(409, "CONFLICT", ex.getMessage()));
     }
 
+    @ExceptionHandler(ExamTimeExpiredException.class)
+    public ResponseEntity<ErrorResponse> handleExamTimeExpired(ExamTimeExpiredException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(409, "EXAM_TIME_EXPIRED", ex.getMessage()));
+    }
+
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ErrorResponse> handleIllegalStateException(IllegalStateException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)

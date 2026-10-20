@@ -155,3 +155,14 @@ export function useUpdateAdminExam() {
     },
   });
 }
+
+export function useDeleteAdminExam() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminApi.deleteExam(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'exams'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'exams', id] });
+    },
+  });
+}
