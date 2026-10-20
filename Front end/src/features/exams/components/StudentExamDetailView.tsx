@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useStudentExam, useSubmitExam } from '../hooks/use-student-exams';
+import { useStudentExam, useSubmitExam, useSubmitExamZip } from '../hooks/use-student-exams';
+import { SubmissionResultResponse } from '../api/student-exams.api';
 import { AxiosError } from 'axios';
 import { AppLink as Link } from '@/components/ui/app-link';
 import { 
@@ -16,7 +17,15 @@ import {
   FileCheck, 
   CheckCircle2, 
   Loader2, 
-  ShieldAlert
+  ShieldAlert,
+  UploadCloud,
+  FileArchive,
+  Trash2,
+  Terminal,
+  Cpu,
+  Copy,
+  Check,
+  ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -28,10 +37,19 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
   const router = useRouter();
   const { data: exam, isLoading, isError, error } = useStudentExam(examId);
   const submitExam = useSubmitExam();
-  
+  const submitExamZip = useSubmitExamZip();
+
+  const [submissionMode, setSubmissionMode] = useState<'editor' | 'zip'>('editor');
   const [sourceCode, setSourceCode] = useState('');
+  const [selectedZip, setSelectedZip] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [localError, setLocalError] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [submissionResult, setSubmissionResult] = useState<SubmissionResultResponse | null>(null);
+  const [copiedSection, setCopiedSection] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (isLoading) {
     return (
@@ -96,45 +114,177 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
   const isClosed = exam.status === 'completed' || exam.status === 'missed' || isDeadlinePassed || isUpcoming;
   const lineCount = sourceCode ? sourceCode.split('\n').length : 0;
   const charCount = sourceCode.length;
+  const isPending = submitExam.isPending || submitExamZip.isPending;
+
+  const validateZipFile = (file: File): string | null => {
+    if (!file.name.toLowerCase().endsWith('.zip')) {
+      return 'Chỉ chấp nhận tệp nén có định dạng .zip';
+    }
+    const maxBytes = 10 * 1024 * 1024; // 10 MiB
+    if (file.size > maxBytes) {
+      return `Dung lượng tệp (${(file.size / (1024 * 1024)).toFixed(1)} MB) vượt quá giới hạn tối đa 10 MB cho phép.`;
+    }
+    if (file.size === 0) {
+      return 'Tệp ZIP nộp bài không được rỗng (0 bytes).';
+    }
+    return null;
+  };
+
+  const handleBrowseClick = (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    if (isPending) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const err = validateZipFile(file);
+    if (err) {
+      setLocalError(err);
+      toast.error(err);
+      setSelectedZip(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    setLocalError('');
+    setSelectedZip(file);
+    toast.success(`Đã chọn tệp: ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isPending) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (isPending) return;
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    const err = validateZipFile(file);
+    if (err) {
+      setLocalError(err);
+      toast.error(err);
+      setSelectedZip(null);
+      return;
+    }
+    setLocalError('');
+    setSelectedZip(file);
+    toast.success(`Đã chọn tệp: ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`);
+  };
+
+  const handleRemoveZip = () => {
+    setSelectedZip(null);
+    setLocalError('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handlePreSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isUpcoming) {
-      setLocalError(`Assessment has not started yet. Window opens at ${new Date(exam.startTime).toLocaleString()}.`);
+      setLocalError(`Bài thi chưa bắt đầu. Cổng nộp bài sẽ mở lúc ${new Date(exam.startTime).toLocaleString('vi-VN')}.`);
       return;
     }
     if (isDeadlinePassed || exam.status === 'completed' || exam.status === 'missed') {
-      setLocalError(`Assessment deadline has passed (${new Date(exam.endTime).toLocaleString()}). Submissions are closed.`);
+      setLocalError(`Thời gian làm bài đã kết thúc (${new Date(exam.endTime).toLocaleString('vi-VN')}). Cổng nộp bài đã đóng.`);
       return;
     }
-    if (!sourceCode.trim()) {
-      setLocalError('Mã nguồn không được để trống.');
-      return;
+
+    if (submissionMode === 'editor') {
+      if (!sourceCode.trim()) {
+        setLocalError('Mã nguồn không được để trống.');
+        return;
+      }
+    } else {
+      if (!selectedZip) {
+        setLocalError('Vui lòng chọn hoặc kéo thả tệp .zip trước khi nộp.');
+        return;
+      }
+      const err = validateZipFile(selectedZip);
+      if (err) {
+        setLocalError(err);
+        return;
+      }
     }
+
     setLocalError('');
     setShowConfirmModal(true);
   };
 
   const handleFinalSubmit = () => {
     setShowConfirmModal(false);
-    submitExam.mutate(
-      { examId, sourceCode },
-      {
-        onSuccess: (data: { id?: string }) => {
-          toast.success('Nộp bài làm thành công! Hệ thống đang chuyển hướng...');
-          if (data && data.id) {
-            router.push(`/student/submissions/${data.id}`);
-          } else {
-            router.push('/student/submissions');
+    setUploadProgress(0);
+
+    if (submissionMode === 'editor') {
+      submitExam.mutate(
+        { examId, sourceCode },
+        {
+          onSuccess: (data: SubmissionResultResponse) => {
+            toast.success('Nộp bài làm thành công! Hệ thống đang lưu trữ và phân tích.');
+            setSubmissionResult(data);
+            if (data?.id) {
+              setTimeout(() => {
+                router.push(`/student/submissions/${data.id}`);
+              }, 1200);
+            }
+          },
+          onError: (err: unknown) => {
+            const msg = (err as AxiosError<{message?: string}>)?.response?.data?.message || (err as Error)?.message || 'Nộp bài thất bại.';
+            setLocalError(msg);
+            toast.error(msg);
           }
-        },
-        onError: (err: unknown) => {
-          const msg = (err as AxiosError<{message?: string}>)?.response?.data?.message || (err as Error)?.message || 'Nộp bài thất bại.';
-          setLocalError(msg);
-          toast.error(msg);
         }
-      }
-    );
+      );
+    } else {
+      if (!selectedZip) return;
+      submitExamZip.mutate(
+        { 
+          examId, 
+          file: selectedZip,
+          onUploadProgress: (pct) => setUploadProgress(pct)
+        },
+        {
+          onSuccess: (data: SubmissionResultResponse) => {
+            toast.success(`Nộp tệp ${data.originalFilename || selectedZip.name} thành công! Đã chạy kiểm thử Sandbox.`);
+            setSubmissionResult(data);
+            if (data?.id) {
+              setTimeout(() => {
+                router.push(`/student/submissions/${data.id}`);
+              }, 1500);
+            }
+          },
+          onError: (err: unknown) => {
+            const msg = (err as AxiosError<{message?: string}>)?.response?.data?.message || (err as Error)?.message || 'Nộp tệp ZIP thất bại.';
+            setLocalError(msg);
+            toast.error(msg);
+          }
+        }
+      );
+    }
+  };
+
+  const copyToClipboard = (text: string, sectionKey: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedSection(sectionKey);
+    setTimeout(() => setCopiedSection(null), 2000);
   };
 
   return (
@@ -191,8 +341,8 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
           <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-xs flex items-center gap-3">
             <Clock className="w-5 h-5 text-blue-600 shrink-0" />
             <div>
-              <p className="font-semibold">Assessment Not Yet Started</p>
-              <p className="text-blue-700 mt-0.5">This assessment will open at {new Date(exam.startTime).toLocaleString()}. You cannot submit solutions until the window starts.</p>
+              <p className="font-semibold">Bài thi chưa mở cổng làm bài</p>
+              <p className="text-blue-700 mt-0.5">Bài thi này sẽ bắt đầu vào lúc {new Date(exam.startTime).toLocaleString('vi-VN')}. Bạn chỉ có thể nộp bài khi thời gian bắt đầu.</p>
             </div>
           </div>
         )}
@@ -227,44 +377,198 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
           </div>
         )}
 
-        {/* Submission IDE Card */}
+        {/* Submission Workspace Card */}
         <div className="bg-surface-container-lowest p-space-md rounded-2xl border border-outline-variant/40 shadow-xs">
           <form onSubmit={handlePreSubmit} className="flex flex-col gap-4">
-            <div className="flex items-center justify-between border-b border-outline-variant/30 pb-3">
+            
+            {/* Mode Switcher Tabs */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-outline-variant/30 pb-3 gap-3">
               <div className="flex items-center gap-2">
-                <Code2 className="w-5 h-5 text-primary" />
-                <h2 className="font-headline-sm text-headline-sm text-on-surface">Không gian soạn thảo mã nguồn</h2>
+                <button
+                  type="button"
+                  onClick={() => { setSubmissionMode('editor'); setLocalError(''); }}
+                  disabled={isPending}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                    submissionMode === 'editor'
+                      ? 'bg-primary text-on-primary shadow-xs'
+                      : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+                  }`}
+                >
+                  <Code2 className="w-3.5 h-3.5" />
+                  <span>Viết mã nguồn trực tiếp</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setSubmissionMode('zip'); setLocalError(''); }}
+                  disabled={isPending}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                    submissionMode === 'zip'
+                      ? 'bg-primary text-on-primary shadow-xs'
+                      : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+                  }`}
+                >
+                  <UploadCloud className="w-3.5 h-3.5" />
+                  <span>Tải lên tệp ZIP</span>
+                  <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-primary-fixed/20 text-on-surface">.zip</span>
+                </button>
               </div>
+
               <div className="flex items-center gap-3 text-xs text-outline font-mono">
-                <span>{lineCount} dòng</span>
-                <span>•</span>
-                <span>{charCount} ký tự</span>
-                <span>•</span>
-                <span className="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-semibold">Java 17</span>
+                {submissionMode === 'editor' ? (
+                  <>
+                    <span>{lineCount} dòng</span>
+                    <span>•</span>
+                    <span>{charCount} ký tự</span>
+                    <span>•</span>
+                    <span className="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-semibold">Java 17</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Tối đa: 10 MB</span>
+                    <span>•</span>
+                    <span className="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-semibold">Multi-file Java ZIP</span>
+                  </>
+                )}
               </div>
             </div>
 
-            {/* Code Textarea with IDE Styling */}
-            <div className="relative rounded-xl border border-outline-variant/60 bg-slate-950 overflow-hidden shadow-inner focus-within:ring-2 focus-within:ring-primary/40 focus-within:border-primary transition-all">
-              <div className="px-4 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400 font-mono">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80"></span>
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80"></span>
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></span>
-                  <span className="ml-2 text-slate-300">Solution.java</span>
+            {/* Mode 1: Code Textarea with IDE Styling */}
+            {submissionMode === 'editor' && (
+              <div className="relative rounded-xl border border-outline-variant/60 bg-slate-950 overflow-hidden shadow-inner focus-within:ring-2 focus-within:ring-primary/40 focus-within:border-primary transition-all">
+                <div className="px-4 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400 font-mono">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80"></span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80"></span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></span>
+                    <span className="ml-2 text-slate-300">Solution.java</span>
+                  </div>
+                  <span>UTF-8</span>
                 </div>
-                <span>UTF-8</span>
-              </div>
 
-              <textarea 
-                className="w-full h-96 p-4 bg-transparent font-mono text-xs text-slate-100 placeholder:text-slate-600 outline-none resize-y leading-relaxed"
-                placeholder="// Nhập mã nguồn Java của bạn tại đây...&#10;public class Solution {&#10;    public static void main(String[] args) {&#10;        // Viết mã nguồn của bạn tại đây&#10;    }&#10;}"
-                value={sourceCode}
-                onChange={(e) => setSourceCode(e.target.value)}
-                disabled={submitExam.isPending || isClosed}
-                spellCheck="false"
-              />
-            </div>
+                <textarea 
+                  className="w-full h-96 p-4 bg-transparent font-mono text-xs text-slate-100 placeholder:text-slate-600 outline-none resize-y leading-relaxed"
+                  placeholder="// Nhập mã nguồn Java của bạn tại đây...&#10;public class Solution {&#10;    public static void main(String[] args) {&#10;        // Viết mã nguồn của bạn tại đây&#10;    }&#10;}"
+                  value={sourceCode}
+                  onChange={(e) => setSourceCode(e.target.value)}
+                  disabled={isPending || isClosed}
+                  spellCheck="false"
+                />
+              </div>
+            )}
+
+            {/* Mode 2: Drag and Drop ZIP Upload Area */}
+            {submissionMode === 'zip' && (
+              <div className="flex flex-col gap-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".zip,application/zip,application/x-zip-compressed"
+                  className="hidden"
+                  onChange={handleFileChange}
+                  disabled={isPending}
+                />
+
+                {!selectedZip ? (
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={handleBrowseClick}
+                    className={`border-2 border-dashed rounded-2xl p-8 sm:p-12 text-center flex flex-col items-center justify-center gap-3 transition-all cursor-pointer ${
+                      isDragging
+                        ? 'border-primary bg-primary/10 scale-[0.99]'
+                        : 'border-outline-variant/60 hover:border-primary/80 hover:bg-surface-container-low/50 bg-surface-container-lowest'
+                    }`}
+                  >
+                    <div className="p-4 rounded-full bg-primary/10 text-primary pointer-events-none">
+                      <UploadCloud className="w-8 h-8 animate-bounce" />
+                    </div>
+                    <div className="pointer-events-auto">
+                      <p className="font-semibold text-sm text-on-surface">
+                        Kéo và thả tệp mã nguồn <span className="text-primary font-mono font-bold">.zip</span> vào đây
+                      </p>
+                      <p className="text-xs text-on-surface-variant mt-1">
+                        hoặc{' '}
+                        <span 
+                          onClick={handleBrowseClick}
+                          className="text-primary hover:text-primary/80 underline font-medium cursor-pointer transition-colors"
+                        >
+                          bấm để duyệt tệp từ máy tính
+                        </span>
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-[11px] text-outline pointer-events-none">
+                      <span className="px-2 py-0.5 rounded bg-surface-container">Định dạng .zip</span>
+                      <span>•</span>
+                      <span className="px-2 py-0.5 rounded bg-surface-container">Dung lượng tối đa 10 MB</span>
+                      <span>•</span>
+                      <span className="px-2 py-0.5 rounded bg-surface-container">Tự động phát hiện hàm main</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border border-outline-variant/50 rounded-2xl p-5 bg-surface-container-low/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5">
+                      <div className="p-3 rounded-xl bg-primary/15 text-primary flex items-center justify-center">
+                        <FileArchive className="w-7 h-7" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold text-xs sm:text-sm text-on-surface font-mono">{selectedZip.name}</h4>
+                          <span className="px-2 py-0.2 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            Hợp lệ
+                          </span>
+                        </div>
+                        <p className="text-xs text-on-surface-variant font-mono mt-0.5">
+                          {(selectedZip.size / (1024 * 1024)).toFixed(2)} MB / 10 MB
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={handleBrowseClick}
+                        disabled={isPending}
+                        className="px-3 py-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container text-xs transition-colors cursor-pointer"
+                      >
+                        Đổi tệp khác
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRemoveZip}
+                        disabled={isPending}
+                        className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors cursor-pointer"
+                        title="Xóa tệp"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Upload & Execution Progress Bar */}
+            {isPending && (
+              <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/40 flex flex-col gap-2 animate-in fade-in">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium text-on-surface flex items-center gap-2">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                    {uploadProgress < 100
+                      ? `Đang tải tệp lên máy chủ (${uploadProgress}%)...`
+                      : 'Đang giải nén & thực thi kiểm thử an toàn trong Docker Sandbox...'}
+                  </span>
+                  <span className="font-mono text-outline">{uploadProgress}%</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-surface-container overflow-hidden">
+                  <div 
+                    className="h-full bg-primary rounded-full transition-all duration-300"
+                    style={{ width: `${Math.max(uploadProgress, 5)}%` }}
+                  />
+                </div>
+              </div>
+            )}
 
             {localError && (
               <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2 text-xs">
@@ -273,18 +577,19 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
               </div>
             )}
 
-            <div className="flex items-center justify-between pt-2">
+            {/* Submission Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
               <div className="text-xs text-outline flex items-center gap-1.5">
-                <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
-                <span>Bài làm sẽ được kiểm tra tương đồng cú pháp AST và chạy kiểm thử an toàn trong Docker sandbox.</span>
+                <ShieldAlert className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span>Tất cả bài làm được quét đối soát AST chống đạo văn và thực thi cô lập trong Docker.</span>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 justify-end">
                 <button 
                   type="button"
                   className="px-4 py-2 text-xs rounded-lg border border-outline-variant/40 hover:bg-surface-container transition-colors cursor-pointer"
                   onClick={() => router.push('/student/exams')}
-                  disabled={submitExam.isPending}
+                  disabled={isPending}
                 >
                   Hủy bỏ
                 </button>
@@ -292,10 +597,32 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                 <button 
                   type="submit"
                   className="flex items-center gap-2 px-6 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm"
-                  disabled={submitExam.isPending || isClosed || !sourceCode.trim()}
+                  disabled={
+                    isPending || 
+                    isClosed || 
+                    (submissionMode === 'editor' && !sourceCode.trim()) ||
+                    (submissionMode === 'zip' && !selectedZip)
+                  }
                 >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>{isUpcoming ? 'Chưa mở nộp bài' : isDeadlinePassed ? 'Đã quá hạn nộp' : 'Nộp bài làm'}</span>
+                  {isPending ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Đang xử lý nộp bài...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5" />
+                      <span>
+                        {isUpcoming 
+                          ? 'Chưa mở nộp bài' 
+                          : isDeadlinePassed 
+                          ? 'Đã quá hạn nộp' 
+                          : submissionMode === 'zip' 
+                          ? 'Nộp tệp ZIP' 
+                          : 'Nộp bài làm'}
+                      </span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -312,27 +639,50 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                 </div>
                 <div>
                   <h3 className="font-headline-sm text-headline-sm font-semibold">Xác nhận nộp bài chính thức</h3>
-                  <p className="text-xs text-on-surface-variant">Bạn đã sẵn sàng nộp mã nguồn để tiến hành chấm điểm chưa?</p>
+                  <p className="text-xs text-on-surface-variant">Bạn đã kiểm tra kỹ mã nguồn trước khi chấm điểm?</p>
                 </div>
               </div>
 
-              <div className="p-3 rounded-lg bg-surface-container-low border border-outline-variant/30 text-xs text-on-surface-variant space-y-1">
+              <div className="p-3 rounded-lg bg-surface-container-low border border-outline-variant/30 text-xs text-on-surface-variant space-y-1.5">
                 <div className="flex justify-between">
-                  <span>Số dòng code:</span>
-                  <span className="font-mono font-semibold text-on-surface">{lineCount}</span>
+                  <span>Phương thức nộp:</span>
+                  <span className="font-semibold text-on-surface">
+                    {submissionMode === 'zip' ? 'Tệp nén đa file (.ZIP)' : 'Soạn thảo trực tiếp (Single file)'}
+                  </span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Số lượng ký tự:</span>
-                  <span className="font-mono font-semibold text-on-surface">{charCount}</span>
-                </div>
+                {submissionMode === 'editor' ? (
+                  <>
+                    <div className="flex justify-between">
+                      <span>Số dòng code:</span>
+                      <span className="font-mono font-semibold text-on-surface">{lineCount}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Số lượng ký tự:</span>
+                      <span className="font-mono font-semibold text-on-surface">{charCount}</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between">
+                      <span>Tên tệp:</span>
+                      <span className="font-mono font-semibold text-on-surface truncate max-w-[200px]">{selectedZip?.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Dung lượng:</span>
+                      <span className="font-mono font-semibold text-on-surface">
+                        {selectedZip ? (selectedZip.size / (1024 * 1024)).toFixed(2) : 0} MB
+                      </span>
+                    </div>
+                  </>
+                )}
                 <div className="flex justify-between">
                   <span>Môi trường biên dịch:</span>
-                  <span className="font-mono font-semibold text-on-surface">Java 17 (OpenJDK)</span>
+                  <span className="font-mono font-semibold text-on-surface">Java 17 (OpenJDK Temurin)</span>
                 </div>
               </div>
 
               <p className="text-xs text-outline leading-relaxed">
-                Sau khi nộp, mã nguồn của bạn sẽ được chuyển vào hàng đợi thực thi sandbox Docker và đối soát kiểm tra liêm chính học thuật AST.
+                Sau khi bấm nộp, hệ thống sẽ đưa mã nguồn vào sandbox Docker cô lập để biên dịch, thực thi các bộ kiểm thử và kiểm tra trùng lặp AST.
               </p>
 
               <div className="flex justify-end gap-3 pt-2 border-t border-outline-variant/30">
@@ -341,25 +691,166 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                   onClick={() => setShowConfirmModal(false)}
                   className="px-4 py-2 text-xs rounded-lg border border-outline-variant/40 hover:bg-surface-container transition-colors cursor-pointer"
                 >
-                  Chỉnh sửa lại mã nguồn
+                  Kiểm tra lại
                 </button>
                 <button
                   type="button"
                   onClick={handleFinalSubmit}
-                  disabled={submitExam.isPending}
+                  disabled={isPending}
                   className="px-5 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors cursor-pointer shadow-sm flex items-center gap-2"
                 >
-                  {submitExam.isPending ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Đang nộp bài...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Xác nhận và gửi chấm điểm</span>
-                    </>
-                  )}
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Xác nhận và gửi chấm điểm</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Post-submission Result & Execution Breakdown Modal */}
+        {submissionResult && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+            <div className="bg-surface-container-lowest rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-outline-variant/40 flex flex-col gap-4 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between pb-3 border-b border-outline-variant/30">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-full bg-emerald-50 text-emerald-600">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-headline-sm text-headline-sm font-semibold text-on-surface">
+                      Đã ghi nhận bài nộp thành công!
+                    </h3>
+                    <p className="text-xs text-on-surface-variant">Kết quả thực thi biên dịch và sandbox sơ bộ</p>
+                  </div>
+                </div>
+
+                <span className={`px-2.5 py-1 rounded-full text-xs font-bold font-mono ${
+                  submissionResult.executionStatus === 'COMPLETED'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : submissionResult.executionStatus === 'COMPILE_ERROR'
+                    ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                    : submissionResult.executionStatus === 'CAPACITY_EXCEEDED'
+                    ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                }`}>
+                  {submissionResult.executionStatus || 'SUBMITTED'}
+                </span>
+              </div>
+
+              {/* Execution Telemetry Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/20">
+                  <span className="text-outline text-[11px] block">Loại bài nộp</span>
+                  <span className="font-semibold text-on-surface font-mono mt-0.5 block">
+                    {submissionResult.submissionType || (submissionMode === 'zip' ? 'ZIP' : 'SINGLE_FILE')}
+                  </span>
+                </div>
+
+                {submissionResult.fileCount !== undefined && submissionResult.fileCount !== null && (
+                  <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/20">
+                    <span className="text-outline text-[11px] block">Số file nguồn</span>
+                    <span className="font-semibold text-on-surface font-mono mt-0.5 block">
+                      {submissionResult.fileCount} files
+                    </span>
+                  </div>
+                )}
+
+                {submissionResult.entryPointClass && (
+                  <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/20 col-span-2">
+                    <span className="text-outline text-[11px] block">Entry Point (Main Class)</span>
+                    <span className="font-semibold text-on-surface font-mono mt-0.5 truncate block" title={submissionResult.entryPointClass}>
+                      {submissionResult.entryPointClass}
+                    </span>
+                  </div>
+                )}
+
+                {submissionResult.executionDurationMs !== undefined && submissionResult.executionDurationMs !== null && (
+                  <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/20">
+                    <span className="text-outline text-[11px] block">Thời gian chạy</span>
+                    <span className="font-semibold text-on-surface font-mono mt-0.5 block">
+                      {submissionResult.executionDurationMs} ms
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Compiler Output */}
+              {submissionResult.compileOutput && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs text-outline font-medium">
+                    <span className="flex items-center gap-1.5">
+                      <Terminal className="w-3.5 h-3.5 text-primary" />
+                      <span>Thông điệp biên dịch (javac):</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(submissionResult.compileOutput || '', 'compile')}
+                      className="hover:text-on-surface transition-colors flex items-center gap-1"
+                    >
+                      {copiedSection === 'compile' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedSection === 'compile' ? 'Đã sao chép' : 'Sao chép'}</span>
+                    </button>
+                  </div>
+                  <pre className="p-3 bg-slate-950 text-slate-200 rounded-xl font-mono text-xs overflow-x-auto max-h-36 leading-relaxed">
+                    {submissionResult.compileOutput}
+                  </pre>
+                </div>
+              )}
+
+              {/* Standard Output (stdout) */}
+              {submissionResult.stdout && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs text-outline font-medium">
+                    <span className="flex items-center gap-1.5">
+                      <Terminal className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Kết quả đầu ra tiêu chuẩn (stdout):</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(submissionResult.stdout || '', 'stdout')}
+                      className="hover:text-on-surface transition-colors flex items-center gap-1"
+                    >
+                      {copiedSection === 'stdout' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedSection === 'stdout' ? 'Đã sao chép' : 'Sao chép'}</span>
+                    </button>
+                  </div>
+                  <pre className="p-3 bg-slate-950 text-emerald-300 rounded-xl font-mono text-xs overflow-x-auto max-h-36 leading-relaxed">
+                    {submissionResult.stdout}
+                  </pre>
+                </div>
+              )}
+
+              {/* Standard Error (stderr) */}
+              {submissionResult.stderr && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs text-outline font-medium">
+                    <span className="flex items-center gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
+                      <span>Nhật ký lỗi (stderr):</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(submissionResult.stderr || '', 'stderr')}
+                      className="hover:text-on-surface transition-colors flex items-center gap-1"
+                    >
+                      {copiedSection === 'stderr' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedSection === 'stderr' ? 'Đã sao chép' : 'Sao chép'}</span>
+                    </button>
+                  </div>
+                  <pre className="p-3 bg-slate-950 text-rose-300 rounded-xl font-mono text-xs overflow-x-auto max-h-36 leading-relaxed">
+                    {submissionResult.stderr}
+                  </pre>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-outline-variant/30">
+                <button
+                  type="button"
+                  onClick={() => router.push(`/student/submissions/${submissionResult.id}`)}
+                  className="px-5 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors cursor-pointer shadow-sm flex items-center gap-2"
+                >
+                  <span>Xem bảng điểm chi tiết</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>

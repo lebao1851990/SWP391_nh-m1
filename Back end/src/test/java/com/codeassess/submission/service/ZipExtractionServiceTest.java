@@ -286,6 +286,32 @@ class ZipExtractionServiceTest {
     }
 
     @Test
+    @DisplayName("Rejects archive with unpermitted extension (.jar)")
+    void forbiddenExtensionJar_throwsException() throws IOException {
+        byte[] zip = createZip(
+                file("src/Main.java", "public class Main {}"),
+                file("lib/malicious.jar", "binary-jar-content")
+        );
+
+        assertThatThrownBy(() -> service.extract(zip))
+                .isInstanceOf(ZipValidationException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN_FILE_TYPE);
+    }
+
+    @Test
+    @DisplayName("Rejects archive with unpermitted extension (.sh)")
+    void forbiddenExtensionSh_throwsException() throws IOException {
+        byte[] zip = createZip(
+                file("src/Main.java", "public class Main {}"),
+                file("scripts/attack.sh", "#!/bin/sh\nrm -rf /")
+        );
+
+        assertThatThrownBy(() -> service.extract(zip))
+                .isInstanceOf(ZipValidationException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN_FILE_TYPE);
+    }
+
+    @Test
     @DisplayName("Rejects archive containing zero Java source files")
     void noJavaSourceFiles_throwsException() throws IOException {
         byte[] zip = createZip(

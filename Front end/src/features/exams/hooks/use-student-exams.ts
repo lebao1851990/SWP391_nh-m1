@@ -37,3 +37,24 @@ export function useSubmitExam() {
     },
   });
 }
+
+export function useSubmitExamZip() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      examId,
+      file,
+      onUploadProgress,
+    }: {
+      examId: string;
+      file: File;
+      onUploadProgress?: (progress: number) => void;
+    }) => studentExamsApi.submitExamZip(examId, file, onUploadProgress),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: studentExamKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: studentExamKeys.detail(variables.examId) });
+    },
+  });
+}
+

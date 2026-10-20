@@ -67,6 +67,34 @@ function normalizeExam(data: Record<string, unknown>): ExamResponse {
   };
 }
 
+export interface SubmissionResultResponse {
+  id: string;
+  examId?: string;
+  studentId?: string;
+  status?: string;
+  sourceCode?: string;
+  totalScore?: number;
+  overrideScore?: number;
+  autoScore?: number;
+  testCasesPassed?: number;
+  testCasesTotal?: number;
+  evaluatedAt?: string;
+  createdAt?: string;
+  submissionType?: 'SINGLE_FILE' | 'ZIP';
+  originalFilename?: string;
+  archiveHash?: string;
+  sourceTreeHash?: string;
+  fileCount?: number;
+  entryPointClass?: string;
+  executionStatus?: string;
+  exitCode?: number;
+  compileOutput?: string;
+  stdout?: string;
+  stderr?: string;
+  executionDurationMs?: number;
+  message?: string;
+}
+
 export const studentExamsApi = {
   getStudentExams: async (): Promise<ExamResponse[]> => {
     const response = await apiClient.get('/student/exams');
@@ -79,8 +107,31 @@ export const studentExamsApi = {
     return normalizeExam(response.data as Record<string, unknown>);
   },
 
-  submitExam: async (examId: string, sourceCode: string): Promise<{ id: string; status?: string; message?: string }> => {
+  submitExam: async (examId: string, sourceCode: string): Promise<SubmissionResultResponse> => {
     const response = await apiClient.post(`/student/exams/${examId}/submissions`, { sourceCode });
     return response.data;
   },
+
+  submitExamZip: async (
+    examId: string,
+    file: File,
+    onUploadProgress?: (progress: number) => void
+  ): Promise<SubmissionResultResponse> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await apiClient.post(`/student/exams/${examId}/submissions`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        if (onUploadProgress && progressEvent.total) {
+          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onUploadProgress(percent);
+        }
+      },
+    });
+    return response.data;
+  },
 };
+
