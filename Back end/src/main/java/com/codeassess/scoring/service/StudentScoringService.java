@@ -19,10 +19,15 @@ public class StudentScoringService {
 
     private final SubmissionRepository submissionRepository;
     private final RuleScoreRepository ruleScoreRepository;
+    private final com.codeassess.testcase.repository.SubmissionTestResultRepository submissionTestResultRepository;
 
-    public StudentScoringService(SubmissionRepository submissionRepository, RuleScoreRepository ruleScoreRepository) {
+    public StudentScoringService(
+            SubmissionRepository submissionRepository, 
+            RuleScoreRepository ruleScoreRepository,
+            com.codeassess.testcase.repository.SubmissionTestResultRepository submissionTestResultRepository) {
         this.submissionRepository = submissionRepository;
         this.ruleScoreRepository = ruleScoreRepository;
+        this.submissionTestResultRepository = submissionTestResultRepository;
     }
 
     @Transactional(readOnly = true)
@@ -40,7 +45,31 @@ public class StudentScoringService {
                 .maxScore(rs.getCriteria().getMaxScore())
                 .build()).collect(Collectors.toList());
 
-        BigDecimal effectiveScore = submission.getOverrideScore() != null ? submission.getOverrideScore() : submission.getTotalScore();
+        List<com.codeassess.testcase.entity.SubmissionTestResult> testResults = 
+                submissionTestResultRepository != null 
+                        ? submissionTestResultRepository.findBySubmission_IdOrderByIdAsc(submissionId)
+                        : java.util.Collections.emptyList();
+
+        List<com.codeassess.testcase.dto.response.SubmissionTestResultDto> testResultDtos = testResults.stream().map(tr -> {
+            boolean isHidden = Boolean.TRUE.equals(tr.getIsHidden());
+            return com.codeassess.testcase.dto.response.SubmissionTestResultDto.builder()
+                    .id(tr.getId())
+                    .testCaseId(tr.getTestCase() != null ? tr.getTestCase().getId() : null)
+                    .testCaseName(tr.getTestCaseName())
+                    .isHidden(isHidden)
+                    .status(tr.getStatus())
+                    .actualOutput(isHidden ? "[BẢO MẬT: TEST CASE ẨN]" : tr.getActualOutput())
+                    .expectedOutput(isHidden ? "[BẢO MẬT: TEST CASE ẨN]" : tr.getExpectedOutput())
+                    .executionTimeMs(tr.getExecutionTimeMs())
+                    .exitCode(tr.getExitCode())
+                    .errorMessage(isHidden ? null : tr.getErrorMessage())
+                    .pointsAwarded(tr.getPointsAwarded())
+                    .maxPoints(tr.getTestCase() != null ? tr.getTestCase().getPoints() : null)
+                    .build();
+        }).collect(Collectors.toList());
+
+        BigDecimal effectiveScore = submission.getOverrideScore() != null ? submission.getOverrideScore()
+                : (submission.getTotalScore() != null ? submission.getTotalScore() : submission.getAutoScore());
 
         BigDecimal maxTotalScore = criteriaDtos.stream()
                 .map(CriterionScoreDto::getMaxScore)
@@ -57,12 +86,21 @@ public class StudentScoringService {
                 .submissionId(submission.getId())
                 .examName(submission.getExam().getTitle())
                 .status(submission.getStatus())
+                .executionStatus(submission.getExecutionStatus())
+                .compileOutput(submission.getCompileOutput())
                 .evaluatedAt(isDone ? submission.getEvaluatedAt() : null)
                 .totalScore(submission.getTotalScore())
                 .overrideTotalScore(submission.getOverrideScore())
+                .autoScore(submission.getAutoScore())
+                .testCasesPassed(submission.getTestCasesPassed())
+                .testCasesTotal(submission.getTestCasesTotal())
+                .testResults(testResultDtos)
                 .effectiveScore(effectiveScore)
                 .maxTotalScore(maxTotalScore)
                 .criteria(criteriaDtos)
+                .instructorFeedback(submission.getInstructorFeedback())
+                .originalFilename(submission.getOriginalFilename())
+                .submissionType(submission.getSubmissionType())
                 .build();
     }
 }

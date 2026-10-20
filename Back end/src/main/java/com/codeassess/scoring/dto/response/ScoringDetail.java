@@ -21,5 +21,17 @@ public class ScoringDetail {
     private BigDecimal overrideTotalScore;
     private BigDecimal effectiveScore;
     private BigDecimal maxTotalScore;
+    private BigDecimal autoScore;
+    private Integer testCasesPassed;
+    private Integer testCasesTotal;
+    private List<com.codeassess.testcase.dto.response.SubmissionTestResultDto> testResults;
     private List<CriterionScoreDto> criteria;
+    private String instructorFeedback;
+    private String originalFilename;
+    private String submissionType;
+    private String archiveHash;
+    private String executionStatus;
+    private String compileOutput;
+    private String stdout;
+    private String stderr;
 }

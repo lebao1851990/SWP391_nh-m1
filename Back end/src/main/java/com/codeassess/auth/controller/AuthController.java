@@ -41,4 +41,48 @@ public class AuthController {
 
         return ResponseEntity.ok(loginResponse);
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletRequest request, jakarta.servlet.http.HttpServletResponse response) {
+        String token = request.getHeader("X-Auth-Token");
+        if (token != null) {
+            com.codeassess.security.SessionTokenRegistry.removeSession(token);
+        }
+        jakarta.servlet.http.HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
+
+        jakarta.servlet.http.Cookie sessionCookie = new jakarta.servlet.http.Cookie("codeassess_session", "");
+        sessionCookie.setPath("/");
+        sessionCookie.setMaxAge(0);
+        response.addCookie(sessionCookie);
+
+        jakarta.servlet.http.Cookie roleCookie = new jakarta.servlet.http.Cookie("codeassess_role", "");
+        roleCookie.setPath("/");
+        roleCookie.setMaxAge(0);
+        response.addCookie(roleCookie);
+
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<java.util.Map<String, String>> forgotPassword(
+            @Valid @RequestBody com.codeassess.auth.dto.request.ForgotPasswordRequest request
+    ) {
+        authService.forgotPassword(request);
+        return ResponseEntity.ok(java.util.Map.of(
+                "message", "Nếu tài khoản tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được gửi."
+        ));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<java.util.Map<String, String>> resetPassword(
+            @Valid @RequestBody com.codeassess.auth.dto.request.ResetPasswordRequest request
+    ) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok(java.util.Map.of(
+                "message", "Mật khẩu đã được cập nhật thành công. Vui lòng đăng nhập lại."
+        ));
+    }
 }

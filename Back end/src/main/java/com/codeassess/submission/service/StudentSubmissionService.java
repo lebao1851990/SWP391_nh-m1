@@ -49,9 +49,15 @@ public class StudentSubmissionService {
     private final AstPlagiarismService astPlagiarismService;
     private final ZipSubmissionProperties zipProperties;
     private final SubmissionPersistenceService submissionPersistenceService;
+    private final InternalGradingService internalGradingService;
+    private final com.codeassess.testcase.service.AutomatedTestRunnerService automatedTestRunnerService;
+    private final com.codeassess.queue.service.BullMqJobDispatcher bullMqJobDispatcher;
 
-    @Autowired(required = false)
-    private com.codeassess.queue.service.BullMqJobDispatcher bullMqJobDispatcher;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private SubmissionStorageService submissionStorageService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.codeassess.plagiarism.service.SimilarityMatrixService similarityMatrixService;
 
     public StudentSubmissionService(
             SubmissionRepository submissionRepository,
@@ -60,7 +66,25 @@ public class StudentSubmissionService {
             UserRepository userRepository,
             ApplicationEventPublisher eventPublisher) {
         this(submissionRepository, submissionMapper, examRepository, userRepository, eventPublisher,
-                null, null, null, null, null, new ZipSubmissionProperties(), null);
+                null, null, null, null, null, new ZipSubmissionProperties(), null, null, null, null);
+    }
+
+    public StudentSubmissionService(
+            SubmissionRepository submissionRepository,
+            SubmissionMapper submissionMapper,
+            ExamRepository examRepository,
+            UserRepository userRepository,
+            ApplicationEventPublisher eventPublisher,
+            ZipExtractionService zipExtractionService,
+            SourceHasherService sourceHasherService,
+            EntryPointDiscoveryService entryPointDiscoveryService,
+            DockerSandboxService dockerSandboxService,
+            AstPlagiarismService astPlagiarismService,
+            ZipSubmissionProperties zipProperties,
+            SubmissionPersistenceService submissionPersistenceService) {
+        this(submissionRepository, submissionMapper, examRepository, userRepository, eventPublisher,
+                zipExtractionService, sourceHasherService, entryPointDiscoveryService, dockerSandboxService,
+                astPlagiarismService, zipProperties, submissionPersistenceService, null, null, null);
     }
 
     @Autowired
@@ -76,7 +100,10 @@ public class StudentSubmissionService {
             DockerSandboxService dockerSandboxService,
             AstPlagiarismService astPlagiarismService,
             ZipSubmissionProperties zipProperties,
-            SubmissionPersistenceService submissionPersistenceService) {
+            SubmissionPersistenceService submissionPersistenceService,
+            @Autowired(required = false) InternalGradingService internalGradingService,
+            @Autowired(required = false) com.codeassess.testcase.service.AutomatedTestRunnerService automatedTestRunnerService,
+            @Autowired(required = false) com.codeassess.queue.service.BullMqJobDispatcher bullMqJobDispatcher) {
         this.submissionRepository = submissionRepository;
         this.submissionMapper = submissionMapper;
         this.examRepository = examRepository;
@@ -89,6 +116,9 @@ public class StudentSubmissionService {
         this.astPlagiarismService = astPlagiarismService;
         this.zipProperties = zipProperties;
         this.submissionPersistenceService = submissionPersistenceService;
+        this.internalGradingService = internalGradingService;
+        this.automatedTestRunnerService = automatedTestRunnerService;
+        this.bullMqJobDispatcher = bullMqJobDispatcher;
     }
 
     @Transactional(readOnly = true)
@@ -105,13 +135,44 @@ public class StudentSubmissionService {
         return submissionMapper.toDetailResponse(submission);
     }
 
+    @Transactional(readOnly = true)
+    public byte[] getSubmissionZip(String id, String studentId) {
+        Submission submission = submissionRepository.findByIdAndStudent_Id(id, studentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Submission not found or access denied"));
+        if (submissionStorageService == null) {
+            throw new ResourceNotFoundException("Storage service not available");
+        }
+        return submissionStorageService.getZipBytes(submission.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.codeassess.submission.dto.response.SubmissionFileDto> getSubmissionFiles(String id, String studentId) {
+        Submission submission = submissionRepository.findByIdAndStudent_Id(id, studentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Submission not found or access denied"));
+        if (submissionStorageService == null) {
+            return java.util.Collections.emptyList();
+        }
+        return submissionStorageService.getSubmissionFiles(submission.getId());
+    }
+
     @Transactional
     public SubmissionDetailResponse submitCode(String examId, String studentId, SubmissionCreateRequest request) {
         Exam exam = examRepository.findByIdAndStudentId(examId, studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found or you are not enrolled in this class"));
 
+        if (exam.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("Exam not found or access denied");
+        }
+
         if (exam.getStatus() == null || !exam.getStatus().equalsIgnoreCase("active")) {
             throw new IllegalStateException("Exam is not currently active for submissions");
+        }
+
+        if (exam.getExamDate() != null && exam.getDuration() != null && exam.getDuration() > 0) {
+            java.time.LocalDateTime deadline = exam.getExamDate().plusMinutes(exam.getDuration());
+            if (java.time.LocalDateTime.now().isAfter(deadline)) {
+                throw new com.codeassess.common.exception.ExamTimeExpiredException("Exam submission window has expired. Deadline was: " + deadline);
+            }
         }
 
         User student = userRepository.findById(studentId)
@@ -127,22 +188,62 @@ public class StudentSubmissionService {
 
         submission = submissionRepository.save(submission);
 
-        // Dispatch grading job to BullMQ queue after transaction commits
+        // Dispatch grading job to BullMQ queue after transaction commits, with immediate fallback if queue offline
         final String submissionId = submission.getId();
         final String examIdStr = exam.getId();
         if (org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()) {
             org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
                     new org.springframework.transaction.support.TransactionSynchronization() {
                         @Override
-                        public void afterCommit() {
-                            if (bullMqJobDispatcher != null) {
-                                bullMqJobDispatcher.dispatchGradingJob(submissionId, examIdStr, "SINGLE_FILE");
+                        public void afterCompletion(int status) {
+                            if (status == STATUS_COMMITTED) {
+                                java.util.concurrent.CompletableFuture.runAsync(() -> {
+                                    boolean enqueued = bullMqJobDispatcher != null && bullMqJobDispatcher.dispatchGradingJob(submissionId, examIdStr, "SINGLE_FILE");
+                                    if (!enqueued) {
+                                        if (internalGradingService != null) {
+                                            try {
+                                                internalGradingService.processGrading(submissionId);
+                                            } catch (Exception e) {
+                                                log.warn("Fallback direct grading error for submission {}: {}", submissionId, e.getMessage(), e);
+                                            }
+                                        } else if (automatedTestRunnerService != null) {
+                                            try {
+                                                Submission subToGrade = submissionRepository.findById(submissionId).orElse(null);
+                                                if (subToGrade != null) {
+                                                    automatedTestRunnerService.runAndGrade(subToGrade);
+                                                }
+                                            } catch (Exception e) {
+                                                log.warn("Direct test runner error for submission {}: {}", submissionId, e.getMessage(), e);
+                                            }
+                                        }
+                                    }
+                                });
                             }
                         }
                     }
             );
-        } else if (bullMqJobDispatcher != null) {
-            bullMqJobDispatcher.dispatchGradingJob(submissionId, examIdStr, "SINGLE_FILE");
+        } else {
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                boolean enqueued = bullMqJobDispatcher != null && bullMqJobDispatcher.dispatchGradingJob(submissionId, examIdStr, "SINGLE_FILE");
+                if (!enqueued) {
+                    if (internalGradingService != null) {
+                        try {
+                            internalGradingService.processGrading(submissionId);
+                        } catch (Exception e) {
+                            log.warn("Fallback direct grading error for submission {}: {}", submissionId, e.getMessage(), e);
+                        }
+                    } else if (automatedTestRunnerService != null) {
+                        try {
+                            Submission subToGrade = submissionRepository.findById(submissionId).orElse(null);
+                            if (subToGrade != null) {
+                                automatedTestRunnerService.runAndGrade(subToGrade);
+                            }
+                        } catch (Exception e) {
+                            log.warn("Direct test runner error for submission {}: {}", submissionId, e.getMessage(), e);
+                        }
+                    }
+                }
+            });
         }
 
         // Publish event for AST processing
@@ -155,8 +256,19 @@ public class StudentSubmissionService {
         Exam exam = examRepository.findByIdAndStudentId(examId, studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found or you are not enrolled in this class"));
 
+        if (exam.getDeletedAt() != null) {
+            throw new ResourceNotFoundException("Exam not found or access denied");
+        }
+
         if (exam.getStatus() == null || !exam.getStatus().equalsIgnoreCase("active")) {
             throw new IllegalStateException("Exam is not currently active for submissions");
+        }
+
+        if (exam.getExamDate() != null && exam.getDuration() != null && exam.getDuration() > 0) {
+            java.time.LocalDateTime deadline = exam.getExamDate().plusMinutes(exam.getDuration());
+            if (java.time.LocalDateTime.now().isAfter(deadline)) {
+                throw new com.codeassess.common.exception.ExamTimeExpiredException("Exam submission window has expired. Deadline was: " + deadline);
+            }
         }
 
         User student = userRepository.findById(studentId)
@@ -224,23 +336,54 @@ public class StudentSubmissionService {
                     exam, student, originalFilename, archiveHash, sourceTreeHash, fileCount, entryPointClass
             );
 
-            // DOCKER EXECUTION: Executed completely outside any database transaction (no JDBC connection held)
-            SandboxResult sandboxResult;
-            try {
-                sandboxResult = dockerSandboxService.executeWorkspace(workspace, entryPointClass);
-            } catch (Exception e) {
-                log.error("Sandbox execution failed for student {} in exam {}: {}", studentId, examId, e.getMessage(), e);
-                sandboxResult = SandboxResult.builder()
-                        .status(SandboxResult.Status.INTERNAL_ERROR)
-                        .stderr("Sandbox execution failure: " + e.getMessage())
-                        .executionTimeMs(0L)
-                        .build();
+            // Persist ZIP file to storage
+            if (submissionStorageService != null) {
+                try {
+                    String savedPath = submissionStorageService.saveZip(initialSubmission.getId(), zipBytes);
+                    initialSubmission.setZipStoragePath(savedPath);
+                    initialSubmission = submissionRepository.save(initialSubmission);
+                } catch (Exception e) {
+                    log.error("Failed to store submission archive for {}: {}", initialSubmission.getId(), e.getMessage());
+                }
             }
 
-            // TRANSACTION 2: Persist telemetry and AST fingerprints
-            Submission finalSubmission = submissionPersistenceService.updateExecutionTelemetryAndFingerprints(
-                    initialSubmission.getId(), exam.getId(), sandboxResult, workspace
-            );
+            Submission finalSubmission;
+            // AUTO-GRADING: Run automated test runner against test cases
+            if (automatedTestRunnerService != null) {
+                try {
+                    automatedTestRunnerService.runAndGrade(initialSubmission);
+                } catch (Exception e) {
+                    log.error("Automated test runner failure for submission {}: {}", initialSubmission.getId(), e.getMessage(), e);
+                }
+                finalSubmission = submissionRepository.findById(initialSubmission.getId()).orElse(initialSubmission);
+            } else {
+                // Fallback direct execution
+                SandboxResult sandboxResult;
+                try {
+                    sandboxResult = dockerSandboxService.executeWorkspace(workspace, entryPointClass);
+                } catch (Exception e) {
+                    log.error("Sandbox execution failed for student {} in exam {}: {}", studentId, examId, e.getMessage(), e);
+                    sandboxResult = SandboxResult.builder()
+                            .status(SandboxResult.Status.INTERNAL_ERROR)
+                            .stderr("Sandbox execution failure: " + e.getMessage())
+                            .executionTimeMs(0L)
+                            .build();
+                }
+
+                finalSubmission = submissionPersistenceService.updateExecutionTelemetryAndFingerprints(
+                        initialSubmission.getId(), exam.getId(), sandboxResult, workspace
+                );
+            }
+
+            // Refresh similarity matrix
+            if (similarityMatrixService != null) {
+                try {
+                    similarityMatrixService.requestRefresh(exam.getId());
+                    similarityMatrixService.generateMatrixForExam(exam.getId());
+                } catch (Exception e) {
+                    log.warn("Matrix refresh error for exam {}: {}", exam.getId(), e.getMessage());
+                }
+            }
 
             // Dispatch grading completion notification/job to BullMQ
             if (bullMqJobDispatcher != null) {

@@ -45,6 +45,9 @@ public class SubmissionMapper {
                 .sourceCode(submission.getSourceCode())
                 .totalScore(submission.getTotalScore())
                 .overrideScore(submission.getOverrideScore())
+                .autoScore(submission.getAutoScore())
+                .testCasesPassed(submission.getTestCasesPassed())
+                .testCasesTotal(submission.getTestCasesTotal())
                 .evaluatedAt(isDone ? submission.getEvaluatedAt() : null)
                 .createdAt(submission.getCreatedAt())
                 .submissionType(submission.getSubmissionType())
@@ -58,7 +61,8 @@ public class SubmissionMapper {
                 .compileOutput(submission.getCompileOutput())
                 .stdout(submission.getStdout())
                 .stderr(submission.getStderr())
-                .executionDurationMs(isDone ? submission.getExecutionDurationMs() : null)
+                .executionDurationMs(submission.getExecutionDurationMs())
+                .instructorFeedback(submission.getInstructorFeedback())
                 .build();
     }
 }

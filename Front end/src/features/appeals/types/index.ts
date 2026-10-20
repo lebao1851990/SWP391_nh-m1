@@ -10,11 +10,22 @@ export interface Appeal {
   studentName?: string;
   studentEmail?: string;
   reviewerNotes?: string;
+  currentScore?: number;
+  originalScore?: number;
+  updatedScore?: number;
+  autoScore?: number;
+  sourceCode?: string;
+  testCasesPassed?: number;
+  testCasesTotal?: number;
+  reviewerName?: string;
+  reviewerEmail?: string;
+  submissionStatus?: string;
   createdAt: string;
   resolvedAt?: string;
 }
 
 export interface AppealResolvePayload {
   decision: 'APPROVED' | 'REJECTED';
-  reviewerNotes?: string;
+  reviewerNotes: string;
+  adjustedScore?: number;
 }

@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LogoutButton } from '@/features/auth/components/logout-button';
 import { useUiStore } from '@/stores/ui.store';
+import { useTranslation } from '@/i18n';
+import { useSessionStore } from '@/stores/session.store';
 import {
   LayoutDashboard,
   FileCode2,
@@ -27,36 +29,43 @@ interface NavItem {
 }
 
 interface SidebarProps {
-  role: 'ADMIN' | 'TEACHER' | 'STUDENT';
+  role?: 'ADMIN' | 'TEACHER' | 'STUDENT';
 }
 
-export function Sidebar({ role }: SidebarProps) {
+export function Sidebar({ role = 'STUDENT' }: SidebarProps) {
   const pathname = usePathname();
   const { isMobileNavOpen, setMobileNavOpen } = useUiStore();
+  const { t } = useTranslation();
+  const user = useSessionStore((state) => state.user);
+
+  // Active role is strictly derived from the tab session, falling back to layout role
+  const activeRole = user?.role || role;
 
   const teacherNav: NavItem[] = [
-    { name: 'Dashboard', href: '/teacher/dashboard', icon: LayoutDashboard },
-    { name: 'Exams', href: '/teacher/exams', icon: FileCode2 },
-    { name: 'Submissions', href: '/teacher/submissions', icon: Code2 },
-    { name: 'Plagiarism Check', href: '/teacher/plagiarism', icon: GitCompare, badge: { text: 'AST', type: 'AST' } },
-    { name: 'Appeals', href: '/teacher/appeals', icon: Scale },
+    { name: t('nav.dashboard'), href: '/teacher/dashboard', icon: LayoutDashboard },
+    { name: t('nav.exams'), href: '/teacher/exams', icon: FileCode2 },
+    { name: t('nav.classes'), href: '/teacher/classes', icon: GraduationCap },
+    { name: t('nav.submissions'), href: '/teacher/submissions', icon: Code2 },
+    { name: t('nav.plagiarism'), href: '/teacher/plagiarism', icon: GitCompare, badge: { text: 'AST', type: 'AST' } },
+    { name: t('nav.appeals'), href: '/teacher/appeals', icon: Scale },
   ];
 
   const studentNav: NavItem[] = [
-    { name: 'Dashboard', href: '/student/dashboard', icon: LayoutDashboard },
-    { name: 'My Exams', href: '/student/exams', icon: FileCode2 },
-    { name: 'My Submissions', href: '/student/submissions', icon: Code2 },
-    { name: 'Appeals', href: '/student/appeals', icon: Scale },
+    { name: t('nav.dashboard'), href: '/student/dashboard', icon: LayoutDashboard },
+    { name: t('nav.myExams'), href: '/student/exams', icon: FileCode2 },
+    { name: t('nav.mySubmissions'), href: '/student/submissions', icon: Code2 },
+    { name: t('nav.appeals'), href: '/student/appeals', icon: Scale },
   ];
 
   const adminNav: NavItem[] = [
-    { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
-    { name: 'Users', href: '/admin/users', icon: Users },
-    { name: 'Classes', href: '/admin/classes', icon: GraduationCap },
-    { name: 'Exams', href: '/admin/exams', icon: BookOpen },
+    { name: t('nav.dashboard'), href: '/admin/dashboard', icon: LayoutDashboard },
+    { name: t('nav.users'), href: '/admin/users', icon: Users },
+    { name: t('nav.classes'), href: '/admin/classes', icon: GraduationCap },
+    { name: t('nav.exams'), href: '/admin/exams', icon: BookOpen },
+    { name: t('nav.appeals'), href: '/admin/appeals', icon: Scale },
   ];
 
-  const navItems = role === 'ADMIN' ? adminNav : role === 'TEACHER' ? teacherNav : studentNav;
+  const navItems = activeRole === 'ADMIN' ? adminNav : activeRole === 'TEACHER' ? teacherNav : studentNav;
 
   return (
     <>
@@ -77,7 +86,7 @@ export function Sidebar({ role }: SidebarProps) {
           {/* Brand Header */}
           <div className="h-16 px-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
             <Link 
-              href={role === 'TEACHER' ? '/teacher/dashboard' : role === 'STUDENT' ? '/student/dashboard' : '/admin/dashboard'} 
+              href={activeRole === 'TEACHER' ? '/teacher/dashboard' : activeRole === 'STUDENT' ? '/student/dashboard' : '/admin/dashboard'} 
               onClick={() => setMobileNavOpen(false)}
               className="flex items-center gap-2.5 group"
             >
@@ -86,22 +95,22 @@ export function Sidebar({ role }: SidebarProps) {
               </div>
               <div className="flex flex-col">
                 <span className="font-semibold text-sm text-slate-100 tracking-tight leading-none group-hover:text-white transition-colors">
-                  CodeAssess
+                  AITA Intelligent
                 </span>
                 <span className="text-[10px] text-slate-400 font-mono tracking-wider mt-1">
-                  ACADEMIC PORTAL
+                  CỔNG HỌC THUẬT
                 </span>
               </div>
             </Link>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-950 border border-indigo-700/50 text-indigo-300 font-mono">
-                {role === 'TEACHER' ? 'FACULTY' : role}
+                {activeRole === 'TEACHER' ? 'GIẢNG VIÊN' : activeRole === 'STUDENT' ? 'SINH VIÊN' : 'QUẢN TRỊ'}
               </span>
               <button
                 type="button"
                 onClick={() => setMobileNavOpen(false)}
                 className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 lg:hidden transition-colors"
-                aria-label="Close navigation"
+                aria-label="Đóng điều hướng"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -111,7 +120,7 @@ export function Sidebar({ role }: SidebarProps) {
         {/* Section Title */}
         <div className="px-4 pt-5 pb-2">
           <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest font-mono">
-            Navigation
+            ĐIỀU HƯỚNG
           </span>
         </div>
 
@@ -119,7 +128,7 @@ export function Sidebar({ role }: SidebarProps) {
         <nav className="px-2 space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href || (item.href !== `/${role.toLowerCase()}/dashboard` && pathname.startsWith(item.href));
+            const isActive = pathname === item.href || (item.href !== `/${activeRole.toLowerCase()}/dashboard` && pathname.startsWith(item.href));
             return (
               <Link
                 key={item.href}
@@ -158,9 +167,9 @@ export function Sidebar({ role }: SidebarProps) {
         <div className="flex items-center justify-between px-2 py-1.5 mb-2 rounded-md bg-slate-900 border border-slate-800 text-xs">
           <div className="flex items-center gap-1.5 text-slate-300">
             <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            <span className="text-[11px] text-slate-300 font-medium">AST Engine v2.0</span>
+            <span className="text-[11px] text-slate-300 font-medium">Hệ thống AST v2.0</span>
           </div>
-          <span className="text-[10px] font-mono text-emerald-400 font-semibold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/40">ONLINE</span>
+          <span className="text-[10px] font-mono text-emerald-400 font-semibold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/40">HOẠT ĐỘNG</span>
         </div>
         <LogoutButton />
       </div>

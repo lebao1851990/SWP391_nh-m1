@@ -15,7 +15,7 @@ export function TeacherScoringView({ submissionId }: TeacherScoringViewProps) {
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div className="text-on-surface-variant font-label-md">Loading scoring data from backend authority...</div>
+        <div className="text-on-surface-variant font-label-md">Đang tải dữ liệu chấm điểm từ máy chủ...</div>
       </div>
     );
   }
@@ -29,8 +29,8 @@ export function TeacherScoringView({ submissionId }: TeacherScoringViewProps) {
       return (
         <div className="flex flex-col h-64 items-center justify-center p-space-lg text-center gap-space-sm">
           <span className="material-symbols-outlined text-error text-[48px]">block</span>
-          <h2 className="font-headline-md text-headline-md text-on-surface">Access Forbidden</h2>
-          <p className="font-body-md text-on-surface-variant">You do not have authorization to score this submission.</p>
+          <h2 className="font-headline-md text-headline-md text-on-surface">Truy cập bị từ chối</h2>
+          <p className="font-body-md text-on-surface-variant">Bạn không có quyền hạn chấm điểm bài nộp này.</p>
         </div>
       );
     }
@@ -39,8 +39,8 @@ export function TeacherScoringView({ submissionId }: TeacherScoringViewProps) {
       return (
         <div className="flex flex-col h-64 items-center justify-center p-space-lg text-center gap-space-sm">
           <span className="material-symbols-outlined text-outline text-[48px]">search_off</span>
-          <h2 className="font-headline-md text-headline-md text-on-surface">Not Found</h2>
-          <p className="font-body-md text-on-surface-variant">The scoring record or submission could not be found.</p>
+          <h2 className="font-headline-md text-headline-md text-on-surface">Không tìm thấy</h2>
+          <p className="font-body-md text-on-surface-variant">Không tìm thấy bản ghi chấm điểm hoặc bài nộp này.</p>
         </div>
       );
     }
@@ -48,9 +48,9 @@ export function TeacherScoringView({ submissionId }: TeacherScoringViewProps) {
     return (
       <div className="flex flex-col h-64 items-center justify-center p-space-lg text-center gap-space-sm">
         <span className="material-symbols-outlined text-error text-[48px]">error</span>
-        <h2 className="font-headline-md text-headline-md text-on-surface">Backend Offline / Integration Error</h2>
+        <h2 className="font-headline-md text-headline-md text-on-surface">Lỗi kết nối máy chủ / Tích hợp</h2>
         <p className="font-body-md text-on-surface-variant">
-          The backend endpoints for scoring are currently unavailable or unconfirmed.
+          Dịch vụ chấm điểm hiện không thể kết nối hoặc gặp trục trặc kỹ thuật.
           <br />
           <span className="text-outline font-mono text-label-sm mt-2 block">{error?.message}</span>
         </p>
@@ -61,7 +61,7 @@ export function TeacherScoringView({ submissionId }: TeacherScoringViewProps) {
   if (!data) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div className="text-on-surface-variant font-label-md">No scoring data available.</div>
+        <div className="text-on-surface-variant font-label-md">Không có dữ liệu chấm điểm.</div>
       </div>
     );
   }

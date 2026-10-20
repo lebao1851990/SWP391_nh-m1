@@ -57,4 +57,11 @@ public class TeacherExamController {
     public ExamResponse updateExam(@PathVariable String id, @Valid @RequestBody UpdateExamDto dto, @AuthenticationPrincipal User currentUser) {
         return teacherExamService.updateExam(id, dto, currentUser.getId());
     }
+
+    @PreAuthorize("hasRole('TEACHER')")
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}")
+    @org.springframework.web.bind.annotation.ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
+    public void deleteExam(@PathVariable String id, @AuthenticationPrincipal User currentUser) {
+        teacherExamService.deleteTeacherExam(id, currentUser.getId());
+    }
 }

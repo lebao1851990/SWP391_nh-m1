@@ -14,6 +14,17 @@ export function useTeacherClasses() {
   });
 }
 
+export function useCreateTeacherClass() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { name: string; code: string; semester?: string }) =>
+      teacherExamsApi.createClass(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TEACHER_EXAMS_QUERY_KEYS.classes });
+    },
+  });
+}
+
 export function useTeacherExams() {
   return useQuery({
     queryKey: TEACHER_EXAMS_QUERY_KEYS.all,
@@ -51,11 +62,29 @@ export function useUpdateExam() {
   });
 }
 
+export function useDeleteExam() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => teacherExamsApi.deleteExam(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: TEACHER_EXAMS_QUERY_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: TEACHER_EXAMS_QUERY_KEYS.detail(id) });
+    },
+  });
+}
+
 export function useTeacherExamSubmissions(id: string) {
   return useQuery({
     queryKey: [...TEACHER_EXAMS_QUERY_KEYS.detail(id), 'submissions'],
     queryFn: () => teacherExamsApi.getExamSubmissions(id),
     enabled: !!id,
+    refetchInterval: (query) => {
+      const submissions = query.state.data as Array<{ status?: string; executionStatus?: string }> | undefined;
+      const isProcessing = submissions?.some(
+        s => s.status === 'PENDING' || s.status === 'PROCESSING' || s.executionStatus === 'PENDING' || s.executionStatus === 'PROCESSING'
+      );
+      return isProcessing ? 3000 : false;
+    },
   });
 }
 
@@ -73,3 +102,45 @@ export function useTeacherSubmissions() {
     queryFn: teacherExamsApi.getMySubmissions,
   });
 }
+
+export function useTeacherExamTestCases(examId: string) {
+  return useQuery({
+    queryKey: ['teacher-exam-test-cases', examId],
+    queryFn: () => teacherExamsApi.getExamTestCases(examId),
+    enabled: !!examId,
+  });
+}
+
+export function useCreateTestCase() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ examId, payload }: { examId: string; payload: import('../api/teacher-exams.api').CreateTestCasePayload }) =>
+      teacherExamsApi.createTestCase(examId, payload),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['teacher-exam-test-cases', variables.examId] });
+    },
+  });
+}
+
+export function useUpdateTestCase() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ examId, id, payload }: { examId: string; id: string; payload: import('../api/teacher-exams.api').UpdateTestCasePayload }) =>
+      teacherExamsApi.updateTestCase(examId, id, payload),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['teacher-exam-test-cases', variables.examId] });
+    },
+  });
+}
+
+export function useDeleteTestCase() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ examId, id }: { examId: string; id: string }) =>
+      teacherExamsApi.deleteTestCase(examId, id),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['teacher-exam-test-cases', variables.examId] });
+    },
+  });
+}
+

@@ -52,6 +52,7 @@ export interface AdminExam {
   classId: string;
   date: string;
   durationMinutes: number;
+  duration?: number;
   status: 'upcoming' | 'active' | 'completed';
 }
 
@@ -148,5 +149,8 @@ export const adminApi = {
   updateExam: async (id: string, data: Partial<AdminExam>): Promise<AdminExam> => {
     const response = await apiClient.put(`/admin/exams/${id}`, data);
     return response.data;
+  },
+  deleteExam: async (id: string): Promise<void> => {
+    await apiClient.delete(`/admin/exams/${id}`);
   },
 };

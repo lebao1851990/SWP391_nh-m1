@@ -14,6 +14,9 @@ public interface SubmissionRepository extends JpaRepository<Submission, String> 
     
     long countByExam_Id(String examId);
 
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(s) FROM Submission s WHERE s.exam.id = :examId AND (s.status = 'PROCESSING' OR s.executionStatus = 'IN_PROGRESS')")
+    long countActiveGradingSubmissionsByExamId(@org.springframework.data.repository.query.Param("examId") String examId);
+
     List<Submission> findByExam_CourseClass_Teacher_Id(String teacherId);
 
     Optional<Submission> findByIdAndExam_CourseClass_Teacher_Id(String id, String teacherId);
@@ -22,14 +25,18 @@ public interface SubmissionRepository extends JpaRepository<Submission, String> 
 
     Optional<Submission> findByIdAndStudent_Id(String id, String studentId);
 
+    boolean existsByStudent_IdAndExam_CourseClass_Id(String studentId, String classId);
+
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @org.springframework.data.jpa.repository.Query("SELECT s FROM Submission s WHERE s.id = :id AND s.student.id = :studentId")
     Optional<Submission> findByIdAndStudent_IdForUpdate(@org.springframework.data.repository.query.Param("id") String id, @org.springframework.data.repository.query.Param("studentId") String studentId);
 
+    @org.springframework.transaction.annotation.Transactional
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.data.jpa.repository.Query("UPDATE Submission s SET s.status = 'PROCESSING' WHERE s.id = :id AND s.status = 'PENDING'")
     int claimSubmissionForGrading(@org.springframework.data.repository.query.Param("id") String id);
 
+    @org.springframework.transaction.annotation.Transactional
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.data.jpa.repository.Query("UPDATE Submission s SET s.status = 'PROCESSING', s.claimToken = :claimToken, s.leaseExpiresAt = :leaseExpiresAt WHERE s.id = :id AND s.status = 'PENDING'")
     int claimSubmissionWithToken(
@@ -37,6 +44,7 @@ public interface SubmissionRepository extends JpaRepository<Submission, String> 
             @org.springframework.data.repository.query.Param("claimToken") String claimToken,
             @org.springframework.data.repository.query.Param("leaseExpiresAt") java.time.LocalDateTime leaseExpiresAt);
 
+    @org.springframework.transaction.annotation.Transactional
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.data.jpa.repository.Query("UPDATE Submission s SET s.status = 'COMPLETED', s.executionStatus = :executionStatus, s.exitCode = :exitCode, s.compileOutput = :compileOutput, s.stdout = :stdout, s.stderr = :stderr, s.executionDurationMs = :duration, s.evaluatedAt = :completedAt, s.claimToken = NULL, s.leaseExpiresAt = NULL WHERE s.id = :id AND s.status = 'PROCESSING' AND s.claimToken = :claimToken")
     int completeGradingWithToken(
@@ -50,6 +58,7 @@ public interface SubmissionRepository extends JpaRepository<Submission, String> 
             @org.springframework.data.repository.query.Param("duration") Long duration,
             @org.springframework.data.repository.query.Param("completedAt") java.time.LocalDateTime completedAt);
 
+    @org.springframework.transaction.annotation.Transactional
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.data.jpa.repository.Query("UPDATE Submission s SET s.status = 'COMPLETED', s.evaluatedAt = :completedAt, s.claimToken = NULL, s.leaseExpiresAt = NULL WHERE s.id = :id AND s.status = 'PROCESSING' AND s.claimToken = :claimToken")
     int completeZipGradingWithToken(

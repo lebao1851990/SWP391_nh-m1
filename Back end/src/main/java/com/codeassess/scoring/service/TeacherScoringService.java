@@ -32,18 +32,21 @@ public class TeacherScoringService {
     private final ScoringCriteriaRepository scoringCriteriaRepository;
     private final GradeAuditLogRepository gradeAuditLogRepository;
     private final UserRepository userRepository;
+    private final com.codeassess.testcase.repository.SubmissionTestResultRepository submissionTestResultRepository;
 
     public TeacherScoringService(
             SubmissionRepository submissionRepository,
             RuleScoreRepository ruleScoreRepository,
             ScoringCriteriaRepository scoringCriteriaRepository,
             GradeAuditLogRepository gradeAuditLogRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            com.codeassess.testcase.repository.SubmissionTestResultRepository submissionTestResultRepository) {
         this.submissionRepository = submissionRepository;
         this.ruleScoreRepository = ruleScoreRepository;
         this.scoringCriteriaRepository = scoringCriteriaRepository;
         this.gradeAuditLogRepository = gradeAuditLogRepository;
         this.userRepository = userRepository;
+        this.submissionTestResultRepository = submissionTestResultRepository;
     }
 
     @Transactional(readOnly = true)
@@ -61,7 +64,28 @@ public class TeacherScoringService {
                 .maxScore(rs.getCriteria().getMaxScore())
                 .build()).collect(Collectors.toList());
 
-        BigDecimal effectiveScore = submission.getOverrideScore() != null ? submission.getOverrideScore() : submission.getTotalScore();
+        List<com.codeassess.testcase.entity.SubmissionTestResult> testResults = 
+                submissionTestResultRepository != null ? submissionTestResultRepository.findBySubmission_IdOrderByIdAsc(submissionId) : java.util.Collections.emptyList();
+
+        List<com.codeassess.testcase.dto.response.SubmissionTestResultDto> testResultDtos = testResults.stream().map(tr -> 
+                com.codeassess.testcase.dto.response.SubmissionTestResultDto.builder()
+                        .id(tr.getId())
+                        .testCaseId(tr.getTestCase() != null ? tr.getTestCase().getId() : null)
+                        .testCaseName(tr.getTestCaseName())
+                        .isHidden(tr.getIsHidden())
+                        .status(tr.getStatus())
+                        .actualOutput(tr.getActualOutput())
+                        .expectedOutput(tr.getExpectedOutput())
+                        .executionTimeMs(tr.getExecutionTimeMs())
+                        .exitCode(tr.getExitCode())
+                        .errorMessage(tr.getErrorMessage())
+                        .pointsAwarded(tr.getPointsAwarded())
+                        .maxPoints(tr.getTestCase() != null ? tr.getTestCase().getPoints() : null)
+                        .build()
+        ).collect(Collectors.toList());
+
+        BigDecimal effectiveScore = submission.getOverrideScore() != null ? submission.getOverrideScore() 
+                : (submission.getTotalScore() != null ? submission.getTotalScore() : submission.getAutoScore());
 
         BigDecimal maxTotalScore = criteriaDtos.stream()
                 .map(CriterionScoreDto::getMaxScore)
@@ -84,9 +108,21 @@ public class TeacherScoringService {
                 .status(submission.getStatus())
                 .totalScore(submission.getTotalScore())
                 .overrideTotalScore(submission.getOverrideScore())
+                .autoScore(submission.getAutoScore())
+                .testCasesPassed(submission.getTestCasesPassed())
+                .testCasesTotal(submission.getTestCasesTotal())
+                .testResults(testResultDtos)
                 .effectiveScore(effectiveScore)
                 .maxTotalScore(maxTotalScore)
                 .criteria(criteriaDtos)
+                .instructorFeedback(submission.getInstructorFeedback())
+                .originalFilename(submission.getOriginalFilename())
+                .submissionType(submission.getSubmissionType())
+                .archiveHash(submission.getArchiveHash())
+                .executionStatus(submission.getExecutionStatus())
+                .compileOutput(submission.getCompileOutput())
+                .stdout(submission.getStdout())
+                .stderr(submission.getStderr())
                 .build();
     }
 
@@ -110,13 +146,13 @@ public class TeacherScoringService {
                 .filter(rs -> rs.getCriteria() != null)
                 .collect(Collectors.toMap(rs -> rs.getCriteria().getId(), RuleScore::getScore, (a, b) -> a));
 
-        ruleScoreRepository.deleteBySubmission_Id(submissionId);
-
-        BigDecimal totalScore = BigDecimal.ZERO;
+        BigDecimal totalScore = submission.getTotalScore() != null ? submission.getTotalScore() : BigDecimal.ZERO;
         BigDecimal maxScale = BigDecimal.ZERO;
         Map<String, BigDecimal> postCriteriaMap = new java.util.HashMap<>();
 
         if (payload.getCriteriaScores() != null) {
+            ruleScoreRepository.deleteBySubmission_Id(submissionId);
+            totalScore = BigDecimal.ZERO;
             for (SaveScoringPayload.CriteriaScoreRequest csRequest : payload.getCriteriaScores()) {
                 ScoringCriteria criteria = scoringCriteriaRepository.findById(csRequest.getCriterionId())
                         .orElseThrow(() -> new ResourceNotFoundException("Scoring criteria not found: " + csRequest.getCriterionId()));
@@ -191,9 +227,12 @@ public class TeacherScoringService {
 
         submission.setTotalScore(totalScore);
         submission.setOverrideScore(postOverrideScore);
+        if (payload.getInstructorEvaluationComments() != null) {
+            submission.setInstructorFeedback(payload.getInstructorEvaluationComments());
+        }
         submission.setEvaluatedAt(LocalDateTime.now());
         
-        if (submission.getStatus() == null || submission.getStatus().equals("PENDING")) {
+        if (submission.getStatus() == null || submission.getStatus().equals("PENDING") || submission.getStatus().equals("PROCESSING")) {
             submission.setStatus("GRADED");
         }
 

@@ -37,7 +37,11 @@ export interface ScoringDetail {
   maxTotalScore: number;
   gradeEquivalent?: string;
   percentile?: string;
-  classMedian?: number;
+  // Automated Test Cases Data
+  autoScore?: number | null;
+  testCasesPassed?: number;
+  testCasesTotal?: number;
+  testResults?: SubmissionTestResultDto[];
   
   criteria: CriterionScore[];
   
@@ -45,12 +49,37 @@ export interface ScoringDetail {
   astSimilarityPercentage?: number;
   
   instructorEvaluationComments?: string;
+  instructorFeedback?: string;
+  originalFilename?: string;
+  submissionType?: string;
+  archiveHash?: string;
+  executionStatus?: string;
+  compileOutput?: string;
+  stdout?: string;
+  stderr?: string;
+}
+
+export interface SubmissionTestResultDto {
+  id: string;
+  testCaseId?: string;
+  testCaseName?: string;
+  isHidden: boolean;
+  status: 'PASSED' | 'FAILED' | 'COMPILE_ERROR' | 'TIMEOUT' | 'RUNTIME_ERROR' | string;
+  actualOutput?: string;
+  expectedOutput?: string;
+  executionTimeMs?: number;
+  exitCode?: number;
+  errorMessage?: string;
+  pointsAwarded: number;
+  maxPoints?: number;
 }
 
 export interface StudentSubmissionResult {
   submissionId: string;
   examName: string;
   status: ScoringStatus;
+  executionStatus?: string;
+  compileOutput?: string;
   evaluatedAt?: string;
   evaluatorName?: string;
   
@@ -60,6 +89,12 @@ export interface StudentSubmissionResult {
   maxTotalScore: number;
   gradeEquivalent?: string;
   percentile?: string;
+
+  // Automated Test Cases Data
+  autoScore?: number | null;
+  testCasesPassed?: number;
+  testCasesTotal?: number;
+  testResults?: SubmissionTestResultDto[];
   
   criteria: CriterionScore[];
   

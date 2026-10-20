@@ -43,6 +43,15 @@ public class Submission {
     @Column(name = "override_score", precision = 5, scale = 2)
     private BigDecimal overrideScore;
 
+    @Column(name = "auto_score", precision = 5, scale = 2)
+    private BigDecimal autoScore;
+
+    @Column(name = "test_cases_passed")
+    private Integer testCasesPassed;
+
+    @Column(name = "test_cases_total")
+    private Integer testCasesTotal;
+
     @Column(name = "evaluated_at")
     private LocalDateTime evaluatedAt;
 
@@ -88,6 +97,12 @@ public class Submission {
 
     @Column(name = "lease_expires_at")
     private LocalDateTime leaseExpiresAt;
+
+    @Column(name = "zip_storage_path", length = 500)
+    private String zipStoragePath;
+
+    @Column(name = "instructor_feedback", columnDefinition = "TEXT")
+    private String instructorFeedback;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
