@@ -10,6 +10,7 @@ import { loginSchema } from '../schemas/auth.schema';
 import { authApi } from '../api/auth.api';
 import { useSessionStore } from '@/stores/session.store';
 import { Eye, EyeOff, Lock, ArrowRight, Info, AlertCircle, CheckCircle, RefreshCcw } from 'lucide-react';
+import { parseApiError } from '@/lib/api-error';
 
 export function LoginForm() {
   const router = useRouter();
@@ -57,11 +58,51 @@ export function LoginForm() {
     },
   });
 
+  const parsedLoginError = loginMutation.isError ? parseApiError(loginMutation.error) : null;
+
+  const getLoginErrorMessage = () => {
+    if (!parsedLoginError) return null;
+    if (parsedLoginError.isNetworkError) {
+      return {
+        title: 'Không thể kết nối đến máy chủ',
+        desc: 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại sau.',
+      };
+    }
+    if (parsedLoginError.isUnauthorized) {
+      return {
+        title: 'Đăng nhập thất bại',
+        desc: 'Thông tin đăng nhập không chính xác. Vui lòng kiểm tra lại email hoặc mật khẩu.',
+      };
+    }
+    if (parsedLoginError.isForbidden) {
+      return {
+        title: 'Tài khoản bị hạn chế',
+        desc: 'Tài khoản của bạn đã bị khóa hoặc không có quyền truy cập.',
+      };
+    }
+    if (parsedLoginError.isBadRequest) {
+      return {
+        title: 'Yêu cầu không hợp lệ',
+        desc: 'Định dạng thông tin đăng nhập không hợp lệ. Vui lòng kiểm tra lại email.',
+      };
+    }
+    if (parsedLoginError.isServerError) {
+      return {
+        title: 'Lỗi máy chủ',
+        desc: 'Máy chủ gặp sự cố trong quá trình xử lý xác thực. Vui lòng thử lại sau ít phút.',
+      };
+    }
+    return {
+      title: 'Đăng nhập thất bại',
+      desc: 'Đã xảy ra lỗi trong quá trình xác thực. Vui lòng thử lại sau.',
+    };
+  };
+
+  const loginErrorDetails = getLoginErrorMessage();
+
   const onSubmit = (data: z.input<typeof loginSchema>) => {
-    // In Phase 2, this will make a real API call. 
-    // Since backend isn't up, it will throw an error handled by onError.
     loginMutation.mutate({
-      identity: data.identity, // Will be mapped to email in API client
+      identity: data.identity,
       password: data.password,
       rememberMe: data.rememberMe ?? false,
     });
@@ -78,21 +119,21 @@ export function LoginForm() {
             </div>
             <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-sidebar-accent text-primary text-xs font-medium mb-1 tracking-tight">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-              DIRECTORY ACCESS
+              TRUY CẬP HỆ THỐNG
             </div>
-            <h1 className="text-2xl font-semibold text-foreground tracking-tight">Sign in to CodeAssess</h1>
+            <h1 className="text-2xl font-semibold text-foreground tracking-tight">Đăng nhập CodeAssess</h1>
             <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-              University portal for programming exams, automated grading & academic integrity.
+              Cổng thông tin thi lập trình đại học, chấm điểm tự động &amp; liêm chính học thuật.
             </p>
           </div>
 
           {/* Feedback Banner */}
-          {loginMutation.isError && (
+          {loginMutation.isError && loginErrorDetails && (
             <div className="mb-4 p-3 rounded-lg flex items-start gap-3 bg-destructive/10 text-destructive transition-all">
-              <AlertCircle className="w-5 h-5 mt-0.5" />
+              <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
               <div className="flex-1">
-                <p className="text-[13px] font-semibold">Authentication Failed</p>
-                <p className="text-xs mt-0.5">Invalid credentials for directory or account is temporarily locked. (Or backend is offline)</p>
+                <p className="text-[13px] font-semibold">{loginErrorDetails.title}</p>
+                <p className="text-xs mt-0.5">{loginErrorDetails.desc}</p>
               </div>
             </div>
           )}
@@ -101,8 +142,8 @@ export function LoginForm() {
             <div className="mb-4 p-3 rounded-lg flex items-start gap-3 bg-green-100 text-green-800 transition-all">
               <CheckCircle className="w-5 h-5 mt-0.5" />
               <div className="flex-1">
-                <p className="text-[13px] font-semibold">Authenticating Credentials</p>
-                <p className="text-xs mt-0.5">Directory token verified. Redirecting to Dashboard...</p>
+                <p className="text-[13px] font-semibold">Đang xác thực thông tin</p>
+                <p className="text-xs mt-0.5">Xác thực thành công. Đang chuyển hướng đến Bảng điều khiển...</p>
               </div>
             </div>
           )}
@@ -114,29 +155,28 @@ export function LoginForm() {
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-[13px] font-medium text-foreground" htmlFor="identity">
-                  University Email or Student/Staff ID
+                  Email trường hoặc Mã số Sinh viên / Cán bộ
                 </label>
                 {isTeacher && (
                    <span className="px-2 py-0.5 rounded bg-green-100 text-green-800 text-[11px] font-semibold tracking-wide">
-                     FACULTY ACCOUNT
+                     TÀI KHOẢN GIẢNG VIÊN
                    </span>
                 )}
                 {isStudent && (
                    <span className="px-2 py-0.5 rounded bg-blue-100 text-primary text-[11px] font-semibold tracking-wide">
-                     STUDENT ACCOUNT
+                     TÀI KHOẢN SINH VIÊN
                    </span>
                 )}
               </div>
               <div className="relative flex items-center">
                 <span className="absolute left-3 text-muted-foreground pointer-events-none">
-                  {/* Icon placeholder */}
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect width="7" height="5" x="7" y="7" rx="1"/><rect width="7" height="5" x="10" y="12" rx="1"/></svg>
                 </span>
                 <input
                   id="identity"
                   type="text"
                   autoComplete="username"
-                  placeholder="e.g., student@fpt.edu.vn or GV1084"
+                  placeholder="Ví dụ: student@fpt.edu.vn hoặc GV1084"
                   className={`w-full pl-10 pr-3 py-2 bg-card text-foreground text-sm rounded-lg border ${errors.identity ? 'border-destructive focus:ring-destructive' : 'border-border focus:ring-primary'} shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:border-transparent transition-all`}
                   {...register('identity')}
                 />
@@ -153,9 +193,9 @@ export function LoginForm() {
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-[13px] font-medium text-foreground" htmlFor="password">
-                  Password
+                  Mật khẩu
                 </label>
-                <span className="text-[11px] font-medium text-muted-foreground">Min. 4 characters</span>
+                <span className="text-[11px] font-medium text-muted-foreground">Tối thiểu 4 ký tự</span>
               </div>
               <div className="relative flex items-center">
                 <span className="absolute left-3 text-muted-foreground pointer-events-none">
@@ -165,13 +205,13 @@ export function LoginForm() {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
-                  placeholder="Enter secure password"
+                  placeholder="Nhập mật khẩu an toàn"
                   className={`w-full pl-10 pr-10 py-2 bg-card text-foreground text-sm rounded-lg border ${errors.password ? 'border-destructive focus:ring-destructive' : 'border-border focus:ring-primary'} shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:border-transparent transition-all`}
                   {...register('password')}
                 />
                 <button
                   type="button"
-                  title="Toggle password view"
+                  title="Hiện/ẩn mật khẩu"
                   className="absolute right-2 p-1 text-muted-foreground hover:text-foreground rounded transition-colors flex items-center justify-center"
                   onClick={() => setShowPassword(!showPassword)}
                 >
@@ -195,8 +235,8 @@ export function LoginForm() {
                   {...register('rememberMe')}
                 />
                 <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors flex items-center gap-1">
-                  Remember this computer
-                  <span title="Extends secure local AST token session to 30 days">
+                  Ghi nhớ máy tính này
+                  <span title="Duy trì phiên đăng nhập bảo mật trong 30 ngày">
                     <Info className="w-3 h-3 text-border group-hover:text-primary transition-colors" />
                   </span>
                 </span>
@@ -205,7 +245,7 @@ export function LoginForm() {
                 href="/forgot-password"
                 className="text-[13px] font-medium text-primary hover:text-primary/80 transition-colors"
               >
-                Forgot password?
+                Quên mật khẩu?
               </a>
             </div>
 
@@ -217,12 +257,12 @@ export function LoginForm() {
             >
               {loginMutation.isPending || loginMutation.isSuccess ? (
                 <>
-                  <span>{loginMutation.isSuccess ? 'Redirecting...' : 'Authenticating...'}</span>
+                  <span>{loginMutation.isSuccess ? 'Đang chuyển hướng...' : 'Đang xác thực...'}</span>
                   <RefreshCcw className="w-5 h-5 animate-spin" />
                 </>
               ) : (
                 <>
-                  <span>Sign In to Portal</span>
+                  <span>Đăng nhập hệ thống</span>
                   <ArrowRight className="w-5 h-5" />
                 </>
               )}
@@ -232,20 +272,19 @@ export function LoginForm() {
           {/* Secondary Navigation */}
           <div className="mt-6 text-center">
             <p className="text-[13px] text-muted-foreground">
-              Don&apos;t have an account?{' '}
+              Chưa có tài khoản?{' '}
               <a href="/register" className="font-medium text-primary hover:text-primary/80 transition-colors ml-1">
-                Create one
+                Tạo tài khoản mới
               </a>
             </p>
           </div>
-
 
           {/* SSO Alternative / Student Directory Info */}
           <div className="mt-8 pt-4 bg-muted/50 rounded-lg p-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="flex flex-col">
-                <span className="text-[13px] font-medium text-foreground">Direct Portal Access</span>
-                <span className="text-xs text-muted-foreground">Auto-detects Teacher & Student access</span>
+                <span className="text-[13px] font-medium text-foreground">Truy cập Cổng trực tiếp</span>
+                <span className="text-xs text-muted-foreground">Tự động nhận diện quyền Giảng viên &amp; Sinh viên</span>
               </div>
             </div>
             <span className="text-[11px] px-2 py-1 bg-muted rounded font-mono text-secondary">
@@ -258,11 +297,11 @@ export function LoginForm() {
         <div className="mt-4 flex flex-col items-center text-center gap-1">
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <span className="text-xs">
-              Protected by Secure Authentication & AST Automated Proctoring
+              Được bảo vệ bởi xác thực an toàn &amp; Giám sát liêm chính học thuật AST
             </span>
           </div>
           <span className="text-[11px] text-border">
-            Academic Year 2025–2026 • Computing Assessment Division
+            Năm học 2025–2026 • Ban Khảo thí &amp; Đánh giá Năng lực Tin học
           </span>
         </div>
       </div>

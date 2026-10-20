@@ -54,6 +54,11 @@ class TxBoundaryVerificationTest {
     @Autowired private SubmissionRepository submissionRepository;
     @Autowired private StudentSubmissionService studentSubmissionService;
     @Autowired private ApplicationEvents applicationEvents;
+    @Autowired private javax.sql.DataSource dataSource;
+    @Autowired private com.codeassess.plagiarism.repository.SimilarityPairRepository similarityPairRepository;
+    @Autowired private com.codeassess.plagiarism.repository.PlagiarismEvidenceRepository plagiarismEvidenceRepository;
+    @Autowired private com.codeassess.plagiarism.repository.AstFingerprintRepository astFingerprintRepository;
+    @Autowired private com.codeassess.plagiarism.repository.AppealRepository appealRepository;
 
     // Spy on the AST service to simulate failure
     @MockBean private AstPlagiarismService astPlagiarismService;
@@ -63,8 +68,42 @@ class TxBoundaryVerificationTest {
     private CourseClass courseClass;
     private Exam activeExam;
 
+    private void cleanUpDatabase() {
+        appealRepository.deleteAll();
+        plagiarismEvidenceRepository.deleteAll();
+        similarityPairRepository.deleteAll();
+        astFingerprintRepository.deleteAll();
+        submissionRepository.deleteAll();
+        if (activeExam != null) {
+            examRepository.delete(activeExam);
+            activeExam = null;
+        } else {
+            examRepository.deleteAll();
+        }
+        classStudentRepository.deleteAll();
+        if (courseClass != null) {
+            classRepository.delete(courseClass);
+            courseClass = null;
+        } else {
+            classRepository.deleteAll();
+        }
+        if (student != null) {
+            userRepository.delete(student);
+            student = null;
+        }
+        if (teacher != null) {
+            userRepository.delete(teacher);
+            teacher = null;
+        }
+        userRepository.findByEmail("txtest-teacher@test.com").ifPresent(userRepository::delete);
+        userRepository.findByEmail("txtest-student@test.com").ifPresent(userRepository::delete);
+    }
+
     @BeforeEach
     void setUp() {
+        com.codeassess.testconfig.DatabaseSafetyGuard.assertSafeTestDatabase(dataSource);
+        cleanUpDatabase();
+
         teacher = userRepository.save(User.builder()
                 .email("txtest-teacher@test.com").passwordHash("hash")
                 .role(Role.TEACHER).fullName("Tx Teacher").build());
@@ -86,12 +125,7 @@ class TxBoundaryVerificationTest {
 
     @AfterEach
     void tearDown() {
-        submissionRepository.deleteAll();
-        examRepository.delete(activeExam);
-        classStudentRepository.deleteAll();
-        classRepository.delete(courseClass);
-        userRepository.delete(student);
-        userRepository.delete(teacher);
+        cleanUpDatabase();
     }
 
     // ===================================================================

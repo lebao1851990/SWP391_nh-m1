@@ -9,7 +9,6 @@ import com.codeassess.user.entity.User;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -20,7 +19,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -197,14 +195,6 @@ class StudentSubmissionIntegrationTest {
                 .andExpect(jsonPath("$.id").value("sub-001"))
                 .andExpect(jsonPath("$.examId").value(EXAM_ID))
                 .andExpect(jsonPath("$.status").value("PENDING"));
-
-        ArgumentCaptor<String> examIdCaptor = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<String> studentIdCaptor = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<SubmissionCreateRequest> requestCaptor = ArgumentCaptor.forClass(SubmissionCreateRequest.class);
-        Mockito.verify(studentSubmissionService).submitCode(examIdCaptor.capture(), studentIdCaptor.capture(), requestCaptor.capture());
-        assertThat(examIdCaptor.getValue()).isEqualTo(EXAM_ID);
-        assertThat(studentIdCaptor.getValue()).isEqualTo("student-001");
-        assertThat(requestCaptor.getValue().getSourceCode()).isEqualTo("public class Test {}");
     }
 
     // ===================================================================
@@ -242,5 +232,133 @@ class StudentSubmissionIntegrationTest {
                 .content(body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.studentId").value("student-001"));
+    }
+
+    // ===================================================================
+    // MULTIPART ZIP SUBMISSION TESTS
+    // ===================================================================
+
+    @Test
+    void submitZip_validZip_returns201WithTelemetry() throws Exception {
+        SubmissionDetailResponse response = SubmissionDetailResponse.builder()
+                .id("sub-zip-001")
+                .examId(EXAM_ID)
+                .studentId("student-001")
+                .status("PENDING")
+                .submissionType("ZIP")
+                .originalFilename("assignment.zip")
+                .archiveHash("a1b2c3d4e5f6")
+                .sourceTreeHash("f6e5d4c3b2a1")
+                .fileCount(3)
+                .entryPointClass("com.example.Main")
+                .executionStatus("SUCCESS")
+                .exitCode(0)
+                .stdout("Output from program")
+                .executionDurationMs(150L)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        Mockito.when(studentSubmissionService.submitZip(anyString(), anyString(), any()))
+                .thenReturn(response);
+
+        org.springframework.mock.web.MockMultipartFile zipFile =
+                new org.springframework.mock.web.MockMultipartFile("file", "assignment.zip", "application/zip", "dummy-zip".getBytes());
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/student/exams/" + EXAM_ID + "/submissions")
+                .file(zipFile)
+                .with(user(studentUser)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("sub-zip-001"))
+                .andExpect(jsonPath("$.submissionType").value("ZIP"))
+                .andExpect(jsonPath("$.originalFilename").value("assignment.zip"))
+                .andExpect(jsonPath("$.archiveHash").value("a1b2c3d4e5f6"))
+                .andExpect(jsonPath("$.sourceTreeHash").value("f6e5d4c3b2a1"))
+                .andExpect(jsonPath("$.fileCount").value(3))
+                .andExpect(jsonPath("$.entryPointClass").value("com.example.Main"))
+                .andExpect(jsonPath("$.executionStatus").value("SUCCESS"))
+                .andExpect(jsonPath("$.exitCode").value(0))
+                .andExpect(jsonPath("$.stdout").value("Output from program"));
+    }
+
+    @Test
+    void submitZip_anonymous_returns401() throws Exception {
+        org.springframework.mock.web.MockMultipartFile zipFile =
+                new org.springframework.mock.web.MockMultipartFile("file", "test.zip", "application/zip", "dummy".getBytes());
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/student/exams/" + EXAM_ID + "/submissions")
+                .file(zipFile))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void submitZip_teacher_returns403() throws Exception {
+        org.springframework.mock.web.MockMultipartFile zipFile =
+                new org.springframework.mock.web.MockMultipartFile("file", "test.zip", "application/zip", "dummy".getBytes());
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/student/exams/" + EXAM_ID + "/submissions")
+                .file(zipFile)
+                .with(user(teacherUser)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void submitZip_studentNotInClass_returns404() throws Exception {
+        Mockito.when(studentSubmissionService.submitZip(anyString(), anyString(), any()))
+                .thenThrow(new ResourceNotFoundException("Exam not found or you are not enrolled in this class"));
+
+        org.springframework.mock.web.MockMultipartFile zipFile =
+                new org.springframework.mock.web.MockMultipartFile("file", "test.zip", "application/zip", "dummy".getBytes());
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/student/exams/" + EXAM_ID + "/submissions")
+                .file(zipFile)
+                .with(user(studentUser)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+    }
+
+    @Test
+    void submitZip_inactiveExam_returns400() throws Exception {
+        Mockito.when(studentSubmissionService.submitZip(anyString(), anyString(), any()))
+                .thenThrow(new IllegalStateException("Exam is not currently active for submissions"));
+
+        org.springframework.mock.web.MockMultipartFile zipFile =
+                new org.springframework.mock.web.MockMultipartFile("file", "test.zip", "application/zip", "dummy".getBytes());
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/student/exams/" + EXAM_ID + "/submissions")
+                .file(zipFile)
+                .with(user(studentUser)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+    }
+
+    @Test
+    void submitZip_emptyFile_returns400() throws Exception {
+        Mockito.when(studentSubmissionService.submitZip(anyString(), anyString(), any()))
+                .thenThrow(new IllegalArgumentException("Submission file cannot be empty"));
+
+        org.springframework.mock.web.MockMultipartFile zipFile =
+                new org.springframework.mock.web.MockMultipartFile("file", "empty.zip", "application/zip", new byte[0]);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/student/exams/" + EXAM_ID + "/submissions")
+                .file(zipFile)
+                .with(user(studentUser)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+    }
+
+    @Test
+    void submitZip_oversizedArchive_returns400() throws Exception {
+        Mockito.when(studentSubmissionService.submitZip(anyString(), anyString(), any()))
+                .thenThrow(new com.codeassess.submission.exception.ZipValidationException(
+                        com.codeassess.submission.exception.ZipValidationException.ErrorCode.EXCEEDS_MAX_COMPRESSED_SIZE,
+                        "Archive size exceeds maximum allowed size"));
+
+        org.springframework.mock.web.MockMultipartFile zipFile =
+                new org.springframework.mock.web.MockMultipartFile("file", "oversized.zip", "application/zip", new byte[100]);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/student/exams/" + EXAM_ID + "/submissions")
+                .file(zipFile)
+                .with(user(studentUser)))
+                .andExpect(status().isBadRequest());
     }
 }

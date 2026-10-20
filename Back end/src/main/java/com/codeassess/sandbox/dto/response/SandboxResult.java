@@ -28,12 +28,16 @@ public class SandboxResult {
         COMPILE_ERROR,
         RUNTIME_ERROR,
         TIMEOUT,
-        INTERNAL_ERROR
+        INTERNAL_ERROR,
+        COMPILE_ONLY_SUCCESS,
+        AMBIGUOUS_MAIN_METHOD,
+        CAPACITY_EXCEEDED
     }
 
     private Status status;
     private String stdout;
     private String stderr;
+    private String compilerOutput;
     private Integer exitCode;
     private long executionTimeMs;
 

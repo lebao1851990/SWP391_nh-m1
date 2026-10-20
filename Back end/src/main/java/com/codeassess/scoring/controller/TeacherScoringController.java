@@ -24,7 +24,13 @@ public class TeacherScoringController {
 
     @PreAuthorize("hasRole('TEACHER')")
     @PutMapping
-    public ScoringDetail updateScoring(@PathVariable String id, @RequestBody SaveScoringPayload payload, @AuthenticationPrincipal User currentUser) {
+    public ScoringDetail updateScoring(@PathVariable String id, @jakarta.validation.Valid @RequestBody SaveScoringPayload payload, @AuthenticationPrincipal User currentUser) {
         return teacherScoringService.updateScoring(id, currentUser.getId(), payload);
+    }
+
+    @PreAuthorize("hasRole('TEACHER')")
+    @GetMapping("/audit-logs")
+    public java.util.List<com.codeassess.scoring.dto.response.GradeAuditLogDto> getAuditLogs(@PathVariable String id, @AuthenticationPrincipal User currentUser) {
+        return teacherScoringService.getAuditLogs(id, currentUser.getId());
     }
 }

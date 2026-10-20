@@ -24,6 +24,15 @@ public class Exam {
     @JoinColumn(name = "class_id")
     private CourseClass courseClass;
 
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "exam_classes",
+        joinColumns = @JoinColumn(name = "exam_id"),
+        inverseJoinColumns = @JoinColumn(name = "class_id")
+    )
+    @Builder.Default
+    private java.util.Set<CourseClass> classes = new java.util.HashSet<>();
+
     @Column
     private String title;
 

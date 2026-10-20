@@ -1,11 +1,15 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAdminClass } from '../hooks';
 import { AppLink as Link } from '@/components/ui/app-link';
+import { EditClassModal } from './EditClassModal';
+import { ManageRosterModal } from './ManageRosterModal';
 
 export function AdminClassDetailView({ classId }: { classId: string }) {
-  const { data: cls, isLoading, isError } = useAdminClass(classId);
+  const { data: cls, isLoading, isError, refetch } = useAdminClass(classId);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isRosterModalOpen, setIsRosterModalOpen] = useState(false);
 
   return (
     <div className="flex flex-col w-full gap-space-lg px-space-lg py-space-lg max-w-4xl mx-auto">
@@ -23,8 +27,14 @@ export function AdminClassDetailView({ classId }: { classId: string }) {
       ) : isError ? (
         <div className="p-10 flex flex-col items-center justify-center text-center bg-surface-container-lowest rounded-xl shadow-sm border border-error/20">
           <span className="material-symbols-outlined text-[48px] text-error mb-2">error</span>
-          <span className="font-headline-sm font-semibold text-on-surface">Integration Pending</span>
-          <span className="font-body-sm text-on-surface-variant">Backend API is currently unavailable.</span>
+          <span className="font-headline-sm font-semibold text-on-surface">Failed to load class</span>
+          <span className="font-body-sm text-on-surface-variant mb-4">Class record not found or network error.</span>
+          <button
+            onClick={() => refetch()}
+            className="px-4 py-2 rounded-lg bg-surface-container-high text-xs font-semibold hover:bg-surface-container-highest transition-colors cursor-pointer"
+          >
+            Retry
+          </button>
         </div>
       ) : cls ? (
         <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 p-space-lg flex flex-col gap-space-md">
@@ -53,18 +63,43 @@ export function AdminClassDetailView({ classId }: { classId: string }) {
             </div>
             <div className="flex flex-col gap-1">
               <span className="font-label-sm text-label-sm uppercase text-outline">Student Count</span>
-              <span className="font-body-md text-on-surface">{cls.studentCount} Students</span>
+              <span className="font-body-md text-on-surface font-semibold text-primary">
+                {cls.studentCount ?? 0} Students
+              </span>
             </div>
           </div>
           
           <div className="mt-space-lg flex justify-end gap-space-sm">
-            <button className="px-4 py-2 rounded-lg bg-surface-container-high text-on-surface font-label-md font-semibold hover:bg-surface-container-highest transition-colors">
+            <button
+              onClick={() => setIsRosterModalOpen(true)}
+              className="px-4 py-2 rounded-lg bg-surface-container-high text-on-surface font-label-md font-semibold hover:bg-surface-container-highest transition-colors cursor-pointer"
+            >
               Manage Roster
             </button>
-            <button className="px-4 py-2 rounded-lg bg-primary text-on-primary font-label-md font-semibold hover:bg-primary-container transition-colors">
+            <button
+              onClick={() => setIsEditModalOpen(true)}
+              className="px-4 py-2 rounded-lg bg-primary text-on-primary font-label-md font-semibold hover:bg-primary-container transition-colors cursor-pointer"
+            >
               Edit Class
             </button>
           </div>
+
+          {isEditModalOpen && (
+            <EditClassModal
+              key={`${cls.id}-${cls.name}-${cls.code}`}
+              isOpen={isEditModalOpen}
+              onClose={() => setIsEditModalOpen(false)}
+              cls={cls}
+            />
+          )}
+
+          <ManageRosterModal
+            isOpen={isRosterModalOpen}
+            onClose={() => setIsRosterModalOpen(false)}
+            classId={cls.id}
+            className={cls.name}
+            classCode={cls.code}
+          />
         </div>
       ) : null}
     </div>

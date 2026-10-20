@@ -10,6 +10,13 @@ export interface SimilarityPair {
   studentBName?: string;
   similarityRate: number; // e.g. 74.5
   isFlagged: boolean; // Backend authoritative flag
+  examId?: string;
+  examTitle?: string;
+  className?: string;
+  adjudicationStatus?: 'PENDING' | 'FLAG_CONFIRMED' | 'FALSE_POSITIVE' | 'HEARING_SCHEDULED';
+  adjudicationNotes?: string;
+  adjudicatedBy?: string;
+  adjudicatedAt?: string;
 }
 
 export interface PlagiarismEvidence {
@@ -39,6 +46,23 @@ export interface CodeComparisonData {
     endLineB: number;
     type: string;
   }>;
+  adjudicationStatus?: 'PENDING' | 'FLAG_CONFIRMED' | 'FALSE_POSITIVE' | 'HEARING_SCHEDULED';
+  adjudicationNotes?: string;
+  adjudicatedBy?: string;
+  adjudicatedAt?: string;
+}
+
+export interface AdjudicationRequest {
+  status: 'PENDING' | 'FLAG_CONFIRMED' | 'FALSE_POSITIVE' | 'HEARING_SCHEDULED';
+  notes?: string;
+}
+
+export interface AdjudicationResponse {
+  pairId: string;
+  status: 'PENDING' | 'FLAG_CONFIRMED' | 'FALSE_POSITIVE' | 'HEARING_SCHEDULED';
+  notes?: string;
+  adjudicatedBy?: string;
+  adjudicatedAt?: string;
 }
 
 export interface StudentPlagiarismDetail {

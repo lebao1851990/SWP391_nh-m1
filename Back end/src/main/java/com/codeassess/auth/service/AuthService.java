@@ -24,6 +24,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final AuthMapper authMapper;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+    private final com.codeassess.auth.repository.PasswordResetTokenRepository passwordResetTokenRepository;
 
     public void register(com.codeassess.auth.dto.request.RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -73,5 +74,77 @@ public class AuthService {
         return LoginResponse.builder()
                 .user(authMapper.toUserSessionDto(user))
                 .build();
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void forgotPassword(com.codeassess.auth.dto.request.ForgotPasswordRequest request) {
+        String email = request.getTargetEmail();
+        if (email == null || email.isBlank()) {
+            return;
+        }
+
+        java.util.Optional<User> userOpt = userRepository.findByEmail(email);
+        if (userOpt.isEmpty()) {
+            // Anti-enumeration: do not reveal that user doesn't exist
+            return;
+        }
+
+        User user = userOpt.get();
+
+        // Expire / invalidate any existing active tokens for this user
+        passwordResetTokenRepository.findTopByUserIdAndUsedFalseOrderByCreatedAtDesc(user.getId())
+                .ifPresent(existingToken -> {
+                    existingToken.setUsed(true);
+                    passwordResetTokenRepository.save(existingToken);
+                });
+
+        String rawToken = java.util.UUID.randomUUID().toString().replace("-", "") 
+                + java.util.UUID.randomUUID().toString().replace("-", "");
+
+        com.codeassess.auth.entity.PasswordResetToken tokenEntity = com.codeassess.auth.entity.PasswordResetToken.builder()
+                .token(rawToken)
+                .user(user)
+                .expiresAt(java.time.LocalDateTime.now().plusMinutes(30))
+                .used(false)
+                .build();
+
+        passwordResetTokenRepository.save(tokenEntity);
+        org.slf4j.LoggerFactory.getLogger(AuthService.class).info(
+                "[AUTH-DEV] Password reset token generated for {}: token={}", user.getEmail(), rawToken);
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void resetPassword(com.codeassess.auth.dto.request.ResetPasswordRequest request) {
+        if (request.getToken() == null || request.getToken().trim().isEmpty()) {
+            throw new IllegalArgumentException("Token is required");
+        }
+        if (request.getPassword() == null || request.getPassword().length() < 8) {
+            throw new IllegalArgumentException("Password must be at least 8 characters");
+        }
+        if (request.getConfirmPassword() != null && !request.getConfirmPassword().isBlank()
+                && !request.getPassword().equals(request.getConfirmPassword())) {
+            throw new IllegalArgumentException("Passwords do not match");
+        }
+
+        com.codeassess.auth.entity.PasswordResetToken tokenEntity = passwordResetTokenRepository
+                .findByToken(request.getToken().trim())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid or expired password reset token"));
+
+        if (tokenEntity.isUsed()) {
+            throw new IllegalArgumentException("This password reset token has already been used");
+        }
+
+        if (tokenEntity.isExpired()) {
+            throw new IllegalArgumentException("Password reset token has expired");
+        }
+
+        User user = tokenEntity.getUser();
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        userRepository.save(user);
+
+        tokenEntity.setUsed(true);
+        passwordResetTokenRepository.save(tokenEntity);
+        org.slf4j.LoggerFactory.getLogger(AuthService.class).info(
+                "[AUTH] Password successfully updated for user {}", user.getEmail());
     }
 }

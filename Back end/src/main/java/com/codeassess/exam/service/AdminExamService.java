@@ -9,12 +9,11 @@ import com.codeassess.exam.mapper.ExamMapper;
 import com.codeassess.exam.repository.ExamRepository;
 import com.codeassess.classes.entity.CourseClass;
 import com.codeassess.classes.repository.CourseClassRepository;
-import com.codeassess.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -41,15 +40,36 @@ public class AdminExamService {
 
     @Transactional
     public ExamResponse createExam(CreateExamDto dto) {
-        CourseClass courseClass = courseClassRepository.findById(dto.getClassId())
-                .orElseThrow(() -> new ResourceNotFoundException("Class not found"));
+        List<String> targetIds = new ArrayList<>();
+        if (dto.getClassIds() != null && !dto.getClassIds().isEmpty()) {
+            targetIds.addAll(dto.getClassIds());
+        } else if (dto.getClassId() != null && !dto.getClassId().isBlank()) {
+            targetIds.add(dto.getClassId());
+        }
+
+        List<String> distinctIds = targetIds.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (distinctIds.isEmpty()) {
+            throw new IllegalArgumentException("At least one class must be selected for the exam");
+        }
+
+        List<CourseClass> classes = courseClassRepository.findAllById(distinctIds);
+        if (classes.size() != distinctIds.size()) {
+            throw new ResourceNotFoundException("One or more classes not found");
+        }
 
         Exam newExam = Exam.builder()
                 .title(dto.getTitle())
-                .courseClass(courseClass)
+                .courseClass(classes.get(0))
+                .classes(new HashSet<>(classes))
                 .examDate(dto.getDate())
                 .duration(dto.getDurationMinutes())
-                .status("upcoming") // Default status for new exams
+                .status("upcoming")
                 .build();
         
         return examMapper.toResponse(examRepository.save(newExam));
@@ -65,10 +85,32 @@ public class AdminExamService {
         if (dto.getDurationMinutes() != null) exam.setDuration(dto.getDurationMinutes());
         if (dto.getStatus() != null) exam.setStatus(dto.getStatus().toLowerCase());
         
-        if (dto.getClassId() != null) {
-            CourseClass courseClass = courseClassRepository.findById(dto.getClassId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Class not found"));
-            exam.setCourseClass(courseClass);
+        if (dto.getClassIds() != null || dto.getClassId() != null) {
+            List<String> targetIds = new ArrayList<>();
+            if (dto.getClassIds() != null) {
+                targetIds.addAll(dto.getClassIds());
+            } else if (dto.getClassId() != null) {
+                targetIds.add(dto.getClassId());
+            }
+
+            List<String> distinctIds = targetIds.stream()
+                    .filter(Objects::nonNull)
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .distinct()
+                    .collect(Collectors.toList());
+
+            if (distinctIds.isEmpty()) {
+                throw new IllegalArgumentException("Exam must have at least one assigned class");
+            }
+
+            List<CourseClass> classes = courseClassRepository.findAllById(distinctIds);
+            if (classes.size() != distinctIds.size()) {
+                throw new ResourceNotFoundException("One or more classes not found");
+            }
+
+            exam.setCourseClass(classes.get(0));
+            exam.setClasses(new HashSet<>(classes));
         }
         
         return examMapper.toResponse(examRepository.save(exam));

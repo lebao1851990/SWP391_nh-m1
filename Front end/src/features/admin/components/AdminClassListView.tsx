@@ -1,12 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAdminClasses } from '../hooks';
 import { AppLink as Link } from '@/components/ui/app-link';
+import { CreateClassModal } from './CreateClassModal';
 
 export function AdminClassListView() {
   const { data: classes, isLoading, isError } = useAdminClasses();
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const filteredClasses = React.useMemo(() => {
     if (!classes) return [];
@@ -29,7 +31,22 @@ export function AdminClassListView() {
           </div>
           <p className="font-body-md text-body-md text-on-surface-variant">Manage cohorts, course assignments, and class capacity.</p>
         </div>
+
+        <div className="flex items-center gap-space-xs">
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary text-on-primary hover:bg-primary-container transition-colors font-label-md text-label-md font-semibold shadow-sm cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-[18px]">add</span>
+            <span>Create Class</span>
+          </button>
+        </div>
       </div>
+
+      <CreateClassModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      />
 
       <div className="flex flex-col rounded-xl bg-surface-container-lowest shadow-sm overflow-hidden border border-outline-variant/30">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between p-space-md bg-surface-container-low gap-space-sm border-b border-outline-variant/30">

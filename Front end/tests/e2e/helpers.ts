@@ -1,6 +1,6 @@
 import { Page, expect } from '@playwright/test';
 
-export async function login(page: Page, email: string, password: string = '123456') {
+export async function login(page: Page, email: string, password: string = 'testpass123') {
   await page.goto('/login');
   
   // Setup request listener

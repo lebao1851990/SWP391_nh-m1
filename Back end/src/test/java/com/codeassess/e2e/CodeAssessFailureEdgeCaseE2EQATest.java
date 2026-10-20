@@ -66,8 +66,12 @@ public class CodeAssessFailureEdgeCaseE2EQATest {
     private Exam activeExam, inactiveExam;
     private CourseClass classA;
 
+    @Autowired
+    private javax.sql.DataSource dataSource;
+
     @BeforeEach
     public void setupDb() {
+        com.codeassess.testconfig.DatabaseSafetyGuard.assertSafeTestDatabase(dataSource);
         appealRepository.deleteAll();
         plagiarismEvidenceRepository.deleteAll();
         similarityPairRepository.deleteAll();

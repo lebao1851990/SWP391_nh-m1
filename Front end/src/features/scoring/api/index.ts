@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/api-client';
-import { ScoringDetail, SaveScoringPayload, StudentSubmissionResult } from '../types';
+import { ScoringDetail, SaveScoringPayload, StudentSubmissionResult, GradeAuditLog } from '../types';
 
 /**
  * FETCH TEACHER SCORING DATA
@@ -31,3 +31,13 @@ export async function getStudentResult(submissionId: string): Promise<StudentSub
   const response = await apiClient.get<StudentSubmissionResult>(`/student/submissions/${submissionId}/result`);
   return response.data;
 }
+
+/**
+ * FETCH TEACHER GRADE AUDIT LOGS
+ * Retrieves the complete grade history for this submission.
+ */
+export async function getTeacherGradeAuditLogs(submissionId: string): Promise<GradeAuditLog[]> {
+  const response = await apiClient.get<GradeAuditLog[]>(`/teacher/submissions/${submissionId}/scoring/audit-logs`);
+  return response.data;
+}
+

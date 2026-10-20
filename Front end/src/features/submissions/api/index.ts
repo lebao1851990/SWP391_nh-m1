@@ -15,6 +15,7 @@ export interface SubmissionDetailResponse {
 export interface SubmissionListResponse {
   id: string;
   examId: string;
+  examTitle?: string;
   studentId: string;
   status: string;
   totalScore: number;

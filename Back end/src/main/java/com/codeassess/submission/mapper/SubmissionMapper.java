@@ -13,14 +13,18 @@ public class SubmissionMapper {
             return null;
         }
 
+        boolean isDone = "COMPLETED".equalsIgnoreCase(submission.getStatus())
+                || "EVALUATED".equalsIgnoreCase(submission.getStatus());
+
         return SubmissionListResponse.builder()
                 .id(submission.getId())
                 .examId(submission.getExam() != null ? submission.getExam().getId() : null)
+                .examTitle(submission.getExam() != null ? submission.getExam().getTitle() : null)
                 .studentId(submission.getStudent() != null ? submission.getStudent().getId() : null)
                 .status(submission.getStatus())
                 .totalScore(submission.getTotalScore())
                 .overrideScore(submission.getOverrideScore())
-                .evaluatedAt(submission.getEvaluatedAt())
+                .evaluatedAt(isDone ? submission.getEvaluatedAt() : null)
                 .createdAt(submission.getCreatedAt())
                 .build();
     }
@@ -30,6 +34,9 @@ public class SubmissionMapper {
             return null;
         }
 
+        boolean isDone = "COMPLETED".equalsIgnoreCase(submission.getStatus())
+                || "EVALUATED".equalsIgnoreCase(submission.getStatus());
+
         return SubmissionDetailResponse.builder()
                 .id(submission.getId())
                 .examId(submission.getExam() != null ? submission.getExam().getId() : null)
@@ -38,8 +45,23 @@ public class SubmissionMapper {
                 .sourceCode(submission.getSourceCode())
                 .totalScore(submission.getTotalScore())
                 .overrideScore(submission.getOverrideScore())
-                .evaluatedAt(submission.getEvaluatedAt())
+                .autoScore(submission.getAutoScore())
+                .testCasesPassed(submission.getTestCasesPassed())
+                .testCasesTotal(submission.getTestCasesTotal())
+                .evaluatedAt(isDone ? submission.getEvaluatedAt() : null)
                 .createdAt(submission.getCreatedAt())
+                .submissionType(submission.getSubmissionType())
+                .originalFilename(submission.getOriginalFilename())
+                .archiveHash(submission.getArchiveHash())
+                .sourceTreeHash(submission.getSourceTreeHash())
+                .fileCount(submission.getFileCount())
+                .entryPointClass(submission.getEntryPointClass())
+                .executionStatus(submission.getExecutionStatus())
+                .exitCode(submission.getExitCode())
+                .compileOutput(submission.getCompileOutput())
+                .stdout(submission.getStdout())
+                .stderr(submission.getStderr())
+                .executionDurationMs(submission.getExecutionDurationMs())
                 .build();
     }
 }

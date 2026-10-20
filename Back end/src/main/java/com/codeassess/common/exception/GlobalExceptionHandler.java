@@ -53,6 +53,18 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(400, "BAD_REQUEST", ex.getMessage()));
     }
 
+    @ExceptionHandler(ExcelBatchImportException.class)
+    public ResponseEntity<com.codeassess.classes.dto.response.ExcelImportResultDto> handleExcelBatchImportException(ExcelBatchImportException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ex.getResult());
+    }
+
+    @ExceptionHandler(com.codeassess.submission.exception.ZipValidationException.class)
+    public ResponseEntity<ErrorResponse> handleZipValidationException(com.codeassess.submission.exception.ZipValidationException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse(400, "BAD_REQUEST", ex.getMessage()));
+    }
+
     @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(org.springframework.web.bind.MethodArgumentNotValidException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -75,6 +87,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleSandboxException(com.codeassess.sandbox.exception.SandboxException ex) {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(new ErrorResponse(503, "SANDBOX_UNAVAILABLE", ex.getMessage()));
+    }
+
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatusException(org.springframework.web.server.ResponseStatusException ex) {
+        int code = ex.getStatusCode().value();
+        String reason = ex.getReason() != null ? ex.getReason() : ex.getStatusCode().toString();
+        return ResponseEntity.status(ex.getStatusCode())
+                .body(new ErrorResponse(code, ex.getStatusCode().toString(), reason));
     }
 
     @ExceptionHandler(Exception.class)

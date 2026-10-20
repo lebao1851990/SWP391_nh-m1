@@ -9,10 +9,16 @@ import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientConfig;
 import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.transport.DockerHttpClient;
-import com.github.dockerjava.zerodep.ZeroDepDockerHttpClient;
+import com.github.dockerjava.zerodep.ZerodepDockerHttpClient;
+import com.codeassess.submission.dto.ExtractedFile;
+import com.codeassess.submission.dto.ExtractedWorkspace;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -62,7 +68,7 @@ class DockerSandboxIntegrationTest {
     @BeforeAll
     static void setUpDockerClient() {
         DockerClientConfig config = DefaultDockerClientConfig.createDefaultConfigBuilder().build();
-        DockerHttpClient http = new ZeroDepDockerHttpClient.Builder()
+        DockerHttpClient http = new ZerodepDockerHttpClient.Builder()
                 .dockerHost(config.getDockerHost())
                 .sslConfig(config.getSSLConfig())
                 .connectionTimeout(Duration.ofSeconds(10))
@@ -327,9 +333,6 @@ class DockerSandboxIntegrationTest {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 9. Oversized source rejected before Docker
-    // ═══════════════════════════════════════════════════════════════════════
-
     @Test
     @Order(9)
     void oversizedSource_rejectedBeforeDocker() {
@@ -337,5 +340,289 @@ class DockerSandboxIntegrationTest {
         assertThatThrownBy(() -> service.execute(oversized))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("65536 bytes");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 10. Container cleanup after success and failure
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Test
+    @Order(10)
+    void containerCleanup_removedAfterSuccessAndFailure() {
+        int initialCount = dockerClient.listContainersCmd().withShowAll(true).exec().size();
+
+        // 1. Successful execution
+        SandboxResult successResult = service.execute(
+                "public class Main { public static void main(String[] a){ System.out.println(\"cleanup ok\"); } }");
+        assertThat(successResult.getStatus()).isEqualTo(SandboxResult.Status.SUCCESS);
+        int afterSuccessCount = dockerClient.listContainersCmd().withShowAll(true).exec().size();
+        assertThat(afterSuccessCount).isEqualTo(initialCount);
+
+        // 2. Compilation failure execution
+        SandboxResult compileFailResult = service.execute("public class Main { invalid syntax");
+        assertThat(compileFailResult.getStatus()).isEqualTo(SandboxResult.Status.COMPILE_ERROR);
+        int afterCompileFailCount = dockerClient.listContainersCmd().withShowAll(true).exec().size();
+        assertThat(afterCompileFailCount).isEqualTo(initialCount);
+
+        // 3. Runtime failure execution
+        SandboxResult runtimeFailResult = service.execute(
+                "public class Main { public static void main(String[] a){ throw new RuntimeException(\"cleanup error\"); } }");
+        assertThat(runtimeFailResult.getStatus()).isEqualTo(SandboxResult.Status.RUNTIME_ERROR);
+        int afterRuntimeFailCount = dockerClient.listContainersCmd().withShowAll(true).exec().size();
+        assertThat(afterRuntimeFailCount).isEqualTo(initialCount);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 11. Unauthorized write outside /tmp fails (Read-only rootfs)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Test
+    @Order(11)
+    void unauthorizedHostWrite_failsDueToReadonlyRootfs() {
+        String src = "import java.io.File; import java.io.FileWriter;\n" +
+                "public class Main {\n" +
+                "    public static void main(String[] args) {\n" +
+                "        try {\n" +
+                "            new FileWriter(new File(\"/etc/malicious.txt\")).write(\"pwned\");\n" +
+                "            System.out.println(\"WRITE_SUCCESS\");\n" +
+                "        } catch (Exception e) {\n" +
+                "            System.out.println(\"WRITE_BLOCKED: \" + e.getMessage());\n" +
+                "        }\n" +
+                "    }\n" +
+                "}\n";
+
+        SandboxResult result = service.execute(src);
+
+        assertThat(result.getStatus()).isEqualTo(SandboxResult.Status.SUCCESS);
+        assertThat(result.getStdout()).doesNotContain("WRITE_SUCCESS");
+        assertThat(result.getStdout()).contains("WRITE_BLOCKED");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 12. Thread/PID explosion contained by cgroup pids-limit
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Test
+    @Order(12)
+    void pidLimit_containedByCgroup() {
+        SandboxProperties pidProps = new SandboxProperties();
+        pidProps.setImage(props.getImage());
+        pidProps.setTimeoutSeconds(5);
+        pidProps.setMaxConcurrentExecutions(4);
+        pidProps.setMemoryBytes(props.getMemoryBytes());
+        pidProps.setCpuPeriodMicros(props.getCpuPeriodMicros());
+        pidProps.setCpuQuotaMicros(props.getCpuQuotaMicros());
+        pidProps.setPidsLimit(15L);
+
+        pidProps.setMaxSourceBytes(props.getMaxSourceBytes());
+        pidProps.setMaxOutputBytes(props.getMaxOutputBytes());
+        pidProps.setTmpfsSizeBytes(props.getTmpfsSizeBytes());
+
+        DockerSandboxService pidSvc = new DockerSandboxService(dockerClient, pidProps);
+
+        String src = "public class Main {\n" +
+                "    public static void main(String[] args) {\n" +
+                "        for (int i = 0; i < 100; i++) {\n" +
+                "            new Thread(() -> { while(true) { try { Thread.sleep(1000); } catch (Exception e) {} } }).start();\n" +
+                "        }\n" +
+                "    }\n" +
+                "}\n";
+
+        SandboxResult result = pidSvc.execute(src);
+
+        assertThat(result.getStatus()).isIn(SandboxResult.Status.RUNTIME_ERROR, SandboxResult.Status.TIMEOUT);
+        if (result.getStatus() == SandboxResult.Status.RUNTIME_ERROR) {
+            assertThat(result.getStderr()).containsAnyOf("OutOfMemoryError", "thread", "Resource temporarily unavailable");
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 13. Multi-file workspace execution with helper class
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Test
+    @Order(13)
+    void multiFileWorkspace_realContainer_compilesAndExecutesWithHelper(@TempDir Path tempDir) throws IOException {
+        Path pkgDir = Files.createDirectories(tempDir.resolve("pkg"));
+        Path helperFile = pkgDir.resolve("Helper.java");
+        Files.writeString(helperFile, "package pkg;\npublic class Helper {\n    public static String message() {\n        return \"MULTI_FILE_SUCCESS\";\n    }\n}\n");
+
+        Path mainFile = pkgDir.resolve("Main.java");
+        Files.writeString(mainFile, "package pkg;\npublic class Main {\n    public static void main(String[] args) {\n        System.out.println(Helper.message());\n    }\n}\n");
+
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(
+                        new ExtractedFile("pkg/Helper.java", helperFile, Files.size(helperFile), true),
+                        new ExtractedFile("pkg/Main.java", mainFile, Files.size(mainFile), true)
+                ),
+                Files.size(helperFile) + Files.size(mainFile),
+                "sha256-test"
+        );
+
+        SandboxResult result = service.executeWorkspace(workspace, "pkg.Main");
+
+        assertThat(result.getStatus()).isEqualTo(SandboxResult.Status.SUCCESS);
+        assertThat(result.getStdout()).contains("MULTI_FILE_SUCCESS");
+        assertThat(result.getExitCode()).isEqualTo(0);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 14. Multi-file workspace compile-only when no main method
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Test
+    @Order(14)
+    void multiFileWorkspace_realContainer_compileOnlySuccess(@TempDir Path tempDir) throws IOException {
+        Path pkgDir = Files.createDirectories(tempDir.resolve("pkg"));
+        Path helperFile = pkgDir.resolve("Helper.java");
+        Files.writeString(helperFile, "package pkg;\npublic class Helper {}\n");
+
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(new ExtractedFile("pkg/Helper.java", helperFile, Files.size(helperFile), true)),
+                Files.size(helperFile),
+                "sha256-test"
+        );
+
+        SandboxResult result = service.executeWorkspace(workspace, null);
+
+        assertThat(result.getStatus()).isEqualTo(SandboxResult.Status.COMPILE_ONLY_SUCCESS);
+        assertThat(result.getExitCode()).isEqualTo(0);
+        assertThat(result.getStdout()).contains("Compilation successful");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 15. Multi-file workspace infinite loop timeout and cleanup
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Test
+    @Order(15)
+    void multiFileWorkspace_realContainer_timeoutAndCleanup(@TempDir Path tempDir) throws IOException {
+        SandboxProperties timeoutProps = new SandboxProperties();
+        timeoutProps.setImage(props.getImage());
+        timeoutProps.setTimeoutSeconds(3);
+        timeoutProps.setMaxConcurrentExecutions(4);
+        timeoutProps.setMemoryBytes(props.getMemoryBytes());
+        timeoutProps.setCpuPeriodMicros(props.getCpuPeriodMicros());
+        timeoutProps.setCpuQuotaMicros(props.getCpuQuotaMicros());
+        timeoutProps.setPidsLimit(props.getPidsLimit());
+        timeoutProps.setMaxSourceBytes(props.getMaxSourceBytes());
+        timeoutProps.setMaxOutputBytes(props.getMaxOutputBytes());
+        timeoutProps.setTmpfsSizeBytes(props.getTmpfsSizeBytes());
+
+        DockerSandboxService timeoutSvc = new DockerSandboxService(dockerClient, timeoutProps);
+
+        Path mainFile = tempDir.resolve("LoopMain.java");
+        Files.writeString(mainFile, "public class LoopMain {\n    public static void main(String[] args) throws Exception {\n        while (true) {\n            Thread.sleep(100);\n        }\n    }\n}\n");
+
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(new ExtractedFile("LoopMain.java", mainFile, Files.size(mainFile), true)),
+                Files.size(mainFile),
+                "sha256-test"
+        );
+
+        SandboxResult result = timeoutSvc.executeWorkspace(workspace, "LoopMain");
+
+        assertThat(result.getStatus()).isEqualTo(SandboxResult.Status.TIMEOUT);
+        assertThat(result.getExitCode()).isNull();
+        assertThat(result.getExecutionTimeMs()).isGreaterThanOrEqualTo(3000L);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 16. Multi-file workspace compilation failure does not launch Java
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Test
+    @Order(16)
+    void multiFileWorkspace_realContainer_compilationFailureDoesNotLaunchJava(@TempDir Path tempDir) throws IOException {
+        Path validFile = tempDir.resolve("Main.java");
+        Files.writeString(validFile, "public class Main {\n    public static void main(String[] args) {\n        System.out.println(\"SHOULD_NOT_EXECUTE\");\n    }\n}\n");
+
+        Path invalidFile = tempDir.resolve("Broken.java");
+        Files.writeString(invalidFile, "public class Broken { invalid syntax ;;;;\n");
+
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(
+                        new ExtractedFile("Main.java", validFile, Files.size(validFile), true),
+                        new ExtractedFile("Broken.java", invalidFile, Files.size(invalidFile), true)
+                ),
+                Files.size(validFile) + Files.size(invalidFile),
+                "sha256-test"
+        );
+
+        SandboxResult result = service.executeWorkspace(workspace, "Main");
+
+        assertThat(result.getStatus()).isEqualTo(SandboxResult.Status.COMPILE_ERROR);
+        assertThat(result.getExitCode()).isEqualTo(1);
+        assertThat(result.getStdout()).doesNotContain("SHOULD_NOT_EXECUTE");
+        assertThat(result.getStdout() + result.getStderr()).containsAnyOf("error", "Error", "Broken.java");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 17. Multi-file workspace with directory containing spaces and Unicode
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Test
+    @Order(17)
+    void multiFileWorkspace_realContainer_filenamesWithSpacesAndUnicode(@TempDir Path tempDir) throws IOException {
+        Path unicodeDir = Files.createDirectories(tempDir.resolve("thư mục bài tập"));
+        Path helperFile = unicodeDir.resolve("BàiTập.java");
+        Files.writeString(helperFile, "public class BàiTập {\n    public static String chào() {\n        return \"UNICODE_SPACES_SUCCESS\";\n    }\n}\n", java.nio.charset.StandardCharsets.UTF_8);
+
+        Path mainFile = tempDir.resolve("Main.java");
+        Files.writeString(mainFile, "public class Main {\n    public static void main(String[] args) {\n        System.out.println(BàiTập.chào());\n    }\n}\n", java.nio.charset.StandardCharsets.UTF_8);
+
+        ExtractedWorkspace workspace = new ExtractedWorkspace(
+                tempDir,
+                List.of(
+                        new ExtractedFile("thư mục bài tập/BàiTập.java", helperFile, Files.size(helperFile), true),
+                        new ExtractedFile("Main.java", mainFile, Files.size(mainFile), true)
+                ),
+                Files.size(helperFile) + Files.size(mainFile),
+                "sha256-test"
+        );
+
+        SandboxResult result = service.executeWorkspace(workspace, "Main");
+
+        assertThat(result.getStatus()).isEqualTo(SandboxResult.Status.SUCCESS);
+        assertThat(result.getExitCode()).isEqualTo(0);
+        assertThat(result.getStdout()).contains("UNICODE_SPACES_SUCCESS");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 18. Multi-file workspace malformed/truncated TAR fails closed in real container
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Test
+    @Order(18)
+    void multiFileWorkspace_realContainer_malformedOrTruncatedTarFailsClosed() {
+        // Corrupted TAR payload (not a valid POSIX TAR archive)
+        byte[] corruptTarBytes = "THIS_IS_NOT_A_VALID_TAR_PAYLOAD_CORRUPTED_BYTES".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+
+        SandboxResult result = service.runWorkspaceInContainerWithTar(corruptTarBytes, "Main");
+
+        // Fail-closed extraction terminates with status RUNTIME_ERROR (exit 43)
+        assertThat(result.getStatus()).isEqualTo(SandboxResult.Status.RUNTIME_ERROR);
+        assertThat(result.getExitCode()).isEqualTo(43);
+        assertThat(result.getStderr()).contains("Failed to unpack workspace archive");
+        assertThat(result.getStdout()).isEmpty();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // 19. Multi-file workspace invalid Base64 fails closed and prevents sentinel execution
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Test
+    @Order(19)
+    void multiFileWorkspace_realContainer_invalidBase64FailsClosed() {
+        SandboxResult result = service.runWorkspaceInContainerWithBase64Tar("invalid%%%base64%%%string", "Main");
+
+        assertThat(result.getStatus()).isEqualTo(SandboxResult.Status.RUNTIME_ERROR);
+        assertThat(result.getExitCode()).isEqualTo(43);
+        assertThat(result.getStderr()).contains("Failed to unpack workspace archive");
+        assertThat(result.getStdout()).isEmpty();
     }
 }

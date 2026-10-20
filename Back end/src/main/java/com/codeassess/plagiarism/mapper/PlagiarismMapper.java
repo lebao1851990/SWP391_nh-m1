@@ -26,6 +26,14 @@ public class PlagiarismMapper {
                 .studentBName(pair.getSubmissionB().getStudent().getFullName())
                 .similarityRate(pair.getSimilarityRate())
                 .isFlagged(pair.getIsFlagged())
+                .examId(pair.getExam() != null ? pair.getExam().getId() : null)
+                .examTitle(pair.getExam() != null ? pair.getExam().getTitle() : null)
+                .className(pair.getExam() != null && pair.getExam().getCourseClass() != null ? pair.getExam().getCourseClass().getName() : null)
+                .adjudicationStatus(pair.getAdjudicationStatus() != null ? pair.getAdjudicationStatus() : "PENDING")
+                .adjudicationNotes(pair.getAdjudicationNotes())
+                .adjudicatedBy(pair.getAdjudicatedBy() != null ? 
+                        (pair.getAdjudicatedBy().getFullName() != null ? pair.getAdjudicatedBy().getFullName() : pair.getAdjudicatedBy().getEmail()) : null)
+                .adjudicatedAt(pair.getAdjudicatedAt())
                 .build();
     }
 
@@ -67,6 +75,11 @@ public class PlagiarismMapper {
                 .sourceCodeA(pair.getSubmissionA().getSourceCode())
                 .sourceCodeB(pair.getSubmissionB().getSourceCode())
                 .matches(matches)
+                .adjudicationStatus(pair.getAdjudicationStatus() != null ? pair.getAdjudicationStatus() : "PENDING")
+                .adjudicationNotes(pair.getAdjudicationNotes())
+                .adjudicatedBy(pair.getAdjudicatedBy() != null ? 
+                        (pair.getAdjudicatedBy().getFullName() != null ? pair.getAdjudicatedBy().getFullName() : pair.getAdjudicatedBy().getEmail()) : null)
+                .adjudicatedAt(pair.getAdjudicatedAt())
                 .build();
     }
 

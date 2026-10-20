@@ -73,6 +73,52 @@ export function useUpdateAdminClass() {
   });
 }
 
+// --- Class Roster ---
+export function useAdminClassStudents(classId: string) {
+  return useQuery({
+    queryKey: ['admin', 'classes', classId, 'students'],
+    queryFn: () => adminApi.getClassStudents(classId),
+    enabled: !!classId,
+  });
+}
+
+export function useEnrollStudent(classId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { studentId?: string; email?: string }) => adminApi.enrollStudent(classId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'classes', classId, 'students'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'classes', classId] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'classes'] });
+    },
+  });
+}
+
+export function useUnenrollStudent(classId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (studentId: string) => adminApi.unenrollStudent(classId, studentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'classes', classId, 'students'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'classes', classId] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'classes'] });
+    },
+  });
+}
+
+export function useImportStudentsFromExcel(classId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ file, strict }: { file: File; strict: boolean }) =>
+      adminApi.importStudentsFromExcel(classId, file, strict),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'classes', classId, 'students'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'classes', classId] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'classes'] });
+    },
+  });
+}
+
 // --- Exams ---
 export function useAdminExams() {
   return useQuery({
