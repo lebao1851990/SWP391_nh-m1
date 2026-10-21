@@ -119,4 +119,36 @@ public class SubmissionStorageService {
 
         return fileList;
     }
+
+    public Long getZipSizeBytes(String submissionId) {
+        if (submissionId == null) {
+            return null;
+        }
+        Path targetFile = storageDirectory.resolve(submissionId + ".zip").normalize();
+        if (targetFile.startsWith(storageDirectory) && Files.exists(targetFile)) {
+            try {
+                return Files.size(targetFile);
+            } catch (IOException e) {
+                log.warn("Could not read file size for submission {}: {}", submissionId, e.getMessage());
+            }
+        }
+        return null;
+    }
+
+    public byte[] createZipFromSourceCode(String entryFilename, String sourceCode) {
+        String safeName = entryFilename != null && !entryFilename.isBlank() ? entryFilename : "Main.java";
+        try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+             java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(baos)) {
+            java.util.zip.ZipEntry zipEntry = new java.util.zip.ZipEntry(safeName);
+            zos.putNextEntry(zipEntry);
+            byte[] bytes = sourceCode != null ? sourceCode.getBytes(StandardCharsets.UTF_8) : new byte[0];
+            zos.write(bytes);
+            zos.closeEntry();
+            zos.finish();
+            return baos.toByteArray();
+        } catch (IOException e) {
+            log.error("Failed to generate ZIP archive from source code: {}", e.getMessage(), e);
+            throw new IllegalStateException("Failed to generate ZIP archive from source code: " + e.getMessage(), e);
+        }
+    }
 }

@@ -667,13 +667,13 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
                                   <span className="font-mono bg-surface-container px-2 py-0.5 rounded font-bold text-on-surface">
                                     {sub.totalScore ?? sub.autoScore ?? 0}
                                   </span>
-                                  <span className="text-outline text-[10px] ml-0.5">/100</span>
+                                  <span className="text-outline text-[10px] ml-0.5">/10</span>
                                   {sub.autoScore !== undefined && sub.autoScore !== sub.totalScore && (
                                     <p className="text-[10px] text-outline font-mono mt-0.5">Auto: {sub.autoScore}</p>
                                   )}
                                 </div>
                               ) : isFailed ? (
-                                <span className="text-[11px] text-rose-600 font-medium">0/100 (Lỗi)</span>
+                                <span className="text-[11px] text-rose-600 font-medium">0/10 (Lỗi)</span>
                               ) : (
                                 <span className="text-[11px] text-outline">Chưa có điểm</span>
                               )}

@@ -66,3 +66,23 @@ export async function resolveAdminAppeal(appealId: string, payload: AppealResolv
   const response = await apiClient.put<Appeal>(`/admin/appeals/${appealId}/resolve`, payload);
   return response.data;
 }
+
+/**
+ * Download submission archive (ZIP) for Admin appeal inspection
+ */
+export async function downloadAdminAppealArchive(appealId: string): Promise<{ blob: Blob; filename: string }> {
+  const response = await apiClient.get<Blob>(`/admin/appeals/${appealId}/submission/archive`, {
+    responseType: 'blob',
+  });
+
+  let filename = `appeal-${appealId}-submission.zip`;
+  const disposition = response.headers?.['content-disposition'];
+  if (disposition) {
+    const filenameMatch = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/);
+    if (filenameMatch) {
+      filename = decodeURIComponent(filenameMatch[1] || filenameMatch[2]);
+    }
+  }
+
+  return { blob: response.data, filename };
+}

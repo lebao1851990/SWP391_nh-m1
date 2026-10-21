@@ -95,7 +95,7 @@ export function StudentResultView({ submissionId }: StudentResultViewProps) {
       {/* Main Score Banner Card */}
       {(() => {
         const effectiveScore = data.effectiveScore ?? (data.overrideTotalScore != null ? data.overrideTotalScore : data.totalScore);
-        const maxScore = data.maxTotalScore ?? (data.criteria?.length ? data.criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0) : 100);
+        const maxScore = data.maxTotalScore ?? (data.criteria?.length ? data.criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0) : 10);
         const isOverridden = data.overrideTotalScore != null;
 
         return (
@@ -146,7 +146,7 @@ export function StudentResultView({ submissionId }: StudentResultViewProps) {
                 Đạt: {data.testCasesPassed ?? 0} / {data.testCasesTotal ?? data.testResults.length} test
               </span>
               <span className="px-3 py-1 rounded-full font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                Điểm tự động: {data.autoScore ?? 0} / 100 đ
+                Điểm tự động: {data.autoScore ?? 0} / 10 đ
               </span>
             </div>
           </div>

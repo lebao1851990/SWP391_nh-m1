@@ -299,7 +299,7 @@ export function StudentExamsView() {
                       <td className="py-3 px-4">
                         {exam.submission ? (
                           <span className="font-mono bg-surface-container px-2 py-0.5 rounded font-bold text-xs text-on-surface">
-                            {exam.submission.totalScore ?? 0} <span className="text-outline text-[10px]">/ 100</span>
+                            {exam.submission.totalScore ?? 0} <span className="text-outline text-[10px]">/ 10</span>
                           </span>
                         ) : (
                           <span className="text-outline text-xs">--</span>

@@ -10,8 +10,10 @@ import com.codeassess.scoring.entity.GradeAuditLog;
 import com.codeassess.scoring.repository.GradeAuditLogRepository;
 import com.codeassess.submission.entity.Submission;
 import com.codeassess.submission.repository.SubmissionRepository;
+import com.codeassess.submission.service.SubmissionStorageService;
 import com.codeassess.user.entity.User;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,11 +24,13 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AdminAppealService {
 
     private final AppealRepository appealRepository;
     private final SubmissionRepository submissionRepository;
     private final GradeAuditLogRepository gradeAuditLogRepository;
+    private final SubmissionStorageService submissionStorageService;
 
     @Transactional(readOnly = true)
     public List<AppealResponseDto> getAdminAppeals(String status) {
@@ -89,8 +93,8 @@ public class AdminAppealService {
 
             if (dto.getAdjustedScore() != null) {
                 BigDecimal newScore = dto.getAdjustedScore();
-                if (newScore.compareTo(BigDecimal.ZERO) < 0 || newScore.compareTo(BigDecimal.valueOf(100)) > 0) {
-                    throw new IllegalArgumentException("Điểm điều chỉnh phải nằm trong khoảng từ 0 đến 100.");
+                if (newScore.compareTo(BigDecimal.ZERO) < 0 || newScore.compareTo(BigDecimal.valueOf(10)) > 0) {
+                    throw new IllegalArgumentException("Điểm điều chỉnh phải nằm trong khoảng từ 0 đến 10.");
                 }
 
                 if (submission != null) {
@@ -157,6 +161,78 @@ public class AdminAppealService {
         return toDto(saved);
     }
 
+    @Transactional
+    public byte[] getAppealSubmissionArchive(String opaqueId, User admin) {
+        Long id = OpaqueIdEncoder.decode(opaqueId);
+        if (id == null) {
+            throw new ResourceNotFoundException("Appeal not found");
+        }
+
+        Appeal appeal = appealRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Appeal not found"));
+
+        Submission submission = appeal.getSubmission();
+        if (submission == null) {
+            throw new ResourceNotFoundException("Submission not found for this appeal");
+        }
+
+        byte[] zipBytes = null;
+        if (submissionStorageService.hasZip(submission.getId())) {
+            zipBytes = submissionStorageService.getZipBytes(submission.getId());
+        } else if (submission.getSourceCode() != null && !submission.getSourceCode().isBlank()) {
+            String entryName = submission.getOriginalFilename() != null && !submission.getOriginalFilename().isBlank()
+                    ? submission.getOriginalFilename()
+                    : "Main.java";
+            zipBytes = submissionStorageService.createZipFromSourceCode(entryName, submission.getSourceCode());
+        }
+
+        if (zipBytes == null || zipBytes.length == 0) {
+            throw new ResourceNotFoundException("Không tìm thấy tệp mã nguồn hoặc file nộp của bài thi này.");
+        }
+
+        // Record audit trail for admin archive download
+        BigDecimal currentEffective = submission.getOverrideScore() != null ? submission.getOverrideScore() 
+                : (submission.getTotalScore() != null ? submission.getTotalScore() : submission.getAutoScore());
+        String actorName = admin != null ? (admin.getFullName() != null ? admin.getFullName() : admin.getEmail()) : "Admin";
+
+        GradeAuditLog auditLog = GradeAuditLog.builder()
+                .submission(submission)
+                .actor(admin)
+                .actionType("APPEAL_ARCHIVE_DOWNLOADED")
+                .preRubricScore(submission.getTotalScore())
+                .postRubricScore(submission.getTotalScore())
+                .preOverrideScore(submission.getOverrideScore())
+                .postOverrideScore(submission.getOverrideScore())
+                .preEffectiveScore(currentEffective)
+                .postEffectiveScore(currentEffective)
+                .rationale("Quản trị viên " + actorName + " đã tải file ZIP bài nộp để thẩm định khiếu nại #" + appeal.getId())
+                .build();
+        gradeAuditLogRepository.save(auditLog);
+
+        log.info("Admin {} downloaded submission archive {} for appeal {}", 
+                actorName, submission.getId(), appeal.getId());
+
+        return zipBytes;
+    }
+
+    @Transactional(readOnly = true)
+    public String getSubmissionArchiveFilename(String opaqueId) {
+        Long id = OpaqueIdEncoder.decode(opaqueId);
+        if (id == null) {
+            return "submission.zip";
+        }
+        Appeal appeal = appealRepository.findById(id).orElse(null);
+        if (appeal != null && appeal.getSubmission() != null) {
+            Submission sub = appeal.getSubmission();
+            if (sub.getOriginalFilename() != null && !sub.getOriginalFilename().isBlank()) {
+                String fn = sub.getOriginalFilename().trim();
+                return fn.toLowerCase().endsWith(".zip") ? fn : fn + ".zip";
+            }
+            return "submission-" + sub.getId() + ".zip";
+        }
+        return "submission.zip";
+    }
+
     private AppealResponseDto toDto(Appeal appeal) {
         Submission sub = appeal.getSubmission();
         BigDecimal originalScore = sub != null ? sub.getTotalScore() : null;
@@ -174,6 +250,17 @@ public class AdminAppealService {
                     reviewerName = actor.getFullName();
                     reviewerEmail = actor.getEmail();
                 }
+            }
+        }
+
+        Long fileSize = null;
+        boolean hasArchive = false;
+        if (sub != null) {
+            hasArchive = submissionStorageService.hasZip(sub.getId())
+                    || (sub.getSourceCode() != null && !sub.getSourceCode().isBlank());
+            fileSize = submissionStorageService.getZipSizeBytes(sub.getId());
+            if (fileSize == null && sub.getSourceCode() != null) {
+                fileSize = (long) sub.getSourceCode().getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
             }
         }
 
@@ -195,6 +282,13 @@ public class AdminAppealService {
                 .testCasesPassed(sub != null ? sub.getTestCasesPassed() : null)
                 .testCasesTotal(sub != null ? sub.getTestCasesTotal() : null)
                 .submissionStatus(sub != null ? sub.getStatus() : null)
+                .originalFilename(sub != null ? sub.getOriginalFilename() : null)
+                .submissionType(sub != null ? sub.getSubmissionType() : null)
+                .fileSize(fileSize)
+                .hasArchive(hasArchive)
+                .executionStatus(sub != null ? sub.getExecutionStatus() : null)
+                .compileOutput(sub != null ? sub.getCompileOutput() : null)
+                .submittedAt(sub != null ? (sub.getEvaluatedAt() != null ? sub.getEvaluatedAt() : sub.getCreatedAt()) : null)
                 .reviewerName(reviewerName)
                 .reviewerEmail(reviewerEmail)
                 .createdAt(appeal.getCreatedAt())

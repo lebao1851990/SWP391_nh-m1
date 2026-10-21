@@ -97,14 +97,14 @@ public class AdminAppealControllerTest {
         AppealResolveRequestDto request = AppealResolveRequestDto.builder()
                 .decision("APPROVED")
                 .reviewerNotes("Accepting valid explanation")
-                .adjustedScore(BigDecimal.valueOf(90.0))
+                .adjustedScore(BigDecimal.valueOf(9.0))
                 .build();
 
         AppealResponseDto response = AppealResponseDto.builder()
                 .id("apl_100")
                 .status("APPROVED")
                 .reviewerNotes("Accepting valid explanation")
-                .updatedScore(BigDecimal.valueOf(90.0))
+                .updatedScore(BigDecimal.valueOf(9.0))
                 .build();
 
         when(adminAppealService.resolveAppeal(eq("apl_100"), any(), any())).thenReturn(response);
@@ -115,7 +115,37 @@ public class AdminAppealControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("APPROVED"))
-                .andExpect(jsonPath("$.updatedScore").value(90.0));
+                .andExpect(jsonPath("$.updatedScore").value(9.0));
+    }
+
+    @Test
+    @WithMockUser(username = "admin@codeassess.edu", roles = "ADMIN")
+    public void resolveAppeal_ExceedingScale10_ReturnsBadRequest() throws Exception {
+        when(userRepository.findByEmail("admin@codeassess.edu")).thenReturn(Optional.of(admin));
+        AppealResolveRequestDto request = AppealResolveRequestDto.builder()
+                .decision("APPROVED")
+                .reviewerNotes("Score too high")
+                .adjustedScore(BigDecimal.valueOf(15.0))
+                .build();
+
+        mockMvc.perform(put("/api/admin/appeals/apl_100/resolve")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "admin@codeassess.edu", roles = "ADMIN")
+    public void downloadArchive_Success() throws Exception {
+        when(userRepository.findByEmail("admin@codeassess.edu")).thenReturn(Optional.of(admin));
+        byte[] fakeZip = new byte[]{0x50, 0x4b, 0x03, 0x04};
+        when(adminAppealService.getAppealSubmissionArchive(eq("apl_100"), any())).thenReturn(fakeZip);
+        when(adminAppealService.getSubmissionArchiveFilename(eq("apl_100"))).thenReturn("submission-test.zip");
+
+        mockMvc.perform(get("/api/admin/appeals/apl_100/submission/archive"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Content-Type", "application/zip"));
     }
 
     @Test

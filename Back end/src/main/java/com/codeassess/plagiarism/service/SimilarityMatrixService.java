@@ -224,6 +224,12 @@ public class SimilarityMatrixService {
                 Submission sub1 = submissions.get(i);
                 Submission sub2 = submissions.get(j);
 
+                // Exclude self-comparison if student resubmitted multiple times
+                if (sub1.getStudent() != null && sub2.getStudent() != null
+                        && sub1.getStudent().getId().equals(sub2.getStudent().getId())) {
+                    continue;
+                }
+
                 Submission subA = sub1.getId().compareTo(sub2.getId()) < 0 ? sub1 : sub2;
                 Submission subB = sub1.getId().compareTo(sub2.getId()) < 0 ? sub2 : sub1;
 
