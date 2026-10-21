@@ -664,4 +664,93 @@ public class MatrixReconciliationIntegrationTest {
         boolean duplicateProcessed = matrixRefreshWorker.processJob(payload);
         assertThat(duplicateProcessed).isTrue(); // Safely handled as idempotent no-op!
     }
+
+    @Test
+    @DisplayName("Drain pending generations: generateMatrixForExam automatically loops to drain newly requested generation")
+    public void testMultipleRefreshRequestsWhileMatrixIsRunningDrainsGenerationsAutomatically() {
+        TestExamContext ctx = createTestExamWithSubmissions();
+
+        // Initial state: generation 1 requested
+        coordinationRepository.requestMatrixRefresh(ctx.exam().getId());
+
+        // In addition, add SubC
+        String suffix = randomSuffix();
+        User stuC = userRepository.save(User.builder().email("sc_" + suffix + "@test.com").fullName("Student C").passwordHash("pwd").role(Role.STUDENT).build());
+        Submission subC = submissionRepository.save(Submission.builder().exam(ctx.exam()).student(stuC).status("EVALUATED").sourceCode("code C").build());
+        fingerprintRepository.save(AstFingerprint.builder().submission(subC).hashValue(1001L).nodeType("MethodDeclaration").startLine(1).endLine(5).build());
+
+        // Also request refresh for SubC (requested_generation = 2)
+        coordinationRepository.requestMatrixRefresh(ctx.exam().getId());
+
+        ExamMatrixCoordination coordBefore = coordinationRepository.findById(ctx.exam().getId()).orElseThrow();
+        assertThat(coordBefore.getRequestedGeneration()).isEqualTo(2L);
+        assertThat(coordBefore.getCurrentGeneration()).isEqualTo(0L);
+
+        // Run generateMatrixForExam once
+        similarityMatrixService.generateMatrixForExam(ctx.exam().getId(), "drain-worker");
+
+        // Verify that all generations are drained up to 2 without waiting for sweeper
+        ExamMatrixCoordination coordAfter = coordinationRepository.findById(ctx.exam().getId()).orElseThrow();
+        assertThat(coordAfter.getStatus()).isEqualTo("IDLE");
+        assertThat(coordAfter.getCurrentGeneration()).isEqualTo(2L);
+        assertThat(coordAfter.getRequestedGeneration()).isEqualTo(2L);
+
+        // All 3 pairs ((A,B), (A,C), (B,C)) must be present
+        List<SimilarityPair> pairs = similarityPairRepository.findByExam_Id(ctx.exam().getId());
+        assertThat(pairs).hasSize(3);
+    }
+
+    @Test
+    @DisplayName("Concurrent matrix generation: Three workers concurrently calling generateMatrixForExam produce all 3 pairs without deadlock")
+    public void testThreeConcurrentWorkersDoNotDeadlockAndProduceAllPairs() throws Exception {
+        TestExamContext ctx = createTestExamWithSubmissions();
+
+        // Add 3rd submission SubC
+        String suffix = randomSuffix();
+        User stuC = userRepository.save(User.builder().email("sc2_" + suffix + "@test.com").fullName("Student C2").passwordHash("pwd").role(Role.STUDENT).build());
+        Submission subC = submissionRepository.save(Submission.builder().exam(ctx.exam()).student(stuC).status("EVALUATED").sourceCode("code C2").build());
+        fingerprintRepository.save(AstFingerprint.builder().submission(subC).hashValue(1001L).nodeType("MethodDeclaration").startLine(1).endLine(5).build());
+
+        // 3 refresh requests arrived
+        coordinationRepository.requestMatrixRefresh(ctx.exam().getId());
+        coordinationRepository.requestMatrixRefresh(ctx.exam().getId());
+        coordinationRepository.requestMatrixRefresh(ctx.exam().getId());
+
+        int threadCount = 3;
+        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(threadCount);
+        java.util.concurrent.CountDownLatch readyLatch = new java.util.concurrent.CountDownLatch(threadCount);
+        java.util.concurrent.CountDownLatch startLatch = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicInteger failureCount = new java.util.concurrent.atomic.AtomicInteger(0);
+
+        for (int i = 0; i < threadCount; i++) {
+            final String workerId = "concurrent-worker-" + i;
+            executor.submit(() -> {
+                readyLatch.countDown();
+                try {
+                    startLatch.await();
+                    similarityMatrixService.generateMatrixForExam(ctx.exam().getId(), workerId);
+                } catch (Exception e) {
+                    failureCount.incrementAndGet();
+                }
+            });
+        }
+
+        readyLatch.await();
+        startLatch.countDown();
+        executor.shutdown();
+        boolean finished = executor.awaitTermination(15, java.util.concurrent.TimeUnit.SECONDS);
+        assertThat(finished).isTrue();
+
+        // No uncaught exceptions / deadlocks
+        assertThat(failureCount.get()).isEqualTo(0);
+
+        // Final state: all 3 pairs exist
+        List<SimilarityPair> pairs = similarityPairRepository.findByExam_Id(ctx.exam().getId());
+        assertThat(pairs).hasSize(3);
+
+        // Status is IDLE and currentGeneration equals requestedGeneration
+        ExamMatrixCoordination coord = coordinationRepository.findById(ctx.exam().getId()).orElseThrow();
+        assertThat(coord.getStatus()).isEqualTo("IDLE");
+        assertThat(coord.getCurrentGeneration()).isEqualTo(coord.getRequestedGeneration());
+    }
 }

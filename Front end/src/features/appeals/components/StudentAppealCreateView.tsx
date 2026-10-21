@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { AppLink as Link } from '@/components/ui/app-link';
 import { useSearchParams } from 'next/navigation';
 import { useAppRouter as useRouter } from '@/hooks/use-app-router';
-import { AxiosError } from 'axios';
 import { useCreateAppeal, useStudentAppeals } from '../hooks';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,23 +13,22 @@ import {
   Send, 
   CheckCircle2, 
   AlertCircle, 
-  X, 
   Scale, 
   FileText, 
   Check, 
   Loader2,
-  HelpCircle,
-  ShieldCheck,
-  ShieldAlert
+  ShieldCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from '@/i18n';
 
 export function StudentAppealCreateView() {
+  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const submissionId = searchParams?.get('submissionId') || '';
 
-  const { data: appeals, isLoading: isLoadingAppeals } = useStudentAppeals();
+  const { data: appeals } = useStudentAppeals();
   const createAppeal = useCreateAppeal();
 
   const existingPendingAppeal = appeals?.find(a => a.submissionId === submissionId && a.status === 'PENDING');
@@ -58,7 +56,7 @@ export function StudentAppealCreateView() {
     if (!formData) return;
     createAppeal.mutate(formData, {
       onSuccess: () => {
-        toast.success('Appeal ticket submitted successfully! Forwarded to Examination Board.');
+        toast.success(t.appeals.appealCreatedSuccess);
         router.push('/student/appeals');
       },
       onError: (err: unknown) => {
@@ -72,12 +70,12 @@ export function StudentAppealCreateView() {
   if (!submissionId) {
     return (
       <div className="p-space-lg max-w-xl mx-auto my-16 text-center bg-surface-container-lowest rounded-2xl border border-outline-variant/40 shadow-lg flex flex-col items-center gap-3">
-        <div className="p-3 rounded-full bg-amber-50 text-amber-600">
+        <div className="p-3 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300">
           <AlertCircle className="w-8 h-8" />
         </div>
-        <h2 className="font-headline-md text-headline-md text-on-surface">Missing Submission Context</h2>
+        <h2 className="font-headline-md text-headline-md text-on-surface">{t.appeals.missingSubmissionContext}</h2>
         <p className="text-xs text-on-surface-variant">Cannot create an appeal without an associated submission record.</p>
-        <Link href="/student/dashboard" className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium">
+        <Link href="/student/dashboard" className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors">
           Return to Dashboard
         </Link>
       </div>
@@ -93,16 +91,16 @@ export function StudentAppealCreateView() {
             <nav className="flex items-center gap-2 text-on-surface-variant text-xs mb-1">
               <Link className="hover:text-primary transition-colors flex items-center gap-1 font-medium" href="/student/appeals">
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>My Appeals</span>
+                <span>{t.appeals.appealsListTitle}</span>
               </Link>
               <span className="text-outline">/</span>
-              <span className="text-primary font-semibold">New Appeal Ticket</span>
+              <span className="text-primary font-semibold">{t.appeals.createAppealButton}</span>
             </nav>
             <div className="flex items-center gap-space-sm flex-wrap">
               <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">
-                Submit Grade &amp; Similarity Appeal
+                {t.appeals.createAppealButton}
               </h1>
-              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 font-bold uppercase">
+              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/40 font-bold uppercase">
                 Formal Proceeding
               </span>
             </div>
@@ -120,12 +118,12 @@ export function StudentAppealCreateView() {
 
         {/* Existing Pending Warning */}
         {existingPendingAppeal && (
-          <div className="bg-amber-50 p-space-md rounded-2xl border border-amber-200 text-amber-800 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="bg-amber-50 dark:bg-amber-950/40 p-space-md rounded-2xl border border-amber-200 dark:border-amber-800/40 text-amber-800 dark:text-amber-200 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div className="text-xs space-y-1">
-              <p className="font-semibold text-amber-900">Active Appeal Already Pending</p>
+              <p className="font-semibold text-amber-900 dark:text-amber-100">Active Appeal Already Pending</p>
               <p>You already have a pending appeal for this submission (#{existingPendingAppeal.id.substring(0, 8)}). Per institutional policy, only one active appeal may be processed at a time.</p>
-              <Link href="/student/appeals" className="inline-block mt-1 font-semibold underline text-amber-900">
+              <Link href="/student/appeals" className="inline-block mt-1 font-semibold underline text-amber-900 dark:text-amber-100">
                 View existing appeal ticket &rarr;
               </Link>
             </div>
@@ -163,7 +161,7 @@ export function StudentAppealCreateView() {
             >
               <div className="space-y-space-sm">
                 <label className="text-xs font-semibold text-on-surface block uppercase tracking-wider">
-                  1. Select Appeal Classification *
+                  1. {t.appeals.appealBasisLabel} *
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                   <label className="flex flex-col p-3 rounded-xl bg-surface-container-low border border-outline-variant/40 hover:border-primary cursor-pointer transition-all">
@@ -172,7 +170,7 @@ export function StudentAppealCreateView() {
                       <Scale className="w-4 h-4 text-primary" />
                       <span className="w-3.5 h-3.5 rounded-full border border-outline peer-checked:border-primary peer-checked:bg-primary transition-all"></span>
                     </div>
-                    <span className="text-xs font-semibold text-on-surface">AST Similarity Defense</span>
+                    <span className="text-xs font-semibold text-on-surface">{t.appeals.basisAstClarification}</span>
                     <span className="text-[10px] text-on-surface-variant mt-0.5">False-positive isomorphism</span>
                   </label>
 
@@ -182,7 +180,7 @@ export function StudentAppealCreateView() {
                       <FileText className="w-4 h-4 text-secondary" />
                       <span className="w-3.5 h-3.5 rounded-full border border-outline peer-checked:border-primary peer-checked:bg-primary transition-all"></span>
                     </div>
-                    <span className="text-xs font-semibold text-on-surface">Automated Grading</span>
+                    <span className="text-xs font-semibold text-on-surface">{t.appeals.basisTechnicalIssue}</span>
                     <span className="text-[10px] text-on-surface-variant mt-0.5">Test runner timeout or error</span>
                   </label>
 
@@ -192,7 +190,7 @@ export function StudentAppealCreateView() {
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                       <span className="w-3.5 h-3.5 rounded-full border border-outline peer-checked:border-primary peer-checked:bg-primary transition-all"></span>
                     </div>
-                    <span className="text-xs font-semibold text-on-surface">Rubric Clarification</span>
+                    <span className="text-xs font-semibold text-on-surface">{t.appeals.basisGradingDiscrepancy}</span>
                     <span className="text-[10px] text-on-surface-variant mt-0.5">Criteria score miscalculation</span>
                   </label>
                 </div>
@@ -202,7 +200,7 @@ export function StudentAppealCreateView() {
               <div className="space-y-2 pt-space-md border-t border-outline-variant/30">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-on-surface block uppercase tracking-wider">
-                    2. Explanation &amp; Substantiating Evidence *
+                    2. {t.appeals.appealReasonLabel} *
                   </label>
                   <span className={`text-[11px] font-mono ${explanationLength < 20 ? 'text-rose-600' : 'text-outline'}`}>
                     {explanationLength} / 1000 chars (min 20)
@@ -213,8 +211,8 @@ export function StudentAppealCreateView() {
                 </p>
                 <textarea 
                   {...register('explanation')}
-                  className="w-full bg-surface-container-low rounded-xl p-3 text-xs text-on-surface border border-outline-variant/40 focus:border-primary focus:outline-none transition-all resize-y leading-relaxed" 
-                  placeholder="e.g. In methods calculateHash() and traverseTree(), standard textbook BFS algorithms were adapted from Lecture 6 slides..." 
+                  className="w-full bg-surface-container-low rounded-xl p-3 text-xs text-on-surface border border-outline-variant/40 focus:border-primary focus:outline-none transition-all resize-y leading-relaxed placeholder:text-outline" 
+                  placeholder={t.appeals.appealReasonPlaceholder} 
                   rows={6}
                 />
                 {errors.explanation && <span className="text-rose-600 text-xs font-medium">{errors.explanation.message}</span>}
@@ -225,7 +223,7 @@ export function StudentAppealCreateView() {
                   href="/student/appeals"
                   className="px-4 py-2 rounded-lg text-xs font-medium text-on-surface-variant hover:bg-surface-container transition-colors"
                 >
-                  Cancel
+                  {t.common.cancel}
                 </Link>
                 <button 
                   disabled={createAppeal.isPending || !!existingPendingAppeal} 
@@ -233,7 +231,7 @@ export function StudentAppealCreateView() {
                   type="submit"
                 >
                   <Send className="w-3.5 h-3.5" />
-                  <span>Submit Formal Appeal</span>
+                  <span>{t.appeals.submitAppealButton}</span>
                 </button>
               </div>
             </form>
@@ -246,17 +244,17 @@ export function StudentAppealCreateView() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-surface-container-lowest rounded-2xl max-w-md w-full shadow-2xl border border-outline-variant/40 p-6 flex flex-col gap-4 animate-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-full bg-blue-50 text-blue-600">
+              <div className="p-2.5 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300">
                 <Scale className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="font-headline-sm text-headline-sm font-semibold text-on-surface">Confirm Appeal Filing</h3>
+                <h3 className="font-headline-sm text-headline-sm font-semibold text-on-surface">{t.appeals.confirmSubmitAppealTitle}</h3>
                 <span className="text-xs text-outline">Academic Governance Proceeding</span>
               </div>
             </div>
 
             <p className="text-xs text-on-surface-variant leading-relaxed">
-              Once submitted, your case docket will be routed to the faculty committee. You will be locked from filing additional tickets for this submission until a resolution is recorded.
+              {t.appeals.confirmSubmitAppealDesc}
             </p>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-outline-variant/30">
@@ -265,7 +263,7 @@ export function StudentAppealCreateView() {
                 onClick={() => setShowConfirm(false)}
                 className="px-4 py-2 rounded-lg text-xs font-medium border border-outline-variant/40 hover:bg-surface-container transition-colors cursor-pointer"
               >
-                Review Rationale
+                {t.common.cancel}
               </button>
               <button 
                 type="button" 
@@ -276,12 +274,12 @@ export function StudentAppealCreateView() {
                 {createAppeal.isPending ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Filing...</span>
+                    <span>{t.appeals.submittingAppeal}</span>
                   </>
                 ) : (
                   <>
                     <Check className="w-3.5 h-3.5" />
-                    <span>Confirm &amp; Transmit</span>
+                    <span>{t.common.confirm}</span>
                   </>
                 )}
               </button>

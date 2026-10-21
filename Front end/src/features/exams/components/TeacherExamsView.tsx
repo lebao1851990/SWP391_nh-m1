@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTeacherExams, useTeacherClasses, useCreateExam } from '../hooks/use-teacher-exams';
+import { ClassMultiSelectDropdown } from './ClassMultiSelectDropdown';
 import { AppLink as Link } from '@/components/ui/app-link';
 import { 
   Search, 
@@ -10,18 +11,23 @@ import {
   X, 
   ChevronDown, 
   FileCode2, 
-  Calendar, 
-  Clock, 
   ExternalLink,
   AlertCircle,
-  Loader2,
-  Users
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from '@/i18n';
 
 export function TeacherExamsView() {
+  const { t, formatDate } = useTranslation();
   const { data: exams, isLoading, isError, error } = useTeacherExams();
-  const { data: classes } = useTeacherClasses();
+  const { 
+    data: classes, 
+    isLoading: isLoadingClasses, 
+    isError: isErrorClasses, 
+    error: classesError,
+    refetch: refetchClasses 
+  } = useTeacherClasses();
   const createExam = useCreateExam();
 
   const [searchQuery, setSearchQuery] = useState(() => {
@@ -41,6 +47,7 @@ export function TeacherExamsView() {
   });
   const [examTitle, setExamTitle] = useState('');
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
+  const [isClassesDropdownOpen, setIsClassesDropdownOpen] = useState(false);
   const [examDate, setExamDate] = useState('');
   const [durationMinutes, setDurationMinutes] = useState(90);
   const [formError, setFormError] = useState('');
@@ -92,6 +99,7 @@ export function TeacherExamsView() {
   const handleOpenCreateModal = () => {
     setExamTitle('');
     setSelectedClassIds(classes && classes.length > 0 ? [classes[0].id] : []);
+    setIsClassesDropdownOpen(false);
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     setExamDate(now.toISOString().slice(0, 16));
@@ -100,30 +108,23 @@ export function TeacherExamsView() {
     setIsCreateModalOpen(true);
   };
 
-  const handleToggleClass = (classId: string) => {
-    setSelectedClassIds(prev => 
-      prev.includes(classId) 
-        ? prev.filter(id => id !== classId)
-        : [...prev, classId]
-    );
-  };
-
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!examTitle.trim()) {
-      setFormError('Exam title is required.');
+      setFormError(t.exams.emptyCodeError || 'Exam title is required.');
       return;
     }
     if (selectedClassIds.length === 0) {
-      setFormError('Please select at least one course class for the exam.');
+      setFormError(t.exams.selectClassRequiredError || 'Please select at least one course class for the exam.');
+      setIsClassesDropdownOpen(true);
       return;
     }
     if (!examDate) {
-      setFormError('Exam date and start time are required.');
+      setFormError(t.exams.examDateLabel || 'Exam date and start time are required.');
       return;
     }
     if (durationMinutes <= 0) {
-      setFormError('Duration must be greater than 0 minutes.');
+      setFormError(t.exams.durationMinutesLabel || 'Duration must be greater than 0 minutes.');
       return;
     }
 
@@ -157,24 +158,24 @@ export function TeacherExamsView() {
     return (
       <div className="flex flex-col h-72 items-center justify-center gap-3">
         <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-        <p className="text-on-surface-variant font-label-md text-xs">Loading course exams...</p>
+        <p className="text-on-surface-variant font-label-md text-xs">{t.exams.loadingCourseExams}</p>
       </div>
     );
   }
 
   if (isError) {
     return (
-      <div className="max-w-xl mx-auto my-12 p-6 rounded-2xl bg-surface-container-lowest border border-rose-200/60 shadow-lg flex flex-col items-center text-center gap-3">
-        <div className="p-3 rounded-full bg-rose-50 text-rose-600">
+      <div className="max-w-xl mx-auto my-12 p-6 rounded-2xl bg-surface-container-lowest border border-rose-200/60 dark:border-rose-900/60 shadow-lg flex flex-col items-center text-center gap-3">
+        <div className="p-3 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
           <AlertCircle className="w-8 h-8" />
         </div>
-        <h2 className="font-headline-md text-headline-md text-on-surface">Error Loading Exams</h2>
+        <h2 className="font-headline-md text-headline-md text-on-surface">{t.exams.errorLoadingExams}</h2>
         <p className="font-body-md text-on-surface-variant text-xs">{(error as Error).message}</p>
         <button 
           onClick={() => window.location.reload()}
           className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-all cursor-pointer"
         >
-          Retry Connection
+          {t.dashboard.retryConnection}
         </button>
       </div>
     );
@@ -185,12 +186,12 @@ export function TeacherExamsView() {
       <div className="flex flex-col w-full min-w-0">
         {/* Success Alert */}
         {successMessage && (
-          <div className="mb-4 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between text-xs animate-in fade-in">
+          <div className="mb-4 p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 flex items-center justify-between text-xs animate-in fade-in">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <span className="font-semibold">{successMessage}</span>
             </div>
-            <button onClick={() => setSuccessMessage('')} className="text-emerald-700 hover:text-emerald-900 cursor-pointer">
+            <button onClick={() => setSuccessMessage('')} className="text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 cursor-pointer">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -200,11 +201,11 @@ export function TeacherExamsView() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-space-md mb-space-lg">
           <div className="flex flex-col">
             <div className="flex items-center gap-space-sm">
-              <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">Exam Management</h1>
-              <span className="font-label-xs text-xs px-2 py-0.5 rounded bg-surface-container border border-outline-variant/30 text-on-surface-variant font-medium">Fall 2026 Term</span>
+              <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">{t.exams.examManagement}</h1>
+              <span className="font-label-xs text-xs px-2 py-0.5 rounded bg-surface-container border border-outline-variant/30 text-on-surface-variant font-medium">{t.header.termBadge}</span>
             </div>
             <p className="font-body-md text-body-md text-on-surface-variant mt-0.5 text-xs sm:text-sm">
-              Create, configure, and monitor your course programming assessments and AST detection runs.
+              {t.exams.examManagementDesc}
             </p>
           </div>
           <button
@@ -213,7 +214,7 @@ export function TeacherExamsView() {
             id="btn-create-exam"
           >
             <PlusCircle className="w-4 h-4" />
-            <span>+ Create Exam</span>
+            <span>{t.exams.createExamButton}</span>
           </button>
         </div>
 
@@ -224,7 +225,7 @@ export function TeacherExamsView() {
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-outline w-4 h-4" />
               <input 
                 className="w-full pl-8 pr-3 py-1.5 bg-surface-container-low rounded-lg text-on-surface font-body-sm text-xs border border-outline-variant/40 focus:outline-none focus:border-primary transition-all" 
-                placeholder="Search exams by title, course, or ID..." 
+                placeholder={t.exams.searchPlaceholder} 
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -242,7 +243,7 @@ export function TeacherExamsView() {
                 value={classFilter}
                 onChange={(e) => setClassFilter(e.target.value)}
               >
-                <option value="all">All Cohorts / Classes</option>
+                <option value="all">{t.exams.allClasses}</option>
                 {uniqueClasses.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-outline w-3.5 h-3.5 pointer-events-none" />
@@ -256,12 +257,12 @@ export function TeacherExamsView() {
             <table className="w-full text-left border-collapse min-w-[900px] text-xs" id="teacher-exams-table">
               <thead>
                 <tr className="bg-surface-container-low text-on-surface-variant font-label-xs uppercase tracking-wider border-b border-outline-variant/30">
-                  <th className="py-2.5 px-4 font-semibold">Exam Title</th>
-                  <th className="py-2.5 px-4 font-semibold">Cohort</th>
-                  <th className="py-2.5 px-4 font-semibold">Scheduled Date</th>
-                  <th className="py-2.5 px-4 font-semibold">Duration</th>
-                  <th className="py-2.5 px-4 font-semibold">Status</th>
-                  <th className="py-2.5 px-4 text-right font-semibold">Actions</th>
+                  <th className="py-2.5 px-4 font-semibold">{t.exams.examTitle}</th>
+                  <th className="py-2.5 px-4 font-semibold">{t.exams.cohort}</th>
+                  <th className="py-2.5 px-4 font-semibold">{t.exams.scheduledDate}</th>
+                  <th className="py-2.5 px-4 font-semibold">{t.exams.durationLabel}</th>
+                  <th className="py-2.5 px-4 font-semibold">{t.common.status}</th>
+                  <th className="py-2.5 px-4 text-right font-semibold">{t.exams.actions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/20 text-on-surface">
@@ -270,11 +271,11 @@ export function TeacherExamsView() {
                     <td colSpan={6} className="py-12 text-center text-outline font-label-md">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <FileCode2 className="w-8 h-8 text-outline" />
-                        <p className="font-headline-sm text-on-surface text-sm">No exams found</p>
+                        <p className="font-headline-sm text-on-surface text-sm">{t.exams.noExamsFound}</p>
                         <p className="text-outline text-xs">
                           {searchQuery || classFilter !== 'all'
-                            ? 'No exams match your search or cohort filter criteria.'
-                            : 'You have not created any exams for your courses yet.'}
+                            ? t.exams.noExamsMatch
+                            : t.exams.noExamsCreated}
                         </p>
                       </div>
                     </td>
@@ -303,14 +304,14 @@ export function TeacherExamsView() {
                         </div>
                       </td>
                       <td className="py-3 px-4 text-on-surface-variant">
-                        {exam.examDate ? new Date(exam.examDate).toLocaleString() : 'Open Schedule'}
+                        {exam.examDate ? formatDate(exam.examDate) : t.exams.openSchedule}
                       </td>
                       <td className="py-3 px-4 text-on-surface-variant">
-                        {exam.duration || 90} mins
+                        {exam.duration || 90} {t.exams.durationMinutesLabel.toLowerCase()}
                       </td>
                       <td className="py-3 px-4">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          Active
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                          {t.exams.statusActive}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right">
@@ -318,7 +319,7 @@ export function TeacherExamsView() {
                           href={`/teacher/exams/${exam.id}`} 
                           className="inline-flex items-center gap-1 px-3 py-1 bg-surface-container hover:bg-surface-container-high text-primary rounded-lg font-medium transition-colors"
                         >
-                          <span>Manage</span>
+                          <span>{t.exams.manage}</span>
                           <ExternalLink className="w-3 h-3" />
                         </Link>
                       </td>
@@ -330,7 +331,7 @@ export function TeacherExamsView() {
           </div>
           <div className="px-4 py-2.5 bg-surface-container-low/40 border-t border-outline-variant/30 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-outline">
             <span>
-              Showing <strong className="text-on-surface">{filteredExams.length}</strong> of <strong className="text-on-surface">{stats.total}</strong> registered exams
+              {t.exams.showingExams.replace('{count}', String(filteredExams.length)).replace('{total}', String(stats.total))}
             </span>
           </div>
         </div>
@@ -342,7 +343,7 @@ export function TeacherExamsView() {
               <div className="flex items-center justify-between border-b border-outline-variant/30 pb-3">
                 <div className="flex items-center gap-2">
                   <PlusCircle className="w-5 h-5 text-primary" />
-                  <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold">Create New Exam</h2>
+                  <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold">{t.exams.createNewExamModal}</h2>
                 </div>
                 <button
                   type="button"
@@ -355,14 +356,14 @@ export function TeacherExamsView() {
 
               <form onSubmit={handleCreateSubmit} className="flex flex-col gap-4">
                 {formError && (
-                  <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2 text-xs">
+                  <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-850 text-rose-700 dark:text-rose-300 flex items-center gap-2 text-xs">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     <span>{formError}</span>
                   </div>
                 )}
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-on-surface">Exam Title *</label>
+                  <label className="text-xs font-semibold text-on-surface">{t.exams.examTitle} *</label>
                   <input
                     type="text"
                     required
@@ -374,71 +375,34 @@ export function TeacherExamsView() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-on-surface">
-                      Assigned Course Classes ({selectedClassIds.length} selected) *
-                    </label>
-                    {classes && classes.length > 1 && (
-                      <div className="flex items-center gap-2 text-[11px]">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedClassIds(classes.map(c => c.id))}
-                          className="text-primary hover:underline font-medium cursor-pointer"
-                        >
-                          Select All
-                        </button>
-                        <span className="text-outline">|</span>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedClassIds([])}
-                          className="text-outline hover:underline cursor-pointer"
-                        >
-                          Clear
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <div className="max-h-44 overflow-y-auto p-2 bg-surface-container-low border border-outline-variant/40 rounded-lg flex flex-col gap-1.5">
-                    {classes && classes.length > 0 ? (
-                      classes.map((cls) => {
-                        const isChecked = selectedClassIds.includes(cls.id);
-                        return (
-                          <label
-                            key={cls.id}
-                            className={`flex items-center justify-between p-2 rounded-md border text-xs cursor-pointer transition-colors ${
-                              isChecked 
-                                ? 'bg-primary/5 border-primary/40 text-on-surface font-medium' 
-                                : 'bg-surface-container-lowest border-outline-variant/20 hover:bg-surface-container-high/40 text-on-surface-variant'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => handleToggleClass(cls.id)}
-                                className="w-3.5 h-3.5 rounded text-primary focus:ring-primary cursor-pointer"
-                              />
-                              <span className="font-mono font-semibold">{cls.code}</span>
-                              <span className="text-outline">—</span>
-                              <span className="truncate max-w-[220px]">{cls.name}</span>
-                            </div>
-                            {cls.studentCount !== undefined && (
-                              <span className="text-[11px] text-outline shrink-0">
-                                {cls.studentCount} students
-                              </span>
-                            )}
-                          </label>
-                        );
-                      })
-                    ) : (
-                      <p className="text-xs text-outline py-2 text-center">No authorized classes found.</p>
-                    )}
-                  </div>
+                  <label 
+                    htmlFor="assigned-classes-trigger"
+                    className="text-xs font-semibold text-on-surface flex items-center justify-between"
+                  >
+                    <span>{t('exams.targetClasses')} ({t('exams.classesSelectedCount', { count: selectedClassIds.length })}) *</span>
+                  </label>
+                  <ClassMultiSelectDropdown
+                    id="assigned-classes-trigger"
+                    classes={classes || []}
+                    selectedClassIds={selectedClassIds}
+                    onChange={(ids) => {
+                      setSelectedClassIds(ids);
+                      if (formError && ids.length > 0) setFormError('');
+                    }}
+                    isLoading={isLoadingClasses}
+                    isError={isErrorClasses}
+                    errorMessage={classesError ? (classesError as Error).message : undefined}
+                    onRetry={() => refetchClasses()}
+                    hasError={!!formError && selectedClassIds.length === 0}
+                    required
+                    isOpen={isClassesDropdownOpen}
+                    onOpenChange={setIsClassesDropdownOpen}
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-semibold text-on-surface">Start Date &amp; Time *</label>
+                    <label className="text-xs font-semibold text-on-surface">{t.exams.startTime} *</label>
                     <input
                       type="datetime-local"
                       required
@@ -449,7 +413,7 @@ export function TeacherExamsView() {
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-semibold text-on-surface">Duration (Minutes) *</label>
+                    <label className="text-xs font-semibold text-on-surface">{t.exams.durationMinutesLabel} *</label>
                     <input
                       type="number"
                       required
@@ -469,7 +433,7 @@ export function TeacherExamsView() {
                     disabled={createExam.isPending}
                     className="px-4 py-2 text-xs rounded-lg border border-outline-variant/40 hover:bg-surface-container transition-colors cursor-pointer"
                   >
-                    Cancel
+                    {t.common.cancel}
                   </button>
                   <button
                     type="submit"
@@ -479,12 +443,12 @@ export function TeacherExamsView() {
                     {createExam.isPending ? (
                       <>
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Creating Exam...</span>
+                        <span>{t.exams.creatingExam}</span>
                       </>
                     ) : (
                       <>
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Publish &amp; Save</span>
+                        <span>{t.exams.publishAndSave}</span>
                       </>
                     )}
                   </button>

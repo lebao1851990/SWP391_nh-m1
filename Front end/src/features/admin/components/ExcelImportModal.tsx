@@ -16,6 +16,7 @@ import {
 import { toast } from 'sonner';
 import { useImportStudentsFromExcel } from '../hooks';
 import { ExcelImportResult } from '../api/admin.api';
+import { useTranslation } from '@/i18n';
 
 interface ExcelImportModalProps {
   isOpen: boolean;
@@ -36,6 +37,7 @@ export function ExcelImportModal({
   classCode,
   onImportSuccess,
 }: ExcelImportModalProps) {
+  const { t } = useTranslation();
   const [file, setFile] = useState<File | null>(null);
   const [strict, setStrict] = useState<boolean>(false);
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
@@ -166,6 +168,7 @@ export function ExcelImportModal({
         className="bg-surface-container-lowest w-full max-w-2xl rounded-2xl shadow-2xl border border-outline-variant/30 flex flex-col overflow-hidden max-h-[92vh] animate-in zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"
+        aria-label="Bulk Import Students from Excel"
         aria-labelledby="excel-import-modal-title"
       >
         {/* Modal Header */}
@@ -176,7 +179,7 @@ export function ExcelImportModal({
             </div>
             <div>
               <h2 id="excel-import-modal-title" className="text-base font-semibold text-on-surface">
-                Bulk Import Students from Excel
+                {t.admin.excelImportTitle}
               </h2>
               <p className="text-xs text-on-surface-variant font-mono">
                 {className} <span className="text-primary font-bold">({classCode})</span>
@@ -200,7 +203,7 @@ export function ExcelImportModal({
             <div className="p-3.5 rounded-xl bg-error/10 border border-error/30 text-error flex items-start gap-2.5 text-xs animate-in fade-in duration-150">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <div>
-                <p className="font-semibold">Import Error</p>
+                <p className="font-semibold">{t.common.error}</p>
                 <p className="mt-0.5 leading-relaxed">{generalError}</p>
               </div>
             </div>
@@ -250,7 +253,7 @@ export function ExcelImportModal({
                       <UploadCloud className="w-8 h-8 text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-on-surface">Choose an Excel spreadsheet or drag & drop</p>
+                      <p className="text-sm font-semibold text-on-surface">{t.admin.dropExcelHere}</p>
                       <p className="text-xs text-on-surface-variant mt-0.5">Supports Microsoft Excel (.xlsx, .xls) up to 10MB</p>
                     </div>
                   </div>
@@ -273,12 +276,12 @@ export function ExcelImportModal({
               <div className="p-4 rounded-xl bg-surface-container-low/40 border border-outline-variant/30 flex items-start justify-between gap-4">
                 <div className="space-y-0.5">
                   <label htmlFor="strict-mode-toggle" className="text-xs font-semibold text-on-surface cursor-pointer select-none">
-                    Strict Mode Validation
+                    {t.admin.importMode}: Strict Validation
                   </label>
                   <p className="text-xs text-on-surface-variant leading-relaxed">
                     {strict
-                      ? 'Strict: Pre-validates the entire file. If any row contains errors, no records are written and the batch rolls back completely.'
-                      : 'Partial (Default): Valid students are enrolled immediately. Invalid or duplicate rows are reported individually without canceling valid records.'}
+                      ? t.admin.fullImportDesc
+                      : t.admin.partialImportDesc}
                   </p>
                 </div>
                 <input
@@ -299,17 +302,18 @@ export function ExcelImportModal({
                   disabled={importMutation.isPending}
                   className="px-4 py-2 rounded-lg text-xs font-semibold text-on-surface-variant hover:bg-surface-container transition-colors disabled:opacity-50 cursor-pointer"
                 >
-                  Cancel
+                  {t.common.cancel}
                 </button>
                 <button
                   type="submit"
                   disabled={!file || importMutation.isPending}
+                  aria-label="Import Roster"
                   className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-on-primary text-xs font-semibold hover:bg-primary-container transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {importMutation.isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Processing import...</span>
+                      <span>{t.admin.importingRoster}</span>
                     </>
                   ) : (
                     <>
@@ -344,7 +348,7 @@ export function ExcelImportModal({
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-center">
-                  <span className="text-[10px] uppercase font-semibold text-on-surface-variant">Mode</span>
+                  <span className="text-[10px] uppercase font-semibold text-on-surface-variant">{t.admin.importMode}</span>
                   <p className="text-xs font-bold text-on-surface mt-1.5 uppercase font-mono">
                     {importResult.strict ? 'Strict' : 'Partial'}
                   </p>
@@ -356,7 +360,7 @@ export function ExcelImportModal({
                 <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-3 text-emerald-700 dark:text-emerald-400">
                   <CheckCircle2 className="w-5 h-5 shrink-0" />
                   <div>
-                    <h4 className="text-xs font-bold">Import Completed Successfully</h4>
+                    <h4 className="text-xs font-bold">{t.admin.importSuccess}</h4>
                     <p className="text-xs text-on-surface-variant mt-0.5">
                       All {importResult.importedCount} student record(s) have been enrolled in {classCode}.
                     </p>
@@ -384,7 +388,7 @@ export function ExcelImportModal({
               {importResult.errors && importResult.errors.length > 0 && (
                 <div className="space-y-2">
                   <h4 className="text-xs font-semibold text-on-surface flex items-center justify-between">
-                    <span>Row Failure Breakdown ({importResult.errors.length})</span>
+                    <span>{t.admin.importErrors} ({importResult.errors.length})</span>
                     <span className="text-[10px] font-normal text-on-surface-variant">Sorted by Excel row number</span>
                   </h4>
                   <div className="max-h-56 overflow-y-auto rounded-xl border border-outline-variant/30 overflow-hidden">
@@ -434,7 +438,7 @@ export function ExcelImportModal({
                   className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-surface-container-high text-on-surface text-xs font-semibold hover:bg-surface-container-highest transition-colors cursor-pointer"
                 >
                   <Check className="w-3.5 h-3.5 text-primary" />
-                  <span>Done</span>
+                  <span>{t.common.close}</span>
                 </button>
               </div>
             </div>

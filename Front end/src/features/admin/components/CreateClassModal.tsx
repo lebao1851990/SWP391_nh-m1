@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { X, Loader2, Plus, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCreateAdminClass, useAdminUsers } from '../hooks';
+import { useTranslation } from '@/i18n';
 
 interface CreateClassModalProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface CreateClassModalProps {
 }
 
 export function CreateClassModal({ isOpen, onClose }: CreateClassModalProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [semester, setSemester] = useState('');
@@ -86,7 +88,7 @@ export function CreateClassModal({ isOpen, onClose }: CreateClassModalProps) {
             </div>
             <div>
               <h2 id="create-class-modal-title" className="font-headline-sm text-headline-sm font-semibold text-on-surface">
-                Create New Class
+                {t.admin.createClassTitle}
               </h2>
               <p className="text-xs text-on-surface-variant">Add a course cohort and assign an instructor</p>
             </div>
@@ -105,7 +107,7 @@ export function CreateClassModal({ isOpen, onClose }: CreateClassModalProps) {
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold uppercase tracking-wider text-outline">
-              Course Name <span className="text-error">*</span>
+              {t.admin.className} <span className="text-error">*</span>
             </label>
             <input
               type="text"
@@ -121,7 +123,7 @@ export function CreateClassModal({ isOpen, onClose }: CreateClassModalProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold uppercase tracking-wider text-outline">
-                Course Code <span className="text-error">*</span>
+                {t.admin.classCode} <span className="text-error">*</span>
               </label>
               <input
                 type="text"
@@ -136,7 +138,7 @@ export function CreateClassModal({ isOpen, onClose }: CreateClassModalProps) {
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold uppercase tracking-wider text-outline">
-                Semester <span className="text-error">*</span>
+                {t.admin.semester} <span className="text-error">*</span>
               </label>
               <input
                 type="text"
@@ -157,7 +159,7 @@ export function CreateClassModal({ isOpen, onClose }: CreateClassModalProps) {
             {isLoadingUsers ? (
               <div className="px-3.5 py-2.5 rounded-lg bg-surface-container-low border border-outline-variant/40 text-xs text-on-surface-variant flex items-center gap-2">
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-                <span>Loading available instructors...</span>
+                <span>{t.common.loading}</span>
               </div>
             ) : teachers.length > 0 ? (
               <select
@@ -168,9 +170,9 @@ export function CreateClassModal({ isOpen, onClose }: CreateClassModalProps) {
                 className="px-3.5 py-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant/60 focus:border-primary focus:ring-1 focus:ring-primary text-sm text-on-surface outline-none transition-all disabled:opacity-50"
               >
                 <option value="">-- Select Instructor --</option>
-                {teachers.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} ({t.email})
+                {teachers.map((teach) => (
+                  <option key={teach.id} value={teach.id}>
+                    {teach.name} ({teach.email})
                   </option>
                 ))}
               </select>
@@ -195,7 +197,7 @@ export function CreateClassModal({ isOpen, onClose }: CreateClassModalProps) {
               disabled={createClassMutation.isPending}
               className="px-4 py-2 rounded-lg text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-colors disabled:opacity-50 cursor-pointer"
             >
-              Cancel
+              {t.common.cancel}
             </button>
             <button
               type="submit"
@@ -205,12 +207,12 @@ export function CreateClassModal({ isOpen, onClose }: CreateClassModalProps) {
               {createClassMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Creating...</span>
+                  <span>{t.common.loading}</span>
                 </>
               ) : (
                 <>
                   <Plus className="w-4 h-4" />
-                  <span>Create Class</span>
+                  <span>{t.admin.createClassButton}</span>
                 </>
               )}
             </button>

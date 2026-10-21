@@ -40,6 +40,7 @@ export interface CodeComparisonData {
   sourceCodeA: string;
   sourceCodeB: string;
   matches: Array<{
+    id?: string;
     startLineA: number;
     endLineA: number;
     startLineB: number;

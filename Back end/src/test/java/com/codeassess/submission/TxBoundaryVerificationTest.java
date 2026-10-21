@@ -59,6 +59,8 @@ class TxBoundaryVerificationTest {
     @Autowired private com.codeassess.plagiarism.repository.PlagiarismEvidenceRepository plagiarismEvidenceRepository;
     @Autowired private com.codeassess.plagiarism.repository.AstFingerprintRepository astFingerprintRepository;
     @Autowired private com.codeassess.plagiarism.repository.AppealRepository appealRepository;
+    @Autowired private com.codeassess.scoring.repository.GradeAuditLogRepository gradeAuditLogRepository;
+    @Autowired private com.codeassess.scoring.repository.RuleScoreRepository ruleScoreRepository;
 
     // Spy on the AST service to simulate failure
     @MockBean private AstPlagiarismService astPlagiarismService;
@@ -69,6 +71,8 @@ class TxBoundaryVerificationTest {
     private Exam activeExam;
 
     private void cleanUpDatabase() {
+        gradeAuditLogRepository.deleteAll();
+        ruleScoreRepository.deleteAll();
         appealRepository.deleteAll();
         plagiarismEvidenceRepository.deleteAll();
         similarityPairRepository.deleteAll();

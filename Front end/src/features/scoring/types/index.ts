@@ -65,6 +65,8 @@ export interface StudentSubmissionResult {
   
   astSimilarityPercentage?: number;
   similarityStatus?: 'normal' | 'flagged';
+  instructorFeedback?: string;
+  instructorEvaluationComments?: string;
 }
 
 export interface SaveScoringPayload {

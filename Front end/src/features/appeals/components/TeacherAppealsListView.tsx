@@ -9,13 +9,13 @@ import {
   CheckCircle2, 
   XCircle, 
   ExternalLink, 
-  Scale, 
   AlertCircle,
-  FileText,
   X
 } from 'lucide-react';
+import { useTranslation } from '@/i18n';
 
 export function TeacherAppealsListView() {
+  const { t, formatDate } = useTranslation();
   const { data: appeals, isLoading, isError, refetch } = useTeacherAppeals();
   const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
   const [search, setSearch] = useState(() => {
@@ -29,7 +29,7 @@ export function TeacherAppealsListView() {
     return (
       <div className="flex flex-col h-72 items-center justify-center gap-3">
         <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-        <p className="text-on-surface-variant font-label-md text-xs">Loading course appeals roster...</p>
+        <p className="text-on-surface-variant font-label-md text-xs">{t.common.loading}</p>
       </div>
     );
   }
@@ -37,13 +37,13 @@ export function TeacherAppealsListView() {
   if (isError) {
     return (
       <div className="max-w-xl mx-auto my-12 p-8 rounded-2xl bg-surface-container-lowest border border-rose-200/60 shadow-lg text-center flex flex-col items-center gap-3">
-        <div className="p-3 rounded-full bg-rose-50 text-rose-600">
+        <div className="p-3 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300">
           <AlertCircle className="w-8 h-8" />
         </div>
-        <h2 className="font-headline-md text-headline-md text-on-surface">Unable to Load Appeals</h2>
-        <p className="font-body-md text-on-surface-variant text-xs">Error retrieving appeals from server.</p>
-        <button onClick={() => refetch()} className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium cursor-pointer">
-          Retry
+        <h2 className="font-headline-md text-headline-md text-on-surface">{t.errors.somethingWentWrong}</h2>
+        <p className="font-body-md text-on-surface-variant text-xs">{t.errors.networkError}</p>
+        <button onClick={() => refetch()} className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium cursor-pointer hover:bg-primary/90 transition-colors">
+          {t.common.retry}
         </button>
       </div>
     );
@@ -71,7 +71,7 @@ export function TeacherAppealsListView() {
       {/* Page Title */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-space-md">
         <div>
-          <h1 className="font-display-lg text-display-lg text-on-surface tracking-tight">Grade &amp; Similarity Appeals</h1>
+          <h1 className="font-display-lg text-display-lg text-on-surface tracking-tight">{t.appeals.appealsListTitle}</h1>
           <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">
             Review and resolve student dispute tickets regarding automated grading and AST similarity flags.
           </p>
@@ -82,30 +82,30 @@ export function TeacherAppealsListView() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-space-md">
         <div className="bg-surface-container-lowest p-space-md rounded-2xl border border-outline-variant/40 shadow-xs flex items-center justify-between">
           <div>
-            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">Pending Review</span>
-            <div className="font-display-lg font-bold text-amber-600 mt-1">{pendingCount}</div>
+            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">{t.appeals.appealStatusPending}</span>
+            <div className="font-display-lg font-bold text-amber-600 dark:text-amber-400 mt-1">{pendingCount}</div>
           </div>
-          <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
+          <div className="p-2 rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300">
             <Clock className="w-5 h-5" />
           </div>
         </div>
 
         <div className="bg-surface-container-lowest p-space-md rounded-2xl border border-outline-variant/40 shadow-xs flex items-center justify-between">
           <div>
-            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">Approved</span>
-            <div className="font-display-lg font-bold text-emerald-600 mt-1">{approvedCount}</div>
+            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">{t.appeals.appealStatusApproved}</span>
+            <div className="font-display-lg font-bold text-emerald-600 dark:text-emerald-400 mt-1">{approvedCount}</div>
           </div>
-          <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+          <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
             <CheckCircle2 className="w-5 h-5" />
           </div>
         </div>
 
         <div className="bg-surface-container-lowest p-space-md rounded-2xl border border-outline-variant/40 shadow-xs flex items-center justify-between">
           <div>
-            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">Rejected</span>
-            <div className="font-display-lg font-bold text-rose-600 mt-1">{rejectedCount}</div>
+            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">{t.appeals.appealStatusRejected}</span>
+            <div className="font-display-lg font-bold text-rose-600 dark:text-rose-400 mt-1">{rejectedCount}</div>
           </div>
-          <div className="p-2 rounded-xl bg-rose-50 text-rose-600">
+          <div className="p-2 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300">
             <XCircle className="w-5 h-5" />
           </div>
         </div>
@@ -124,7 +124,7 @@ export function TeacherAppealsListView() {
                   : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
               }`}
             >
-              {tab === 'ALL' ? 'All Appeals' : tab === 'PENDING' ? 'Pending' : tab === 'APPROVED' ? 'Approved' : 'Rejected'}
+              {tab === 'ALL' ? t.common.all : tab === 'PENDING' ? t.appeals.appealStatusPending : tab === 'APPROVED' ? t.appeals.appealStatusApproved : t.appeals.appealStatusRejected}
             </button>
           ))}
         </div>
@@ -133,10 +133,10 @@ export function TeacherAppealsListView() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-outline w-4 h-4" />
           <input
             type="text"
-            placeholder="Search student, exam, case ID..."
+            placeholder={t.common.search}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-8 py-1.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-on-surface text-xs focus:outline-none focus:border-primary transition-colors"
+            className="w-full pl-9 pr-8 py-1.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-on-surface text-xs focus:outline-none focus:border-primary transition-colors placeholder:text-outline"
           />
           {search && (
             <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface cursor-pointer">
@@ -150,7 +150,7 @@ export function TeacherAppealsListView() {
       <div className="bg-surface-container-lowest rounded-2xl shadow-xs border border-outline-variant/40 overflow-hidden">
         {filtered.length === 0 ? (
           <div className="p-12 text-center text-outline text-xs">
-            No appeals found matching your current filter.
+            {t.appeals.noAppealsFound}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -160,10 +160,10 @@ export function TeacherAppealsListView() {
                   <th className="py-2.5 px-4 font-semibold">Case ID</th>
                   <th className="py-2.5 px-4 font-semibold">Student</th>
                   <th className="py-2.5 px-4 font-semibold">Exam</th>
-                  <th className="py-2.5 px-4 font-semibold">Basis</th>
-                  <th className="py-2.5 px-4 font-semibold">Status</th>
+                  <th className="py-2.5 px-4 font-semibold">{t.appeals.appealBasisLabel}</th>
+                  <th className="py-2.5 px-4 font-semibold">{t.common.status}</th>
                   <th className="py-2.5 px-4 font-semibold">Submitted</th>
-                  <th className="py-2.5 px-4 font-semibold text-right">Action</th>
+                  <th className="py-2.5 px-4 font-semibold text-right">{t.common.actions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/20 text-on-surface">
@@ -178,30 +178,30 @@ export function TeacherAppealsListView() {
                     <td className="py-3 px-4 capitalize text-on-surface-variant">{appeal.basis.replace(/_/g, ' ')}</td>
                     <td className="py-3 px-4">
                       {appeal.status === 'PENDING' && (
-                        <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-semibold text-[10px]">
-                          Pending Review
+                        <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40 font-semibold text-[10px]">
+                          {t.appeals.appealStatusPending}
                         </span>
                       )}
                       {appeal.status === 'APPROVED' && (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold text-[10px]">
-                          Approved
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40 font-semibold text-[10px]">
+                          {t.appeals.appealStatusApproved}
                         </span>
                       )}
                       {appeal.status === 'REJECTED' && (
-                        <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-semibold text-[10px]">
-                          Rejected
+                        <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/40 font-semibold text-[10px]">
+                          {t.appeals.appealStatusRejected}
                         </span>
                       )}
                     </td>
                     <td className="py-3 px-4 text-on-surface-variant">
-                      {new Date(appeal.createdAt).toLocaleDateString()}
+                      {formatDate(appeal.createdAt)}
                     </td>
                     <td className="py-3 px-4 text-right">
                       <Link
                         href={`/teacher/appeals/${appeal.id}`}
                         className="px-3 py-1 bg-surface-container hover:bg-surface-container-high text-primary rounded-lg text-xs font-medium transition-colors inline-flex items-center gap-1"
                       >
-                        <span>Review</span>
+                        <span>{t.common.view}</span>
                         <ExternalLink className="w-3 h-3" />
                       </Link>
                     </td>

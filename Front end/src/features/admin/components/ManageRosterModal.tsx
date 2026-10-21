@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useAdminClassStudents, useEnrollStudent, useUnenrollStudent } from '../hooks';
 import { AdminClassStudent } from '../api/admin.api';
 import { ExcelImportModal } from './ExcelImportModal';
+import { useTranslation } from '@/i18n';
 
 interface ManageRosterModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export function ManageRosterModal({
   className,
   classCode,
 }: ManageRosterModalProps) {
+  const { t } = useTranslation();
   const [identifierInput, setIdentifierInput] = useState('');
   const [studentPendingDelete, setStudentPendingDelete] = useState<AdminClassStudent | null>(null);
   const [filterQuery, setFilterQuery] = useState('');
@@ -112,7 +114,7 @@ export function ManageRosterModal({
         className="bg-surface-container-lowest w-full max-w-3xl rounded-2xl shadow-2xl border border-outline-variant/30 flex flex-col overflow-hidden max-h-[90vh] animate-in zoom-in-95 duration-200"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="manage-roster-modal-title"
+        aria-label="Manage Class Roster"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant/30 bg-surface-container-low shrink-0">
@@ -122,7 +124,7 @@ export function ManageRosterModal({
             </div>
             <div>
               <h2 id="manage-roster-modal-title" className="font-headline-sm text-headline-sm font-semibold text-on-surface">
-                Manage Class Roster
+                {t.admin.manageRosterButton}
               </h2>
               <p className="text-xs text-on-surface-variant font-mono">
                 {className} <span className="text-primary font-bold">({classCode})</span> • {students?.length ?? 0} enrolled
@@ -137,7 +139,7 @@ export function ManageRosterModal({
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors cursor-pointer"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
-              <span>Import Excel</span>
+              <span>{t.admin.importRosterButton}</span>
             </button>
             <button
               onClick={() => refetch()}
@@ -199,7 +201,7 @@ export function ManageRosterModal({
                 className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-surface-container border border-outline-variant/60 text-on-surface text-sm font-semibold hover:bg-surface-container-high transition-colors shadow-xs cursor-pointer shrink-0"
               >
                 <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span>Import from Excel</span>
+                <span>Batch Spreadsheet</span>
               </button>
             </div>
           </form>
@@ -220,8 +222,8 @@ export function ManageRosterModal({
               type="text"
               value={filterQuery}
               onChange={(e) => setFilterQuery(e.target.value)}
-              placeholder="Search students..."
-              className="bg-transparent text-xs text-on-surface outline-none w-32 focus:w-48 transition-all"
+              placeholder={t.common.search}
+              className="bg-transparent text-xs text-on-surface outline-none w-32 focus:w-48 transition-all placeholder:text-outline"
             />
             {filterQuery && (
               <button onClick={() => setFilterQuery('')} className="text-on-surface-variant hover:text-on-surface">
@@ -236,18 +238,18 @@ export function ManageRosterModal({
           {isLoading ? (
             <div className="py-16 flex flex-col items-center justify-center text-on-surface-variant gap-3">
               <Loader2 className="w-7 h-7 animate-spin text-primary" />
-              <span className="text-sm">Loading enrolled students...</span>
+              <span className="text-sm">{t.common.loading}</span>
             </div>
           ) : isError ? (
             <div className="py-12 flex flex-col items-center justify-center text-center p-6 bg-error/5 rounded-xl border border-error/20">
               <AlertCircle className="w-10 h-10 text-error mb-2" />
-              <h3 className="text-sm font-semibold text-on-surface">Failed to load class roster</h3>
-              <p className="text-xs text-on-surface-variant mt-1">Backend service could not retrieve student list.</p>
+              <h3 className="text-sm font-semibold text-on-surface">{t.errors.somethingWentWrong}</h3>
+              <p className="text-xs text-on-surface-variant mt-1">{t.errors.networkError}</p>
               <button
                 onClick={() => refetch()}
                 className="mt-4 px-3.5 py-1.5 rounded-lg bg-surface-container-high text-xs font-semibold hover:bg-surface-container-highest transition-colors cursor-pointer"
               >
-                Try Again
+                {t.common.retry}
               </button>
             </div>
           ) : filteredStudents.length === 0 ? (
@@ -270,7 +272,7 @@ export function ManageRosterModal({
                     <th className="py-2.5 px-4">Student Name</th>
                     <th className="py-2.5 px-4">Email</th>
                     <th className="py-2.5 px-4">Student ID</th>
-                    <th className="py-2.5 px-4 text-right">Action</th>
+                    <th className="py-2.5 px-4 text-right">{t.common.actions}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant/20">
@@ -308,6 +310,7 @@ export function ManageRosterModal({
         <div className="px-6 py-3 border-t border-outline-variant/30 bg-surface-container-low flex justify-end shrink-0">
           <button
             onClick={onClose}
+            aria-label="Done"
             className="px-4 py-2 rounded-lg bg-surface-container-high text-on-surface text-xs font-semibold hover:bg-surface-container-highest transition-colors cursor-pointer"
           >
             Done
@@ -342,11 +345,12 @@ export function ManageRosterModal({
                 disabled={unenrollMutation.isPending}
                 className="px-4 py-2 rounded-lg text-xs font-semibold text-on-surface-variant hover:bg-surface-container transition-colors disabled:opacity-50 cursor-pointer"
               >
-                Cancel
+                {t.common.cancel}
               </button>
               <button
                 onClick={handleConfirmDelete}
                 disabled={unenrollMutation.isPending}
+                aria-label="Confirm Remove"
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-error text-white text-xs font-semibold hover:bg-error/90 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
               >
                 {unenrollMutation.isPending ? (

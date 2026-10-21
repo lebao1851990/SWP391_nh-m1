@@ -36,8 +36,9 @@ public interface ExamMatrixCoordinationRepository extends JpaRepository<ExamMatr
     @org.springframework.transaction.annotation.Transactional
     @Modifying
     @Query(value = """
-        INSERT IGNORE INTO exam_matrix_coordination (exam_id, current_generation, requested_generation, locked_generation, status, failure_count)
+        INSERT INTO exam_matrix_coordination (exam_id, current_generation, requested_generation, locked_generation, status, failure_count)
         VALUES (:examId, 0, 1, 0, 'IDLE', 0)
+        ON DUPLICATE KEY UPDATE exam_id = exam_id
         """, nativeQuery = true)
     int initCoordinationIfAbsent(@Param("examId") String examId);
 

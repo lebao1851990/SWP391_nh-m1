@@ -159,4 +159,40 @@ class AiAssistantServiceTest {
         AiCodeReviewRequest request = new AiCodeReviewRequest("ev123");
         assertThrows(ResourceNotFoundException.class, () -> aiAssistantService.getCodeReview(1L, request));
     }
+
+    @Test
+    void testGetCodeReview_TeacherNotAssignedToClass_MaskedAs404() {
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getName()).thenReturn("teacherB");
+
+        when(similarityPairRepository.findById(1L)).thenReturn(Optional.of(pair));
+        when(userRepository.findByEmail("teacherB")).thenReturn(Optional.of(User.builder().id("teacher-b-id").build()));
+
+        AiCodeReviewRequest request = new AiCodeReviewRequest("ev123");
+        assertThrows(ResourceNotFoundException.class, () -> aiAssistantService.getCodeReview(1L, request));
+    }
+
+    @Test
+    void testGetCodeReview_PairNotFound() {
+        when(similarityPairRepository.findById(999L)).thenReturn(Optional.empty());
+
+        AiCodeReviewRequest request = new AiCodeReviewRequest("ev123");
+        assertThrows(ResourceNotFoundException.class, () -> aiAssistantService.getCodeReview(999L, request));
+    }
+
+    @Test
+    void testGetCodeReview_EvidenceNotFound() {
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(authentication.getName()).thenReturn("teacher1");
+
+        when(similarityPairRepository.findById(1L)).thenReturn(Optional.of(pair));
+        when(userRepository.findByEmail("teacher1")).thenReturn(Optional.of(pair.getExam().getCourseClass().getTeacher()));
+        when(plagiarismEvidenceRepository.findById("non-existent-ev")).thenReturn(Optional.empty());
+
+        AiCodeReviewRequest request = new AiCodeReviewRequest("non-existent-ev");
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class, () -> aiAssistantService.getCodeReview(1L, request));
+        assertEquals("Evidence not found.", ex.getMessage());
+    }
 }

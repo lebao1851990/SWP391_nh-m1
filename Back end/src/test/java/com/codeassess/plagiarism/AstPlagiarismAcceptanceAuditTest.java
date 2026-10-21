@@ -648,4 +648,142 @@ public class AstPlagiarismAcceptanceAuditTest {
             assertThat(newEvidenceIds).doesNotContain(oldId);
         }
     }
+
+    @Test
+    @DisplayName("REQ-4.4: 4-Quadrant Plagiarism Analysis: correct-correct, correct-wrong, wrong-correct, wrong-wrong, and compile-failure submissions with valid AST are all evaluated independently of grading outcomes")
+    void testSimilarityMatrixEndToEnd_FourQuadrantGradingIndependence() {
+        String suffix = randomSuffix();
+        User teacher = userRepository.save(User.builder().email("tea_4q_" + suffix + "@test.com").fullName("Teacher 4Q").passwordHash("pwd").role(Role.TEACHER).build());
+        CourseClass cc = courseClassRepository.save(CourseClass.builder().code("CC_4Q_" + suffix).name("Class 4Q").teacher(teacher).semester("FA24").build());
+        Exam exam = examRepository.save(Exam.builder().title("Exam 4Q " + suffix).courseClass(cc).status("ACTIVE").build());
+
+        User u1 = userRepository.save(User.builder().email("u1_4q_" + suffix + "@test.com").fullName("Stu Correct 1").passwordHash("pwd").role(Role.STUDENT).build());
+        User u2 = userRepository.save(User.builder().email("u2_4q_" + suffix + "@test.com").fullName("Stu Correct 2").passwordHash("pwd").role(Role.STUDENT).build());
+        User u3 = userRepository.save(User.builder().email("u3_4q_" + suffix + "@test.com").fullName("Stu Wrong 1").passwordHash("pwd").role(Role.STUDENT).build());
+        User u4 = userRepository.save(User.builder().email("u4_4q_" + suffix + "@test.com").fullName("Stu Wrong 2").passwordHash("pwd").role(Role.STUDENT).build());
+        User u5 = userRepository.save(User.builder().email("u5_4q_" + suffix + "@test.com").fullName("Stu CompileFail").passwordHash("pwd").role(Role.STUDENT).build());
+
+        // Sub 1: Correct algorithm
+        Submission subCorrect1 = submissionRepository.save(Submission.builder()
+                .exam(exam).student(u1).status("GRADED")
+                .sourceCode("""
+                        public class Solution {
+                            public int compute(int n) {
+                                int sum = 0;
+                                for (int i = 0; i <= n; i++) {
+                                    sum += i;
+                                }
+                                return sum;
+                            }
+                        }
+                        """).build());
+
+        // Sub 2: Correct algorithm (Plagiarized with renamed variables)
+        Submission subCorrect2 = submissionRepository.save(Submission.builder()
+                .exam(exam).student(u2).status("GRADED")
+                .sourceCode("""
+                        public class Calculator {
+                            public int compute(int count) {
+                                int total = 0;
+                                for (int idx = 0; idx <= count; idx++) {
+                                    total += idx;
+                                }
+                                return total;
+                            }
+                        }
+                        """).build());
+
+        // Sub 3: Wrong algorithm
+        Submission subWrong1 = submissionRepository.save(Submission.builder()
+                .exam(exam).student(u3).status("GRADED")
+                .sourceCode("""
+                        public class BadSolution {
+                            public int faultyCalc(int limit) {
+                                int result = -100;
+                                while (limit > 0) {
+                                    result -= limit;
+                                    limit--;
+                                }
+                                return result;
+                            }
+                        }
+                        """).build());
+
+        // Sub 4: Wrong algorithm (Plagiarized from Wrong 1 with renamed vars)
+        Submission subWrong2 = submissionRepository.save(Submission.builder()
+                .exam(exam).student(u4).status("GRADED")
+                .sourceCode("""
+                        public class DefectiveCode {
+                            public int faultyCalc(int boundary) {
+                                int accumulator = -100;
+                                while (boundary > 0) {
+                                    accumulator -= boundary;
+                                    boundary--;
+                                }
+                                return accumulator;
+                            }
+                        }
+                        """).build());
+
+        // Sub 5: Compile Error with valid AST
+        Submission subCompileFail = submissionRepository.save(Submission.builder()
+                .exam(exam).student(u5).status("COMPILE_ERROR")
+                .sourceCode("""
+                        public class MissingDepSolution {
+                            public int compute(int number) {
+                                int acc = 0;
+                                for (int k = 0; k <= number; k++) {
+                                    acc += k;
+                                }
+                                return acc;
+                            }
+                        }
+                        """).build());
+
+        astPlagiarismService.generateFingerprintsForSubmission(subCorrect1.getId());
+        astPlagiarismService.generateFingerprintsForSubmission(subCorrect2.getId());
+        astPlagiarismService.generateFingerprintsForSubmission(subWrong1.getId());
+        astPlagiarismService.generateFingerprintsForSubmission(subWrong2.getId());
+        astPlagiarismService.generateFingerprintsForSubmission(subCompileFail.getId());
+
+        similarityMatrixService.generateMatrixForExam(exam.getId());
+
+        List<SimilarityPair> pairs = similarityPairRepository.findByExam_Id(exam.getId());
+        assertThat(pairs).hasSize(10);
+
+        Map<String, SimilarityPair> pairMap = new HashMap<>();
+        for (SimilarityPair p : pairs) {
+            assertThat(p.getSubmissionA().getId()).isLessThan(p.getSubmissionB().getId());
+            pairMap.put(p.getSubmissionA().getId() + "__" + p.getSubmissionB().getId(), p);
+        }
+
+        java.util.function.BiFunction<Submission, Submission, SimilarityPair> findPair = (sA, sB) -> {
+            String key1 = sA.getId() + "__" + sB.getId();
+            String key2 = sB.getId() + "__" + sA.getId();
+            return pairMap.containsKey(key1) ? pairMap.get(key1) : pairMap.get(key2);
+        };
+
+        // 1. Correct - Correct -> 100% similarity, flagged!
+        SimilarityPair correctCorrect = findPair.apply(subCorrect1, subCorrect2);
+        assertThat(correctCorrect).isNotNull();
+        assertThat(correctCorrect.getSimilarityRate()).isEqualByComparingTo("100.00");
+        assertThat(correctCorrect.getIsFlagged()).isTrue();
+
+        // 2. Wrong - Wrong -> 100% similarity, flagged!
+        SimilarityPair wrongWrong = findPair.apply(subWrong1, subWrong2);
+        assertThat(wrongWrong).isNotNull();
+        assertThat(wrongWrong.getSimilarityRate()).isEqualByComparingTo("100.00");
+        assertThat(wrongWrong.getIsFlagged()).isTrue();
+
+        // 3. Correct - Wrong -> low similarity
+        SimilarityPair correctWrong = findPair.apply(subCorrect1, subWrong1);
+        assertThat(correctWrong).isNotNull();
+        assertThat(correctWrong.getSimilarityRate()).isLessThan(new BigDecimal("30.00"));
+
+        // 4. Correct - Compile Failed -> 100% similarity, flagged!
+        SimilarityPair correctCompileFail = findPair.apply(subCorrect1, subCompileFail);
+        assertThat(correctCompileFail).isNotNull();
+        assertThat(correctCompileFail.getSimilarityRate()).isEqualByComparingTo("100.00");
+        assertThat(correctCompileFail.getIsFlagged()).isTrue();
+    }
 }

@@ -5,8 +5,10 @@ import { useAdminClass } from '../hooks';
 import { AppLink as Link } from '@/components/ui/app-link';
 import { EditClassModal } from './EditClassModal';
 import { ManageRosterModal } from './ManageRosterModal';
+import { useTranslation } from '@/i18n';
 
 export function AdminClassDetailView({ classId }: { classId: string }) {
+  const { t } = useTranslation();
   const { data: cls, isLoading, isError, refetch } = useAdminClass(classId);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isRosterModalOpen, setIsRosterModalOpen] = useState(false);
@@ -33,7 +35,7 @@ export function AdminClassDetailView({ classId }: { classId: string }) {
             onClick={() => refetch()}
             className="px-4 py-2 rounded-lg bg-surface-container-high text-xs font-semibold hover:bg-surface-container-highest transition-colors cursor-pointer"
           >
-            Retry
+            {t.common.retry}
           </button>
         </div>
       ) : cls ? (
@@ -54,7 +56,7 @@ export function AdminClassDetailView({ classId }: { classId: string }) {
               <span className="font-code-body font-mono text-on-surface">{cls.id}</span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="font-label-sm text-label-sm uppercase text-outline">Semester</span>
+              <span className="font-label-sm text-label-sm uppercase text-outline">{t.admin.semester}</span>
               <span className="font-body-md text-on-surface">{cls.semester}</span>
             </div>
             <div className="flex flex-col gap-1">
@@ -62,7 +64,7 @@ export function AdminClassDetailView({ classId }: { classId: string }) {
               <span className="font-body-md text-on-surface font-mono">{cls.teacherId}</span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="font-label-sm text-label-sm uppercase text-outline">Student Count</span>
+              <span className="font-label-sm text-label-sm uppercase text-outline">{t.admin.studentCount}</span>
               <span className="font-body-md text-on-surface font-semibold text-primary">
                 {cls.studentCount ?? 0} Students
               </span>
@@ -74,13 +76,13 @@ export function AdminClassDetailView({ classId }: { classId: string }) {
               onClick={() => setIsRosterModalOpen(true)}
               className="px-4 py-2 rounded-lg bg-surface-container-high text-on-surface font-label-md font-semibold hover:bg-surface-container-highest transition-colors cursor-pointer"
             >
-              Manage Roster
+              {t.admin.manageRosterButton}
             </button>
             <button
               onClick={() => setIsEditModalOpen(true)}
               className="px-4 py-2 rounded-lg bg-primary text-on-primary font-label-md font-semibold hover:bg-primary-container transition-colors cursor-pointer"
             >
-              Edit Class
+              {t.admin.editClassButton}
             </button>
           </div>
 

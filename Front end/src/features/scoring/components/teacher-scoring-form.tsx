@@ -12,14 +12,13 @@ import {
   X, 
   Award, 
   User, 
-  BookOpen, 
   CheckCircle2, 
   AlertCircle, 
-  Loader2,
-  FileCheck
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { GradeAuditHistory } from './grade-audit-history';
+import { useTranslation } from '@/i18n';
 
 interface TeacherScoringFormProps {
   submissionId: string;
@@ -27,6 +26,7 @@ interface TeacherScoringFormProps {
 }
 
 export function TeacherScoringForm({ submissionId, initialData }: TeacherScoringFormProps) {
+  const { t } = useTranslation();
   const [showOverride, setShowOverride] = useState(false);
   const updateMutation = useUpdateTeacherScoring(submissionId);
   const maxTotalScore = initialData.maxTotalScore ?? (initialData.criteria?.length ? initialData.criteria.reduce((s, c) => s + (c.maxScore || 0), 0) : 100);
@@ -36,7 +36,7 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
     handleSubmit,
     control,
     setValue,
-    formState: { isDirty, errors },
+    formState: { errors },
   } = useHookForm<SaveScoringPayloadType>({
     resolver: zodResolver(SaveScoringPayloadSchema),
     defaultValues: {
@@ -73,10 +73,10 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
   const onSubmit = (data: SaveScoringPayloadType) => {
     updateMutation.mutate(data, {
       onSuccess: () => {
-        toast.success('Evaluation rubric and scores saved successfully!');
+        toast.success(t.scoring.evaluationScoreSaved);
       },
       onError: (err: unknown) => {
-        toast.error((err as Error).message || 'Failed to save evaluation');
+        toast.error((err as Error).message || t.common.error);
       }
     });
   };
@@ -91,15 +91,15 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
           <div>
             <div className="flex items-center gap-space-sm flex-wrap">
               <h1 className="font-display-lg text-display-lg text-on-surface tracking-tight">
-                Evaluation Rubric — Submission #{initialData.submissionId.slice(0, 8)}
+                {t.scoring.scoringRubricTitle || 'Evaluation Rubric'} — #{initialData.submissionId.slice(0, 8)}
               </h1>
-              <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                 {initialData.status.toUpperCase()}
               </span>
             </div>
             <p className="font-body-md text-body-md text-on-surface-variant mt-1 text-xs">
-              Score rubric breakdown, criteria weights, and instructor feedback for{' '}
-              <strong className="text-on-surface">{initialData.studentName}</strong> (ID:{' '}
+              {t.scoring.scoringTitle} ({t.submissions.studentName}:{' '}
+              <strong className="text-on-surface">{initialData.studentName}</strong>, {t.submissions.studentId}:{' '}
               <span className="font-mono">{initialData.studentId}</span>).
             </p>
           </div>
@@ -107,16 +107,16 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
       </div>
 
       {updateMutation.isError && (
-        <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+        <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>Failed to save evaluation: {(updateMutation.error as Error).message}</span>
+          <span>{(updateMutation.error as Error).message}</span>
         </div>
       )}
 
       {updateMutation.isSuccess && (
-        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-          <span>Evaluation saved successfully! Official student record is updated.</span>
+        <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <span>{t.scoring.evaluationScoreSaved}</span>
         </div>
       )}
 
@@ -124,8 +124,8 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
         {/* Left: Criteria List & Instructor Comments */}
         <div className="xl:col-span-8 flex flex-col space-y-space-md">
           <div className="flex items-center justify-between">
-            <h2 className="font-headline-sm text-headline-sm text-on-surface">Grading Criteria</h2>
-            <span className="text-xs text-outline font-medium">Input scores per criterion</span>
+            <h2 className="font-headline-sm text-headline-sm text-on-surface">{t.scoring.rubricCriteria}</h2>
+            <span className="text-xs text-outline font-medium">{t.scoring.scoreExplanation}</span>
           </div>
 
           {initialData.criteria.map((criterion, index) => (
@@ -145,11 +145,11 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
                     className="w-20 px-2.5 py-1.5 rounded-lg border border-outline-variant/60 focus:border-primary focus:outline-none bg-surface-container-low text-on-surface font-mono text-xs font-bold text-center"
                     disabled={isSaving}
                   />
-                  <span className="text-on-surface-variant text-xs font-medium">/ {criterion.maxScore} pts</span>
+                  <span className="text-on-surface-variant text-xs font-medium">/ {criterion.maxScore} {t.scoring.points}</span>
                 </div>
               </div>
               {errors.criteriaScores?.[index]?.score && (
-                <div className="p-2 text-rose-600 text-xs font-medium bg-rose-50 border-t border-rose-100">
+                <div className="p-2 text-rose-600 dark:text-rose-400 text-xs font-medium bg-rose-50 dark:bg-rose-950/60 border-t border-rose-100 dark:border-rose-900">
                   {errors.criteriaScores[index]?.score?.message}
                 </div>
               )}
@@ -159,12 +159,12 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
           {/* Instructor Evaluation Feedback */}
           <div className="rounded-xl bg-surface-container-lowest border border-outline-variant/40 p-space-md shadow-xs space-y-2">
             <h4 className="font-label-md font-semibold text-on-surface text-xs uppercase tracking-wider">
-              Instructor Evaluation Comments
+              {t.scoring.instructorFeedbackLabel}
             </h4>
             <textarea 
               {...register('instructorEvaluationComments')}
               className="w-full p-3 rounded-lg bg-surface-container-low font-body-sm text-xs text-on-surface border border-outline-variant/40 focus:outline-none focus:border-primary transition-colors" 
-              placeholder="Provide constructive feedback, test suite failure explanations, or code quality notes for the student..." 
+              placeholder={t.scoring.instructorFeedbackPlaceholder} 
               rows={4}
               disabled={isSaving}
             />
@@ -177,19 +177,19 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
           <div className="rounded-xl bg-surface-container-lowest border border-outline-variant/40 p-space-md shadow-xs space-y-2 text-xs">
             <div className="flex items-center gap-1.5 pb-2 border-b border-outline-variant/20">
               <User className="w-4 h-4 text-primary" />
-              <h4 className="font-semibold text-on-surface">Student Profile</h4>
+              <h4 className="font-semibold text-on-surface">{t.scoring.studentProfile}</h4>
             </div>
             <div className="space-y-1.5 text-on-surface-variant">
               <div className="flex justify-between">
-                <span className="text-outline">Full Name:</span>
+                <span className="text-outline">{t.submissions.studentName}:</span>
                 <span className="font-semibold text-on-surface">{initialData.studentName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-outline">Student ID:</span>
+                <span className="text-outline">{t.submissions.studentId}:</span>
                 <span className="font-mono text-on-surface">{initialData.studentId}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-outline">Class Cohort:</span>
+                <span className="text-outline">{t.exams.cohort}:</span>
                 <span className="font-mono text-on-surface">{initialData.className}</span>
               </div>
             </div>
@@ -198,9 +198,9 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
           {/* Dynamic Score Card */}
           <div className="rounded-xl bg-surface-container-lowest border border-outline-variant/40 p-space-md shadow-xs space-y-2">
             <div className="flex items-center gap-1.5 pb-2 border-b border-outline-variant/20">
-              <Award className="w-4 h-4 text-emerald-600" />
+              <Award className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <h4 className="font-semibold text-on-surface text-xs">
-                {hasActiveOverride ? 'Effective Score (Manual Override)' : 'Calculated Score'}
+                {hasActiveOverride ? t.scoring.effectiveScoreOverride : t.scoring.calculatedScore}
               </h4>
             </div>
             <div className="font-display-lg text-[52px] leading-none font-bold text-primary tracking-tight">
@@ -210,12 +210,12 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
               <span className="text-lg text-outline font-normal ml-1">/ {maxTotalScore}</span>
             </div>
             {hasActiveOverride ? (
-              <div className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 p-2 rounded-lg leading-relaxed">
-                * Manual override of <strong>{watchedOverride} pts</strong> is active and will take precedence over rubric total (<strong>{Number(liveCalculatedTotal).toFixed(1).replace(/\.0$/, '')} pts</strong>).
+              <div className="text-[11px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 p-2 rounded-lg leading-relaxed">
+                * {t.scoring.scoreOverrideTitle}: <strong>{watchedOverride} {t.scoring.points}</strong>
               </div>
             ) : (
               <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                * Live total based on criteria scores above. Save changes to commit official score to the system.
+                * {t.scoring.liveTotalNotice}
               </p>
             )}
           </div>
@@ -229,13 +229,13 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
           onClick={() => setShowOverride(true)}
           className={`px-4 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer border ${
             hasActiveOverride 
-              ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300' 
+              ? 'bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800' 
               : 'bg-surface-container hover:bg-surface-container-high text-on-surface border-outline-variant/30'
           }`}
           disabled={isSaving}
         >
           <Sliders className="w-3.5 h-3.5 text-secondary" />
-          <span>Manual Score Override {hasActiveOverride ? `(${watchedOverride} pts)` : ''}</span>
+          <span>{t.scoring.manualScoreOverrideButton} {hasActiveOverride ? `(${watchedOverride} ${t.scoring.points})` : ''}</span>
         </button>
 
         <button 
@@ -246,12 +246,12 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
           {isSaving ? (
             <>
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span>Saving...</span>
+              <span>{t.scoring.savingScore}</span>
             </>
           ) : (
             <>
               <Save className="w-3.5 h-3.5" />
-              <span>Commit Rubric Scores</span>
+              <span>{t.scoring.saveScoreButton}</span>
             </>
           )}
         </button>
@@ -267,7 +267,7 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
             <div className="flex items-center justify-between border-b border-outline-variant/30 pb-3">
               <div className="flex items-center gap-2">
                 <Sliders className="w-5 h-5 text-secondary" />
-                <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">Manual Score Override</h3>
+                <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">{t.scoring.scoreOverrideTitle}</h3>
               </div>
               <button 
                 type="button" 
@@ -278,10 +278,10 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
               </button>
             </div>
             <p className="text-xs text-on-surface-variant leading-relaxed">
-              Directly specify a total override score. This takes precedence over individual rubric criteria if approved.
+              {t.scoring.scoreExplanation}
             </p>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-on-surface">New Total Score</label>
+              <label className="text-xs font-semibold text-on-surface">{t.scoring.finalScore}</label>
               <input 
                 type="number" 
                 step="0.1" 
@@ -293,16 +293,16 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
                 className="w-full px-3 py-2 rounded-lg bg-surface-container-low text-xs text-on-surface font-bold border border-outline-variant/40 focus:outline-none focus:border-primary" 
               />
               {errors.overrideTotalScore && (
-                <p className="text-xs text-rose-600 mt-1">{errors.overrideTotalScore.message}</p>
+                <p className="text-xs text-rose-600 dark:text-rose-400 mt-1">{errors.overrideTotalScore.message}</p>
               )}
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-on-surface">Override Rationale</label>
+              <label className="text-xs font-semibold text-on-surface">{t.scoring.overrideReasonLabel}</label>
               <textarea 
                 {...register('overrideRationale')} 
                 className="w-full p-3 rounded-lg bg-surface-container-low text-xs text-on-surface border border-outline-variant/40 focus:outline-none focus:border-primary" 
                 rows={3} 
-                placeholder="Reason for manual override (e.g. edge case test suite resolution)..."
+                placeholder={t.scoring.overrideReasonPlaceholder} 
               />
             </div>
             <div className="flex justify-between items-center gap-2 pt-2 border-t border-outline-variant/30">
@@ -314,9 +314,9 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
                     setShowOverride(false);
                     toast.info('Override cleared. Form will use calculated rubric total.');
                   }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-rose-600 hover:bg-rose-50 border border-rose-200 cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 border border-rose-200 dark:border-rose-800 cursor-pointer"
                 >
-                  Clear Override
+                  {t.scoring.clearOverride}
                 </button>
               ) : <div />}
               <button 
@@ -324,7 +324,7 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
                 onClick={() => setShowOverride(false)} 
                 className="px-4 py-2 rounded-lg bg-primary text-on-primary text-xs font-medium cursor-pointer"
               >
-                Apply to Form
+                {t.scoring.applyToForm}
               </button>
             </div>
           </div>

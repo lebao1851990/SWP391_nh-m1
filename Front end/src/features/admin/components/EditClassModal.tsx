@@ -5,6 +5,7 @@ import { X, Loader2, Save, Edit3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUpdateAdminClass, useAdminUsers } from '../hooks';
 import { AdminClass } from '../api/admin.api';
+import { useTranslation } from '@/i18n';
 
 interface EditClassModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface EditClassModalProps {
 }
 
 export function EditClassModal({ isOpen, onClose, cls }: EditClassModalProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState(cls.name || '');
   const [code, setCode] = useState(cls.code || '');
   const [semester, setSemester] = useState(cls.semester || '');
@@ -87,7 +89,7 @@ export function EditClassModal({ isOpen, onClose, cls }: EditClassModalProps) {
             </div>
             <div>
               <h2 id="edit-class-modal-title" className="font-headline-sm text-headline-sm font-semibold text-on-surface">
-                Edit Class
+                {t.admin.editClassTitle}
               </h2>
               <p className="text-xs text-on-surface-variant">Update course cohort details and instructor assignment</p>
             </div>
@@ -106,7 +108,7 @@ export function EditClassModal({ isOpen, onClose, cls }: EditClassModalProps) {
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold uppercase tracking-wider text-outline">
-              Course Name <span className="text-error">*</span>
+              {t.admin.className} <span className="text-error">*</span>
             </label>
             <input
               type="text"
@@ -122,7 +124,7 @@ export function EditClassModal({ isOpen, onClose, cls }: EditClassModalProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold uppercase tracking-wider text-outline">
-                Course Code <span className="text-error">*</span>
+                {t.admin.classCode} <span className="text-error">*</span>
               </label>
               <input
                 type="text"
@@ -137,7 +139,7 @@ export function EditClassModal({ isOpen, onClose, cls }: EditClassModalProps) {
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold uppercase tracking-wider text-outline">
-                Semester <span className="text-error">*</span>
+                {t.admin.semester} <span className="text-error">*</span>
               </label>
               <input
                 type="text"
@@ -158,7 +160,7 @@ export function EditClassModal({ isOpen, onClose, cls }: EditClassModalProps) {
             {isLoadingUsers ? (
               <div className="px-3.5 py-2.5 rounded-lg bg-surface-container-low border border-outline-variant/40 text-xs text-on-surface-variant flex items-center gap-2">
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-                <span>Loading available instructors...</span>
+                <span>{t.common.loading}</span>
               </div>
             ) : teachers.length > 0 ? (
               <select
@@ -169,9 +171,9 @@ export function EditClassModal({ isOpen, onClose, cls }: EditClassModalProps) {
                 className="px-3.5 py-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant/60 focus:border-primary focus:ring-1 focus:ring-primary text-sm text-on-surface outline-none transition-all disabled:opacity-50"
               >
                 <option value="">-- Select Instructor --</option>
-                {teachers.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} ({t.email})
+                {teachers.map((teach) => (
+                  <option key={teach.id} value={teach.id}>
+                    {teach.name} ({teach.email})
                   </option>
                 ))}
               </select>
@@ -196,7 +198,7 @@ export function EditClassModal({ isOpen, onClose, cls }: EditClassModalProps) {
               disabled={updateClassMutation.isPending}
               className="px-4 py-2 rounded-lg text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-colors disabled:opacity-50 cursor-pointer"
             >
-              Cancel
+              {t.common.cancel}
             </button>
             <button
               type="submit"
@@ -206,12 +208,12 @@ export function EditClassModal({ isOpen, onClose, cls }: EditClassModalProps) {
               {updateClassMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Saving...</span>
+                  <span>{t.common.loading}</span>
                 </>
               ) : (
                 <>
                   <Save className="w-4 h-4" />
-                  <span>Save Changes</span>
+                  <span>{t.admin.saveClassChanges}</span>
                 </>
               )}
             </button>

@@ -25,18 +25,43 @@ test.describe('Class-aware Exams E2E Verification', () => {
     const examTitle = `Class-Aware Exam ${Date.now()}`;
     await modal.locator('input[placeholder*="CS201"]').fill(examTitle);
 
+    // Verify Assigned Course Classes trigger field is visible and interactive
+    const classTrigger = modal.locator('#assigned-classes-trigger');
+    await expect(classTrigger).toBeVisible({ timeout: 5000 });
+
+    // Click trigger to open dropdown
+    await classTrigger.click();
+
+    // Verify dropdown popover opens
+    const classDropdown = modal.locator('[data-testid="assigned-classes-dropdown"]');
+    await expect(classDropdown).toBeVisible({ timeout: 5000 });
+
     // Multi-class selector: check that class checkboxes exist
-    const classCheckboxes = modal.locator('input[type="checkbox"]');
+    const classCheckboxes = classDropdown.locator('input[type="checkbox"]');
     const checkboxCount = await classCheckboxes.count();
     expect(checkboxCount).toBeGreaterThanOrEqual(1);
 
-    // If multiple classes exist, select all or multiple
-    const selectAllBtn = modal.locator('button:has-text("Select All")');
-    if (await selectAllBtn.isVisible()) {
-      await selectAllBtn.click();
+    // Test select and deselect
+    const firstCheckbox = classCheckboxes.first();
+    const wasChecked = await firstCheckbox.isChecked();
+    if (wasChecked) {
+      // Deselect it to verify deselecting works
+      await firstCheckbox.uncheck();
+      await expect(firstCheckbox).not.toBeChecked();
+      // Re-select it
+      await firstCheckbox.check();
+      await expect(firstCheckbox).toBeChecked();
     } else {
-      await classCheckboxes.first().check();
+      await firstCheckbox.check();
+      await expect(firstCheckbox).toBeChecked();
     }
+
+    // Verify count in label updates
+    await expect(modal.locator('label[for="assigned-classes-trigger"]')).toContainText('selected');
+
+    // Close dropdown
+    await modal.locator('button:has-text("Done")').click();
+    await expect(classDropdown).not.toBeVisible({ timeout: 5000 });
 
     // Set duration
     await page.fill('input[type="number"]', '120');
@@ -66,6 +91,55 @@ test.describe('Class-aware Exams E2E Verification', () => {
     await expect(assignedClassesSection).toContainText('Assigned Classes:');
   });
 
+  test('Teacher Create Exam validates required class selection before submission', async ({ page }) => {
+    await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+    await page.goto('/teacher/exams');
+
+    // Open create exam modal
+    const createBtn = page.locator('#btn-create-exam');
+    await expect(createBtn).toBeVisible({ timeout: 5000 });
+    await createBtn.click();
+
+    const modal = page.locator('div.fixed');
+    await expect(modal).toBeVisible({ timeout: 5000 });
+
+    // Fill title
+    await modal.locator('input[placeholder*="CS201"]').fill('Validation Test Exam');
+
+    // Open dropdown and clear all selections
+    const classTrigger = modal.locator('#assigned-classes-trigger');
+    await classTrigger.click();
+
+    const classDropdown = modal.locator('[data-testid="assigned-classes-dropdown"]');
+    await expect(classDropdown).toBeVisible();
+
+    const clearBtn = classDropdown.locator('button:has-text("Clear")');
+    if (await clearBtn.isVisible()) {
+      await clearBtn.click();
+    } else {
+      const checkedBoxes = classDropdown.locator('input[type="checkbox"]:checked');
+      const count = await checkedBoxes.count();
+      for (let i = 0; i < count; i++) {
+        await checkedBoxes.nth(0).uncheck();
+      }
+    }
+
+    // Verify 0 selected
+    await expect(modal.locator('label[for="assigned-classes-trigger"]')).toContainText('(0 selected)');
+
+    // Close dropdown
+    await modal.locator('button:has-text("Done")').click();
+
+    // Attempt to submit without selecting any class
+    await page.click('button:has-text("Publish & Save")');
+
+    // Verify validation error is displayed
+    await expect(modal.locator('text=Please select at least one course class')).toBeVisible({ timeout: 5000 });
+
+    // Verify dropdown automatically opened to guide the teacher
+    await expect(classDropdown).toBeVisible({ timeout: 5000 });
+  });
+
   test('Teacher can edit assigned classes on an existing exam', async ({ page }) => {
     await login(page, 'teachera@fpt.edu.vn', 'testpass123');
     await expect(page).toHaveURL(/\/teacher\/dashboard/);
@@ -87,8 +161,13 @@ test.describe('Class-aware Exams E2E Verification', () => {
     await expect(editModal).toBeVisible({ timeout: 5000 });
     await expect(editModal.locator('h2')).toContainText('Edit Exam Settings');
 
-    // Confirm classes checkboxes are rendered
-    const editClassCheckboxes = editModal.locator('input[type="checkbox"]');
+    // Click edit assigned classes trigger
+    const editClassTrigger = editModal.locator('#edit-assigned-classes-trigger');
+    await expect(editClassTrigger).toBeVisible({ timeout: 5000 });
+    await editClassTrigger.click();
+
+    // Confirm classes checkboxes are rendered in dropdown
+    const editClassCheckboxes = editModal.locator('[data-testid="assigned-classes-dropdown"] input[type="checkbox"]');
     expect(await editClassCheckboxes.count()).toBeGreaterThanOrEqual(1);
 
     // Close without saving or save updated settings

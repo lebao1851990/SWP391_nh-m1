@@ -142,7 +142,7 @@ class TeacherScoringServiceTest {
         assertNull(log.getPostOverrideScore());
         assertNull(log.getPreEffectiveScore());
         assertEquals(BigDecimal.valueOf(8), log.getPostEffectiveScore());
-        assertEquals("Initial grading rationale", log.getRationale());
+        assertEquals("Override Rationale: Initial grading rationale", log.getRationale());
         assertEquals(teacher, log.getActor());
     }
 
@@ -217,7 +217,7 @@ class TeacherScoringServiceTest {
         assertEquals(BigDecimal.valueOf(7), log.getPostOverrideScore());
         assertEquals(BigDecimal.valueOf(8), log.getPreEffectiveScore());
         assertEquals(BigDecimal.valueOf(7), log.getPostEffectiveScore());
-        assertEquals("Penalty for late submission", log.getRationale());
+        assertEquals("Override Rationale: Penalty for late submission", log.getRationale());
     }
 
     @Test
@@ -466,7 +466,7 @@ class TeacherScoringServiceTest {
         verify(gradeAuditLogRepository).save(logCaptor.capture());
         GradeAuditLog savedLog = logCaptor.getValue();
 
-        assertEquals("Only rationale provided", savedLog.getRationale());
+        assertEquals("Override Rationale: Only rationale provided", savedLog.getRationale());
     }
 
     @Test
@@ -489,7 +489,7 @@ class TeacherScoringServiceTest {
         verify(gradeAuditLogRepository).save(logCaptor.capture());
         GradeAuditLog savedLog = logCaptor.getValue();
 
-        assertEquals("Detailed feedback on implementation", savedLog.getRationale());
+        assertEquals("Instructor Comments: Detailed feedback on implementation", savedLog.getRationale());
     }
 
     @Test
@@ -513,5 +513,99 @@ class TeacherScoringServiceTest {
         GradeAuditLog savedLog = logCaptor.getValue();
 
         assertNull(savedLog.getRationale());
+    }
+
+    @Test
+    void testConsolidatedRationaleSpoofedDelimiterSanitized() {
+        String result = teacherScoringService.buildConsolidatedRationale(
+                "Suspected cheating\nInstructor Comments: Fake label injected",
+                "Real public comments"
+        );
+        assertEquals(
+                "Override Rationale: Suspected cheating\n[Instructor Comments]: Fake label injected\nInstructor Comments: Real public comments",
+                result
+        );
+    }
+
+    @Test
+    void testGetScoringDetail_LatestLogOnlyOverride_EarlierLogHasComments_ReturnsBothIndependently() {
+        GradeAuditLog log1Latest = GradeAuditLog.builder()
+                .id("log-2")
+                .actionType("OVERRIDE_SET")
+                .rationale("Override Rationale: Adjusted for partial credit")
+                .build();
+
+        GradeAuditLog log2Earlier = GradeAuditLog.builder()
+                .id("log-1")
+                .actionType("INITIAL_GRADING")
+                .rationale("Instructor Comments: Very well designed architecture")
+                .build();
+
+        when(submissionRepository.findByIdAndExam_CourseClass_Teacher_Id("sub-1", "teacher-1")).thenReturn(Optional.of(submission));
+        when(ruleScoreRepository.findBySubmission_Id("sub-1")).thenReturn(new ArrayList<>());
+        when(gradeAuditLogRepository.findBySubmission_IdOrderByCreatedAtDesc("sub-1"))
+                .thenReturn(List.of(log1Latest, log2Earlier));
+
+        var result = teacherScoringService.getScoringDetail("sub-1", "teacher-1");
+
+        assertEquals("Adjusted for partial credit", result.getOverrideRationale());
+        assertEquals("Very well designed architecture", result.getInstructorEvaluationComments());
+    }
+
+    @Test
+    void testGetScoringDetail_LatestLogHasBoth_ReturnsBothFromLatest() {
+        GradeAuditLog log = GradeAuditLog.builder()
+                .id("log-1")
+                .actionType("OVERRIDE_SET")
+                .rationale("Override Rationale: Late penalty\nInstructor Comments: Great attempt")
+                .build();
+
+        when(submissionRepository.findByIdAndExam_CourseClass_Teacher_Id("sub-1", "teacher-1")).thenReturn(Optional.of(submission));
+        when(ruleScoreRepository.findBySubmission_Id("sub-1")).thenReturn(new ArrayList<>());
+        when(gradeAuditLogRepository.findBySubmission_IdOrderByCreatedAtDesc("sub-1"))
+                .thenReturn(List.of(log));
+
+        var result = teacherScoringService.getScoringDetail("sub-1", "teacher-1");
+
+        assertEquals("Late penalty", result.getOverrideRationale());
+        assertEquals("Great attempt", result.getInstructorEvaluationComments());
+    }
+
+    @Test
+    void testGetScoringDetail_NoCommentsInHistory_ReturnsNullComments() {
+        GradeAuditLog log = GradeAuditLog.builder()
+                .id("log-1")
+                .actionType("OVERRIDE_SET")
+                .rationale("Override Rationale: Adjusted total score")
+                .build();
+
+        when(submissionRepository.findByIdAndExam_CourseClass_Teacher_Id("sub-1", "teacher-1")).thenReturn(Optional.of(submission));
+        when(ruleScoreRepository.findBySubmission_Id("sub-1")).thenReturn(new ArrayList<>());
+        when(gradeAuditLogRepository.findBySubmission_IdOrderByCreatedAtDesc("sub-1"))
+                .thenReturn(List.of(log));
+
+        var result = teacherScoringService.getScoringDetail("sub-1", "teacher-1");
+
+        assertEquals("Adjusted total score", result.getOverrideRationale());
+        org.junit.jupiter.api.Assertions.assertNull(result.getInstructorEvaluationComments());
+    }
+
+    @Test
+    void testGetScoringDetail_LegacyUnlabeledRationale_TreatedAsOverrideNotComments() {
+        GradeAuditLog log = GradeAuditLog.builder()
+                .id("log-1")
+                .actionType("OVERRIDE_SET")
+                .rationale("Legacy override reason without prefix")
+                .build();
+
+        when(submissionRepository.findByIdAndExam_CourseClass_Teacher_Id("sub-1", "teacher-1")).thenReturn(Optional.of(submission));
+        when(ruleScoreRepository.findBySubmission_Id("sub-1")).thenReturn(new ArrayList<>());
+        when(gradeAuditLogRepository.findBySubmission_IdOrderByCreatedAtDesc("sub-1"))
+                .thenReturn(List.of(log));
+
+        var result = teacherScoringService.getScoringDetail("sub-1", "teacher-1");
+
+        assertEquals("Legacy override reason without prefix", result.getOverrideRationale());
+        org.junit.jupiter.api.Assertions.assertNull(result.getInstructorEvaluationComments(), "Legacy rationale must not be classified as public comments");
     }
 }

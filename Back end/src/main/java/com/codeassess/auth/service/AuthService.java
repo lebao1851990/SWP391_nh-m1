@@ -17,13 +17,24 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 public class AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
     private final AuthMapper authMapper;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+
+    public AuthService(
+            AuthenticationManager authenticationManager,
+            UserRepository userRepository,
+            AuthMapper authMapper,
+            org.springframework.security.crypto.password.PasswordEncoder passwordEncoder
+    ) {
+        this.authenticationManager = authenticationManager;
+        this.userRepository = userRepository;
+        this.authMapper = authMapper;
+        this.passwordEncoder = passwordEncoder;
+    }
 
     public void register(com.codeassess.auth.dto.request.RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -65,6 +76,7 @@ public class AuthService {
         // Establish HTTP Session
         HttpSession session = httpRequest.getSession(true);
         session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, securityContext);
+        session.setAttribute(com.codeassess.security.SessionPasswordAgeFilter.SESSION_AUTH_TIME_KEY, System.currentTimeMillis());
 
         // Fetch User and Map to Response
         User user = userRepository.findByEmail(request.getEmail())

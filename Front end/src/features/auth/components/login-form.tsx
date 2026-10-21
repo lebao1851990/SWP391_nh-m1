@@ -9,13 +9,15 @@ import { z } from 'zod';
 import { loginSchema } from '../schemas/auth.schema';
 import { authApi } from '../api/auth.api';
 import { useSessionStore } from '@/stores/session.store';
-import { Eye, EyeOff, Lock, ArrowRight, Info, AlertCircle, CheckCircle, RefreshCcw } from 'lucide-react';
+import { useTranslation } from '@/i18n';
+import { Eye, EyeOff, Lock, ArrowRight, AlertCircle, CheckCircle, RefreshCcw } from 'lucide-react';
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const setSession = useSessionStore((state) => state.setSession);
+  const { t } = useTranslation();
 
   const {
     register,
@@ -41,14 +43,35 @@ export function LoginForm() {
       // Set Zustand session (only minimal metadata, no token)
       setSession(data.user);
 
-      // (The backend will set the HttpOnly cookie for real authentication)
+      // Ensure client-side role cookie matches authenticated backend role immediately
+      if (typeof document !== 'undefined') {
+        document.cookie = `codeassess_role=${data.user.role}; path=/; max-age=86400; SameSite=Lax`;
+      }
 
-      // Redirect
-      const redirect = searchParams?.get('redirect');
-      const isSafeRedirect = redirect && redirect.startsWith('/') && !redirect.startsWith('//');
+      // Sanitize redirect parameter to eliminate self-redirect loops and open redirects
+      const rawRedirect = searchParams?.get('redirect');
+      const safeRedirect = (() => {
+        if (!rawRedirect) return null;
+        if (!rawRedirect.startsWith('/') || rawRedirect.startsWith('//') || rawRedirect.startsWith('/\\')) {
+          return null;
+        }
+        try {
+          const dummyOrigin = 'http://localhost';
+          const parsed = new URL(rawRedirect, dummyOrigin);
+          if (parsed.origin !== dummyOrigin) return null;
+          const cleanPath = parsed.pathname.toLowerCase();
+          const authRoutes = ['/login', '/register', '/forgot-password', '/reset-password'];
+          if (authRoutes.includes(cleanPath)) {
+            return null;
+          }
+          return parsed.pathname + parsed.search + parsed.hash;
+        } catch {
+          return null;
+        }
+      })();
       
-      if (isSafeRedirect) {
-        router.push(redirect);
+      if (safeRedirect) {
+        router.push(safeRedirect);
       } else {
         if (data.user.role === 'TEACHER') router.push('/teacher/dashboard');
         else if (data.user.role === 'ADMIN') router.push('/admin/dashboard');
@@ -78,11 +101,11 @@ export function LoginForm() {
             </div>
             <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-sidebar-accent text-primary text-xs font-medium mb-1 tracking-tight">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-              DIRECTORY ACCESS
+              {t('auth.directoryAccess')}
             </div>
-            <h1 className="text-2xl font-semibold text-foreground tracking-tight">Sign in to CodeAssess</h1>
+            <h1 className="text-2xl font-semibold text-foreground tracking-tight">{t('auth.signInTitle')}</h1>
             <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-              University portal for programming exams, automated grading & academic integrity.
+              {t('auth.signInSubtitle')}
             </p>
           </div>
 
@@ -91,8 +114,8 @@ export function LoginForm() {
             <div className="mb-4 p-3 rounded-lg flex items-start gap-3 bg-destructive/10 text-destructive transition-all">
               <AlertCircle className="w-5 h-5 mt-0.5" />
               <div className="flex-1">
-                <p className="text-[13px] font-semibold">Authentication Failed</p>
-                <p className="text-xs mt-0.5">Invalid credentials for directory or account is temporarily locked. (Or backend is offline)</p>
+                <p className="text-[13px] font-semibold">{t('auth.authFailed')}</p>
+                <p className="text-xs mt-0.5">{t('auth.authFailedDesc')}</p>
               </div>
             </div>
           )}
@@ -101,8 +124,7 @@ export function LoginForm() {
             <div className="mb-4 p-3 rounded-lg flex items-start gap-3 bg-green-100 text-green-800 transition-all">
               <CheckCircle className="w-5 h-5 mt-0.5" />
               <div className="flex-1">
-                <p className="text-[13px] font-semibold">Authenticating Credentials</p>
-                <p className="text-xs mt-0.5">Directory token verified. Redirecting to Dashboard...</p>
+                <p className="text-[13px] font-semibold">{t('auth.signingIn')}</p>
               </div>
             </div>
           )}
@@ -114,29 +136,28 @@ export function LoginForm() {
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-[13px] font-medium text-foreground" htmlFor="identity">
-                  University Email or Student/Staff ID
+                  {t('auth.identityLabel')}
                 </label>
                 {isTeacher && (
                    <span className="px-2 py-0.5 rounded bg-green-100 text-green-800 text-[11px] font-semibold tracking-wide">
-                     FACULTY ACCOUNT
+                     {t('auth.facultyBadge')}
                    </span>
                 )}
                 {isStudent && (
                    <span className="px-2 py-0.5 rounded bg-blue-100 text-primary text-[11px] font-semibold tracking-wide">
-                     STUDENT ACCOUNT
+                     {t('auth.studentBadge')}
                    </span>
                 )}
               </div>
               <div className="relative flex items-center">
                 <span className="absolute left-3 text-muted-foreground pointer-events-none">
-                  {/* Icon placeholder */}
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect width="7" height="5" x="7" y="7" rx="1"/><rect width="7" height="5" x="10" y="12" rx="1"/></svg>
                 </span>
                 <input
                   id="identity"
                   type="text"
                   autoComplete="username"
-                  placeholder="e.g., student@fpt.edu.vn or GV1084"
+                  placeholder={t('auth.identityPlaceholder')}
                   className={`w-full pl-10 pr-3 py-2 bg-card text-foreground text-sm rounded-lg border ${errors.identity ? 'border-destructive focus:ring-destructive' : 'border-border focus:ring-primary'} shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:border-transparent transition-all`}
                   {...register('identity')}
                 />
@@ -153,9 +174,8 @@ export function LoginForm() {
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-[13px] font-medium text-foreground" htmlFor="password">
-                  Password
+                  {t('auth.passwordLabel')}
                 </label>
-                <span className="text-[11px] font-medium text-muted-foreground">Min. 4 characters</span>
               </div>
               <div className="relative flex items-center">
                 <span className="absolute left-3 text-muted-foreground pointer-events-none">
@@ -165,14 +185,14 @@ export function LoginForm() {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
-                  placeholder="Enter secure password"
+                  placeholder={t('auth.passwordPlaceholder')}
                   className={`w-full pl-10 pr-10 py-2 bg-card text-foreground text-sm rounded-lg border ${errors.password ? 'border-destructive focus:ring-destructive' : 'border-border focus:ring-primary'} shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:border-transparent transition-all`}
                   {...register('password')}
                 />
                 <button
                   type="button"
-                  title="Toggle password view"
-                  className="absolute right-2 p-1 text-muted-foreground hover:text-foreground rounded transition-colors flex items-center justify-center"
+                  title={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                  className="absolute right-2 p-1 text-muted-foreground hover:text-foreground rounded transition-colors flex items-center justify-center cursor-pointer"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -195,17 +215,14 @@ export function LoginForm() {
                   {...register('rememberMe')}
                 />
                 <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors flex items-center gap-1">
-                  Remember this computer
-                  <span title="Extends secure local AST token session to 30 days">
-                    <Info className="w-3 h-3 text-border group-hover:text-primary transition-colors" />
-                  </span>
+                  {t('auth.rememberMe')}
                 </span>
               </label>
               <a
                 href="/forgot-password"
                 className="text-[13px] font-medium text-primary hover:text-primary/80 transition-colors"
               >
-                Forgot password?
+                {t('auth.forgotPasswordLink')}
               </a>
             </div>
 
@@ -213,16 +230,16 @@ export function LoginForm() {
             <button
               type="submit"
               disabled={loginMutation.isPending || loginMutation.isSuccess}
-              className="w-full mt-2 py-2.5 px-4 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-base shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full mt-2 py-2.5 px-4 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-base shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
             >
               {loginMutation.isPending || loginMutation.isSuccess ? (
                 <>
-                  <span>{loginMutation.isSuccess ? 'Redirecting...' : 'Authenticating...'}</span>
+                  <span>{t('auth.signingIn')}</span>
                   <RefreshCcw className="w-5 h-5 animate-spin" />
                 </>
               ) : (
                 <>
-                  <span>Sign In to Portal</span>
+                  <span>{t('auth.signInButton')}</span>
                   <ArrowRight className="w-5 h-5" />
                 </>
               )}
@@ -232,24 +249,23 @@ export function LoginForm() {
           {/* Secondary Navigation */}
           <div className="mt-6 text-center">
             <p className="text-[13px] text-muted-foreground">
-              Don&apos;t have an account?{' '}
+              {t('auth.noAccountPrompt')}{' '}
               <a href="/register" className="font-medium text-primary hover:text-primary/80 transition-colors ml-1">
-                Create one
+                {t('auth.createOne')}
               </a>
             </p>
           </div>
-
 
           {/* SSO Alternative / Student Directory Info */}
           <div className="mt-8 pt-4 bg-muted/50 rounded-lg p-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="flex flex-col">
-                <span className="text-[13px] font-medium text-foreground">Direct Portal Access</span>
-                <span className="text-xs text-muted-foreground">Auto-detects Teacher & Student access</span>
+                <span className="text-[13px] font-medium text-foreground">{t('auth.directPortalAccess')}</span>
+                <span className="text-xs text-muted-foreground">{t('auth.autoDetectRole')}</span>
               </div>
             </div>
             <span className="text-[11px] px-2 py-1 bg-muted rounded font-mono text-secondary">
-              v4.12-PROCTOR
+              {t('auth.proctorVersion')}
             </span>
           </div>
         </div>
@@ -258,11 +274,11 @@ export function LoginForm() {
         <div className="mt-4 flex flex-col items-center text-center gap-1">
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <span className="text-xs">
-              Protected by Secure Authentication & AST Automated Proctoring
+              {t('auth.complianceNotice')}
             </span>
           </div>
           <span className="text-[11px] text-border">
-            Academic Year 2025–2026 • Computing Assessment Division
+            {t('auth.academicYearFooter')}
           </span>
         </div>
       </div>

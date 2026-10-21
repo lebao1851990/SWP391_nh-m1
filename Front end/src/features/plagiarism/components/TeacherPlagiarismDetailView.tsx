@@ -9,20 +9,18 @@ import { plagiarismAiApi, AiAnalysisResponse } from '../api/plagiarism-ai.api';
 import { 
   ArrowLeft, 
   Sparkles, 
-  ShieldAlert, 
-  CheckCircle2, 
   GitCompare, 
   Lock, 
   AlertCircle, 
   ExternalLink,
-  Loader2,
-  FileCode2,
   Activity,
   Info
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from '@/i18n';
 
 export function TeacherPlagiarismDetailView({ recordId }: { recordId: string }) {
+  const { t } = useTranslation();
   const { data, isLoading, isError, error } = usePlagiarismDetail(recordId);
 
   // AI Modal State
@@ -39,7 +37,7 @@ export function TeacherPlagiarismDetailView({ recordId }: { recordId: string }) 
       const response = await plagiarismAiApi.getSimilarityExplanation(recordId);
       setAiData(response);
       setAiStatus('success');
-      toast.success('AI Similarity explanation generated successfully');
+      toast.success(t.plagiarism.forensicSynthesisSuccess);
     } catch (err: unknown) {
       setAiStatus('error');
       const msg = (err instanceof Error ? err.message : 'Unknown error') || 'Failed to fetch AI explanation';
@@ -52,7 +50,7 @@ export function TeacherPlagiarismDetailView({ recordId }: { recordId: string }) 
     return (
       <div className="flex flex-col h-72 items-center justify-center gap-3">
         <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-        <p className="text-on-surface-variant font-label-md text-xs">Loading case dossier...</p>
+        <p className="text-on-surface-variant font-label-md text-xs">{t.common.loading}</p>
       </div>
     );
   }
@@ -61,19 +59,19 @@ export function TeacherPlagiarismDetailView({ recordId }: { recordId: string }) 
     const status = (error as AxiosError)?.response?.status;
     return (
       <div className="max-w-xl mx-auto my-12 p-8 rounded-2xl bg-surface-container-lowest border border-outline-variant/40 shadow-lg text-center flex flex-col items-center gap-3">
-        <div className="p-3 rounded-full bg-rose-50 text-rose-600">
+        <div className="p-3 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300">
           {status === 403 ? <Lock className="w-8 h-8" /> : <AlertCircle className="w-8 h-8" />}
         </div>
         <h2 className="font-headline-md text-headline-md text-on-surface">
-          {status === 403 ? 'Access Restricted' : 'Record Not Found'}
+          {status === 403 ? t.plagiarism.accessForbidden : t.errors.notFound}
         </h2>
         <p className="font-body-md text-on-surface-variant text-xs">
           {status === 403 
-            ? 'You do not have permission to access this plagiarism record.'
+            ? t.errors.forbidden
             : (error as Error).message}
         </p>
-        <Link href="/teacher/plagiarism" className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium">
-          Back to Plagiarism Hub
+        <Link href="/teacher/plagiarism" className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors">
+          {t.common.back}
         </Link>
       </div>
     );
@@ -93,13 +91,13 @@ export function TeacherPlagiarismDetailView({ recordId }: { recordId: string }) 
               <nav className="flex items-center gap-2 text-on-surface-variant text-xs mb-1">
                 <Link className="hover:text-primary transition-colors flex items-center gap-1 font-medium" href="/teacher/plagiarism">
                   <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Plagiarism Matrix</span>
+                  <span>{t.plagiarism.astSimilarityMatrix}</span>
                 </Link>
                 <span className="text-outline">/</span>
                 <span className="text-primary font-semibold">Case #{recordId.substring(0, 8).toUpperCase()}</span>
               </nav>
               <div className="flex items-center gap-space-xs flex-wrap">
-                <span className="font-mono text-xs px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-bold">
+                <span className="font-mono text-xs px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/40 font-bold">
                   CASE #{recordId.substring(0, 8).toUpperCase()}
                 </span>
                 <span className="text-xs text-on-surface-variant">• {examName} • {className}</span>
@@ -116,10 +114,10 @@ export function TeacherPlagiarismDetailView({ recordId }: { recordId: string }) 
             <div className="flex items-center gap-2 self-start md:self-auto">
               <button 
                 onClick={handleRunAiAnalysis}
-                className="px-3.5 py-2 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                className="px-3.5 py-2 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-950/40 dark:hover:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800/40 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
               >
-                <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-                <span>AI Similarity Explanation</span>
+                <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                <span>{t.plagiarism.aiAnalysisButton}</span>
               </button>
 
               <Link 
@@ -127,7 +125,7 @@ export function TeacherPlagiarismDetailView({ recordId }: { recordId: string }) 
                 className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-on-primary text-xs font-medium flex items-center gap-1.5 shadow-sm transition-all"
               >
                 <GitCompare className="w-3.5 h-3.5" />
-                <span>Open Dual Code Comparison</span>
+                <span>{t.plagiarism.viewComparison}</span>
               </Link>
             </div>
           </div>
@@ -140,17 +138,14 @@ export function TeacherPlagiarismDetailView({ recordId }: { recordId: string }) 
             <div className="flex flex-col gap-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-title-md text-title-md text-on-surface font-bold">
-                  Academic Rigor &amp; Evidentiary Standard Notice
+                  {t.plagiarism.academicRigorNotice}
                 </span>
                 <span className="font-mono text-[10px] bg-surface-container-high px-2 py-0.5 rounded font-semibold text-on-surface">
                   ISO-6820 AST Spec
                 </span>
               </div>
               <p className="text-xs text-on-surface-variant leading-relaxed">
-                &ldquo;<strong>Similarity indicates structural or textual overlap between submissions. It is a review signal, not proof of plagiarism.</strong>&rdquo;
-              </p>
-              <p className="text-xs text-on-surface-variant/90 leading-relaxed italic border-t border-outline-variant/20 pt-1 mt-0.5">
-                &ldquo;Độ tương đồng phản ánh sự trùng lặp cấu trúc hoặc cú pháp AST giữa các bài nộp. Đây là tín hiệu tham vấn học thuật dành cho giảng viên đánh giá, không phải bằng chứng khẳng định gian lận.&rdquo;
+                &ldquo;<strong>{t.plagiarism.academicRigorQuote}</strong>&rdquo;
               </p>
             </div>
           </div>
@@ -166,8 +161,8 @@ export function TeacherPlagiarismDetailView({ recordId }: { recordId: string }) 
                     <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">AST Fingerprint Interlink</h3>
                   </div>
                   {pair.isFlagged && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-bold">
-                      Critical Threshold Exceeded
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/40 font-bold">
+                      {t.plagiarism.criticalFlaggedTab}
                     </span>
                   )}
                 </div>
@@ -186,13 +181,13 @@ export function TeacherPlagiarismDetailView({ recordId }: { recordId: string }) 
                     <g>
                       <circle cx="180" cy="80" fill="#2563eb" r="26"></circle>
                       <text fill="#ffffff" fontFamily="Inter" fontSize="11" fontWeight="700" textAnchor="middle" x="180" y="84">A</text>
-                      <text fill="#0f172a" fontFamily="JetBrains Mono" fontSize="11" fontWeight="600" textAnchor="middle" x="180" y="125">{pair.studentAName || 'Student A'}</text>
+                      <text fill="currentColor" className="text-on-surface font-mono text-[11px] font-semibold" textAnchor="middle" x="180" y="125">{pair.studentAName || 'Student A'}</text>
                     </g>
                     
                     <g>
                       <circle cx="420" cy="80" fill="#0284c7" r="26"></circle>
                       <text fill="#ffffff" fontFamily="Inter" fontSize="11" fontWeight="700" textAnchor="middle" x="420" y="84">B</text>
-                      <text fill="#0f172a" fontFamily="JetBrains Mono" fontSize="11" fontWeight="600" textAnchor="middle" x="420" y="125">{pair.studentBName || 'Student B'}</text>
+                      <text fill="currentColor" className="text-on-surface font-mono text-[11px] font-semibold" textAnchor="middle" x="420" y="125">{pair.studentBName || 'Student B'}</text>
                     </g>
                   </svg>
                 </div>
@@ -204,19 +199,19 @@ export function TeacherPlagiarismDetailView({ recordId }: { recordId: string }) 
               <div>
                 <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20 mb-2">
                   <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">Evidence Metrics</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40">
                     VERIFIED
                   </span>
                 </div>
                 <p className="text-xs text-on-surface-variant">Metrics derived from tokenized AST Winnowing &amp; Jaccard index.</p>
                 <div className="mt-3 space-y-2 text-xs">
                   <div className="p-2.5 rounded-lg bg-surface-container-low flex items-center justify-between border border-outline-variant/20">
-                    <span className="text-on-surface-variant">Structural Equivalence</span>
-                    <span className={`font-bold font-mono ${pair.isFlagged ? 'text-rose-600' : 'text-on-surface'}`}>{pair.similarityRate}%</span>
+                    <span className="text-on-surface-variant">{t.plagiarism.structuralMatch}</span>
+                    <span className={`font-bold font-mono ${pair.isFlagged ? 'text-rose-600 dark:text-rose-400' : 'text-on-surface'}`}>{pair.similarityRate}%</span>
                   </div>
                   <div className="p-2.5 rounded-lg bg-surface-container-low flex items-center justify-between border border-outline-variant/20">
-                    <span className="text-on-surface-variant">Classification</span>
-                    <span className={`font-semibold font-mono ${pair.isFlagged ? 'text-rose-600' : 'text-on-surface'}`}>{pair.isFlagged ? 'FLAGGED' : 'MODERATE'}</span>
+                    <span className="text-on-surface-variant">{t.common.status}</span>
+                    <span className={`font-semibold font-mono ${pair.isFlagged ? 'text-rose-600 dark:text-rose-400' : 'text-on-surface'}`}>{pair.isFlagged ? t.plagiarism.criticalFlaggedTab : t.plagiarism.moderateTab}</span>
                   </div>
                   <div className="p-2.5 rounded-lg bg-surface-container-low flex items-center justify-between border border-outline-variant/20">
                     <span className="text-on-surface-variant">Evidence Items</span>
@@ -229,7 +224,7 @@ export function TeacherPlagiarismDetailView({ recordId }: { recordId: string }) 
                 href={`/teacher/plagiarism/${recordId}/compare`}
                 className="w-full py-2 bg-surface-container hover:bg-surface-container-high text-primary rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors border border-outline-variant/30"
               >
-                <span>Examine Side-by-Side Diff</span>
+                <span>{t.plagiarism.viewComparison}</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </Link>
             </div>
@@ -247,8 +242,8 @@ export function TeacherPlagiarismDetailView({ recordId }: { recordId: string }) 
                     <div className="flex items-start justify-between mb-1.5">
                       <span className={`font-semibold px-2 py-0.5 rounded-full text-[10px] uppercase ${
                         ev.severity === 'high' 
-                          ? 'bg-rose-50 text-rose-700 border border-rose-200' 
-                          : 'bg-amber-50 text-amber-700 border border-amber-200'
+                          ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/40' 
+                          : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40'
                       }`}>
                         {ev.severity} Severity
                       </span>
@@ -269,7 +264,7 @@ export function TeacherPlagiarismDetailView({ recordId }: { recordId: string }) 
       <AiAnalysisModal 
         isOpen={aiModalOpen}
         onClose={() => setAiModalOpen(false)}
-        title="AI Similarity Forensic Explanation"
+        title={t.plagiarism.aiReviewTitle}
         status={aiStatus}
         data={aiData}
         errorMessage={aiError}

@@ -22,6 +22,22 @@ spring:
       password: ${REDIS_PASSWORD:}
       timeout: ${REDIS_TIMEOUT_MS:2000}ms
 
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
     locations: classpath:db/migration
@@ -53,6 +69,12 @@ plagiarism:
   window-size: 4
 
 app:
+  mail:
+    from: ${MAIL_FROM:lebao1851990@gmail.com}
+    allow-mock-delivery: ${ALLOW_MOCK_EMAIL:false}
+  auth:
+    password-reset:
+      allow-in-memory-fallback: ${ALLOW_IN_MEMORY_TOKEN_STORE:false}
   internal:
     api-secret: ${INTERNAL_API_SECRET:codeassess-internal-secret-2026}
   cors:

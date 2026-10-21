@@ -8,10 +8,12 @@ import { useMutation } from '@tanstack/react-query';
 import Link from 'next/link';
 import { registerSchema, RegisterFormData } from '../schemas/auth.schema';
 import { authApi } from '../api/auth.api';
+import { useTranslation } from '@/i18n';
 import { Eye, EyeOff, Lock, User, Mail, Shield, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { AxiosError } from 'axios';
 
 export function RegisterForm() {
+  const { t } = useTranslation();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -48,10 +50,10 @@ export function RegisterForm() {
   const isGenericError = registerMutation.isError && !isEmailExists;
 
   const getPasswordReqClasses = (met: boolean) => 
-    met ? 'text-green-700 font-medium' : 'text-slate-600';
+    met ? 'text-green-700 dark:text-green-400 font-medium' : 'text-slate-600 dark:text-slate-400';
 
   const getPasswordReqIcon = (met: boolean) => 
-    met ? <span className="w-2 h-2 rounded-full bg-green-500"></span> : <span className="w-2 h-2 rounded-full bg-slate-300"></span>;
+    met ? <span className="w-2 h-2 rounded-full bg-green-500"></span> : <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600"></span>;
 
   const hasLength = password.length >= 10;
   const hasUpperLower = /[A-Z]/.test(password) && /[a-z]/.test(password);
@@ -76,23 +78,23 @@ export function RegisterForm() {
                   Code<span className="text-primary">Assess</span>
                 </div>
                 <div className="text-[9px] font-semibold tracking-wider uppercase text-muted-foreground font-mono">
-                  Academic Integrity & Exams
+                  {t('common.academicPortal')}
                 </div>
               </div>
             </div>
           </div>
 
           {/* Institutional Badge */}
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-100/80 text-[11px] font-medium text-blue-700 mb-2 font-mono">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-100/80 dark:border-blue-900/40 text-[11px] font-medium text-blue-700 dark:text-blue-300 mb-2 font-mono">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse"></span>
-            SE DEPARTMENT DIRECTORY SSO • ENROLLMENT
+            {t('auth.departmentSso')}
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-            Create your CodeAssess account
+            {t('auth.registerTitle')}
           </h1>
           <p className="text-sm text-muted-foreground mt-1.5 max-w-md">
-            Register to access programming assessments, submissions, scoring, and academic integrity tools.
+            {t('auth.registerSubtitle')}
           </p>
         </div>
 
@@ -102,8 +104,8 @@ export function RegisterForm() {
             <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive flex items-start gap-3 transition-all">
               <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <div className="text-xs sm:text-sm">
-                <p className="font-semibold">This email is already registered</p>
-                <p className="mt-0.5 opacity-90">An account with this institutional address already exists. Please <Link href="/login" className="underline font-medium hover:opacity-80">sign in instead</Link> or request a password reset.</p>
+                <p className="font-semibold">{t('auth.emailExistsTitle')}</p>
+                <p className="mt-0.5 opacity-90">{t('auth.emailExistsDesc')}</p>
               </div>
             </div>
           )}
@@ -112,25 +114,25 @@ export function RegisterForm() {
              <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive flex items-start gap-3 transition-all">
              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
              <div className="text-xs sm:text-sm">
-               <p className="font-semibold">Registration Failed</p>
-               <p className="mt-0.5 opacity-90">We couldn&apos;t create your account right now. Please try again or check if the backend is running.</p>
+               <p className="font-semibold">{t('auth.authFailed')}</p>
+               <p className="mt-0.5 opacity-90">{t('errors.somethingWentWrong')}</p>
              </div>
            </div>
           )}
 
           {registerMutation.isSuccess && (
-            <div className="p-5 rounded-xl bg-green-50 border border-green-200 text-green-900 flex items-start gap-3.5 transition-all">
-              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-700 flex-shrink-0">
+            <div className="p-5 rounded-xl bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-800 text-green-900 dark:text-green-100 flex items-start gap-3.5 transition-all">
+              <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center text-green-700 dark:text-green-300 flex-shrink-0">
                 <CheckCircle className="w-5 h-5" />
               </div>
               <div className="text-xs sm:text-sm">
-                <p className="font-bold text-green-950 text-base">Registration submitted successfully</p>
-                <p className="text-green-800 mt-1 leading-relaxed">
-                  We&apos;ve dispatched a cryptographic verification link to your institutional inbox. Please verify your address to activate portal access.
+                <p className="font-bold text-green-950 dark:text-green-100 text-base">{t('auth.registrationSuccessTitle')}</p>
+                <p className="text-green-800 dark:text-green-200 mt-1 leading-relaxed">
+                  {t('auth.registrationSuccessDesc')}
                 </p>
                 <div className="mt-3 flex gap-2">
                   <Link href="/login" className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-green-700 hover:bg-green-800 text-white rounded-lg text-xs font-semibold shadow-sm transition">
-                    Proceed to Sign In
+                    {t('auth.proceedToSignIn')}
                   </Link>
                 </div>
               </div>
@@ -145,7 +147,7 @@ export function RegisterForm() {
             {/* Full Name Field */}
             <div>
               <label htmlFor="fullName" className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
-                Full Name <span className="text-destructive">*</span>
+                {t('auth.fullNameLabel')} <span className="text-destructive">*</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted-foreground">
@@ -154,7 +156,7 @@ export function RegisterForm() {
                 <input 
                   type="text" 
                   id="fullName" 
-                  placeholder="Enter your full name" 
+                  placeholder={t('auth.fullNamePlaceholder')} 
                   className={`w-full pl-10 pr-3.5 py-2.5 rounded-xl border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition placeholder:text-muted-foreground ${errors.fullName ? 'border-destructive bg-destructive/5' : 'border-border'}`}
                   {...register('fullName')}
                 />
@@ -171,7 +173,7 @@ export function RegisterForm() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label htmlFor="email" className="block text-xs font-semibold text-foreground uppercase tracking-wider">
-                  University Email <span className="text-destructive">*</span>
+                  {t('auth.emailLabel')} <span className="text-destructive">*</span>
                 </label>
                 <span className="text-[11px] font-mono text-muted-foreground">SSO Supported</span>
               </div>
@@ -182,7 +184,7 @@ export function RegisterForm() {
                 <input 
                   type="email" 
                   id="email" 
-                  placeholder="Enter your email (e.g. s.nguyen@university.edu)" 
+                  placeholder={t('auth.emailPlaceholder')} 
                   className={`w-full pl-10 pr-3.5 py-2.5 rounded-xl border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition placeholder:text-muted-foreground ${errors.email ? 'border-destructive bg-destructive/5' : 'border-border'}`}
                   {...register('email')}
                 />
@@ -199,7 +201,7 @@ export function RegisterForm() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-xs font-semibold text-foreground uppercase tracking-wider">
-                  Account Role <span className="text-destructive">*</span>
+                  {t('auth.roleLabel')} <span className="text-destructive">*</span>
                 </label>
                 <span className="text-[11px] font-mono text-muted-foreground">Department Controlled</span>
               </div>
@@ -212,10 +214,10 @@ export function RegisterForm() {
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
+                      <div className="w-6 h-6 rounded-lg bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex items-center justify-center">
                         <User className="w-3.5 h-3.5" />
                       </div>
-                      <span className="text-sm font-bold text-foreground">Student</span>
+                      <span className="text-sm font-bold text-foreground">{t('auth.roleStudent')}</span>
                     </div>
                     <input 
                       type="radio" 
@@ -225,10 +227,10 @@ export function RegisterForm() {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground leading-snug">
-                    Take timed exams, inspect automatic test execution, and review your AST similarity analysis.
+                    {t('auth.roleStudentDesc')}
                   </p>
-                  <div className="mt-2 text-[10px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded inline-block w-fit">
-                    Instant Automatic Provisioning
+                  <div className="mt-2 text-[10px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded inline-block w-fit">
+                    {t('auth.instantProvisioning')}
                   </div>
                 </div>
 
@@ -239,10 +241,10 @@ export function RegisterForm() {
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+                      <div className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center">
                         <Shield className="w-3.5 h-3.5" />
                       </div>
-                      <span className="text-sm font-bold text-foreground">Teacher</span>
+                      <span className="text-sm font-bold text-foreground">{t('auth.roleTeacher')}</span>
                     </div>
                     <input 
                       type="radio" 
@@ -252,19 +254,19 @@ export function RegisterForm() {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground leading-snug">
-                    Publish exams, batch grade submissions, and investigate pairwise code similarity reports.
+                    {t('auth.roleTeacherDesc')}
                   </p>
-                  <div className="mt-2 text-[10px] font-medium text-amber-800 bg-amber-50 px-2 py-0.5 rounded inline-block w-fit">
-                    Requires Faculty Registry Verification
+                  <div className="mt-2 text-[10px] font-medium text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded inline-block w-fit">
+                    {t('auth.facultyVerificationNotice')}
                   </div>
                 </div>
               </div>
 
               {/* Disclaimer */}
-              <div className="mt-2.5 p-2.5 rounded-lg bg-secondary/20 border border-border/70 text-[11px] text-muted-foreground flex items-start gap-2">
+              <div className="mt-2.5 p-2.5 rounded-lg bg-secondary/10 border border-border/70 text-[11px] text-muted-foreground flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-muted-foreground" />
                 <span className="leading-tight">
-                  <strong>Notice on Privileged Access:</strong> Selecting Teacher requests faculty grading privileges. Full instructor access is unlocked once cross-referenced against the academic division roster.
+                  {t('auth.privilegedAccessNotice')}
                 </span>
               </div>
             </div>
@@ -273,7 +275,7 @@ export function RegisterForm() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="password" className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
-                  Password <span className="text-destructive">*</span>
+                  {t('auth.passwordLabel')} <span className="text-destructive">*</span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted-foreground">
@@ -282,14 +284,14 @@ export function RegisterForm() {
                   <input 
                     type={showPassword ? 'text' : 'password'}
                     id="password" 
-                    placeholder="Create a password" 
+                    placeholder={t('auth.passwordPlaceholder')} 
                     className={`w-full pl-10 pr-10 py-2.5 rounded-xl border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition placeholder:text-muted-foreground ${errors.password ? 'border-destructive bg-destructive/5' : 'border-border'}`}
                     {...register('password')}
                   />
                   <button 
                     type="button" 
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground focus:outline-none"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground focus:outline-none cursor-pointer"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -301,7 +303,7 @@ export function RegisterForm() {
 
               <div>
                 <label htmlFor="confirmPassword" className="block text-xs font-semibold text-foreground uppercase tracking-wider mb-1.5">
-                  Confirm Password <span className="text-destructive">*</span>
+                  {t('auth.confirmPasswordLabel')} <span className="text-destructive">*</span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted-foreground">
@@ -310,14 +312,14 @@ export function RegisterForm() {
                   <input 
                     type={showConfirmPassword ? 'text' : 'password'}
                     id="confirmPassword" 
-                    placeholder="Re-enter your password" 
+                    placeholder={t('auth.confirmPasswordPlaceholder')} 
                     className={`w-full pl-10 pr-10 py-2.5 rounded-xl border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition placeholder:text-muted-foreground ${errors.confirmPassword ? 'border-destructive bg-destructive/5' : 'border-border'}`}
                     {...register('confirmPassword')}
                   />
                   <button 
                     type="button" 
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground focus:outline-none"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground focus:outline-none cursor-pointer"
                   >
                     {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -331,25 +333,25 @@ export function RegisterForm() {
             {/* Password Requirements Checklist */}
             <div className="p-3 bg-secondary/10 border border-border/60 rounded-xl">
               <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 font-mono flex items-center justify-between">
-                <span>Security Requirements</span>
+                <span>{t('auth.passwordRequirementsTitle')}</span>
                 <span className="text-primary lowercase font-normal">NIST SP 800-63B</span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className={`flex items-center gap-1.5 ${getPasswordReqClasses(hasLength)}`}>
                   {getPasswordReqIcon(hasLength)}
-                  <span>Min. 10 characters</span>
+                  <span>{t('auth.reqLength')}</span>
                 </div>
                 <div className={`flex items-center gap-1.5 ${getPasswordReqClasses(hasUpperLower)}`}>
                   {getPasswordReqIcon(hasUpperLower)}
-                  <span>Upper & lowercase</span>
+                  <span>{t('auth.reqUpperLower')}</span>
                 </div>
                 <div className={`flex items-center gap-1.5 ${getPasswordReqClasses(hasNumber)}`}>
                   {getPasswordReqIcon(hasNumber)}
-                  <span>At least one number</span>
+                  <span>{t('auth.reqNumber')}</span>
                 </div>
                 <div className={`flex items-center gap-1.5 ${getPasswordReqClasses(hasSymbol)}`}>
                   {getPasswordReqIcon(hasSymbol)}
-                  <span>Special symbol (!@#$)</span>
+                  <span>{t('auth.reqSymbol')}</span>
                 </div>
               </div>
             </div>
@@ -359,12 +361,12 @@ export function RegisterForm() {
               <input 
                 type="checkbox" 
                 id="terms" 
-                className="mt-1 w-4 h-4 rounded text-primary border-border focus:ring-primary"
+                className="mt-1 w-4 h-4 rounded text-primary border-border focus:ring-primary cursor-pointer"
                 {...register('terms')}
               />
               <div className="flex flex-col">
-                <label htmlFor="terms" className="text-xs text-muted-foreground leading-relaxed">
-                  I agree to abide by the university&apos;s <span className="text-primary font-medium hover:underline cursor-pointer">Code of Academic Integrity</span>, honor system, and automated AST similarity review guidelines.
+                <label htmlFor="terms" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
+                  {t('auth.termsAgreement')}
                 </label>
                 {errors.terms && <span className="text-destructive text-xs mt-1">{errors.terms.message}</span>}
               </div>
@@ -374,24 +376,24 @@ export function RegisterForm() {
             <button 
               type="submit" 
               disabled={registerMutation.isPending}
-              className="w-full py-3 px-4 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm shadow-sm transition flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full py-3 px-4 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm shadow-sm transition flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
             >
               {registerMutation.isPending ? (
                 <>
-                  <span>Registering Account...</span>
+                  <span>{t('auth.registeringAccount')}</span>
                   <Loader2 className="w-4 h-4 animate-spin" />
                 </>
               ) : (
-                <span>Create Account</span>
+                <span>{t('auth.createAccountButton')}</span>
               )}
             </button>
 
             {/* Secondary Navigation */}
             <div className="text-center pt-2">
               <p className="text-xs text-muted-foreground">
-                Already have an account? 
+                {t('auth.alreadyHaveAccount')}{' '}
                 <Link href="/login" className="font-semibold text-primary hover:text-primary/80 hover:underline transition ml-1">
-                  Sign in
+                  {t('auth.signInLink')}
                 </Link>
               </p>
             </div>
@@ -404,10 +406,10 @@ export function RegisterForm() {
       <div className="mt-8 text-center text-xs text-muted-foreground space-y-2">
         <div className="flex items-center justify-center gap-2">
           <Shield className="w-4 h-4 text-emerald-600" />
-          <span className="font-medium">Protected by University SSO & AST Automated Proctoring</span>
+          <span className="font-medium">{t('auth.complianceNotice')}</span>
         </div>
         <p className="font-mono text-[11px] opacity-70">
-          Academic Year 2025–2026 • Computing Assessment Division • Protocol CA-AUTH-v4
+          {t('auth.academicYearFooter')} • Protocol CA-AUTH-v4
         </p>
       </div>
     </div>

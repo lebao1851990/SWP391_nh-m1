@@ -46,6 +46,9 @@ public class User implements UserDetails {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "password_changed_at")
+    private LocalDateTime passwordChangedAt;
+
     // --- UserDetails overrides ---
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

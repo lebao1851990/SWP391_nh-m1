@@ -72,7 +72,62 @@ public class TeacherScoringService {
         }
 
         boolean isDone = "COMPLETED".equalsIgnoreCase(submission.getStatus())
-                || "EVALUATED".equalsIgnoreCase(submission.getStatus());
+                || "EVALUATED".equalsIgnoreCase(submission.getStatus())
+                || "GRADED".equalsIgnoreCase(submission.getStatus());
+
+        String instructorComments = null;
+        String overrideRationale = null;
+        List<GradeAuditLog> auditLogs = gradeAuditLogRepository.findBySubmission_IdOrderByCreatedAtDesc(submissionId);
+        for (GradeAuditLog log : auditLogs) {
+            if (log.getRationale() != null && !log.getRationale().trim().isEmpty()) {
+                String r = log.getRationale().trim().replace("\r\n", "\n");
+
+                // Resolve latest overrideRationale if not yet resolved
+                if (overrideRationale == null) {
+                    if (r.startsWith("Override Rationale:")) {
+                        int commentIdx = r.lastIndexOf("\nInstructor Comments:");
+                        if (commentIdx != -1) {
+                            String parsed = r.substring("Override Rationale:".length(), commentIdx).trim();
+                            if (!parsed.isEmpty()) {
+                                overrideRationale = parsed;
+                            }
+                        } else {
+                            String parsed = r.substring("Override Rationale:".length()).trim();
+                            if (!parsed.isEmpty()) {
+                                overrideRationale = parsed;
+                            }
+                        }
+                    } else if (!r.startsWith("Instructor Comments:")) {
+                        // Legacy un-prefixed rationale is treated as override rationale (internal note)
+                        overrideRationale = r;
+                    }
+                }
+
+                // Resolve latest valid instructorComments if not yet resolved (Historical Feedback Persistence)
+                if (instructorComments == null) {
+                    if (r.startsWith("Override Rationale:")) {
+                        int commentIdx = r.lastIndexOf("\nInstructor Comments:");
+                        if (commentIdx != -1) {
+                            String parsed = r.substring(commentIdx + "\nInstructor Comments:".length()).trim();
+                            if (!parsed.isEmpty()) {
+                                instructorComments = parsed;
+                            }
+                        }
+                    } else if (r.startsWith("Instructor Comments:")) {
+                        String parsed = r.substring("Instructor Comments:".length()).trim();
+                        if (!parsed.isEmpty()) {
+                            instructorComments = parsed;
+                        }
+                    }
+                    // Legacy un-prefixed rationale is default-deny, never treated as instructor comments
+                }
+
+                // If both fields have been resolved to their latest respective values, stop early
+                if (overrideRationale != null && instructorComments != null) {
+                    break;
+                }
+            }
+        }
 
         return ScoringDetail.builder()
                 .submissionId(submission.getId())
@@ -87,6 +142,8 @@ public class TeacherScoringService {
                 .effectiveScore(effectiveScore)
                 .maxTotalScore(maxTotalScore)
                 .criteria(criteriaDtos)
+                .instructorEvaluationComments(instructorComments)
+                .overrideRationale(overrideRationale)
                 .build();
     }
 
@@ -219,16 +276,18 @@ public class TeacherScoringService {
         return getScoringDetail(submissionId, teacherId);
     }
 
-    private String buildConsolidatedRationale(String overrideRationale, String instructorComments) {
+    String buildConsolidatedRationale(String overrideRationale, String instructorComments) {
         boolean hasRationale = overrideRationale != null && !overrideRationale.trim().isEmpty();
         boolean hasComments = instructorComments != null && !instructorComments.trim().isEmpty();
 
         if (hasRationale && hasComments) {
-            return "Override Rationale: " + overrideRationale.trim() + "\nInstructor Comments: " + instructorComments.trim();
+            String cleanRationale = overrideRationale.trim().replace("\nInstructor Comments:", "\n[Instructor Comments]:");
+            return "Override Rationale: " + cleanRationale + "\nInstructor Comments: " + instructorComments.trim();
         } else if (hasRationale) {
-            return overrideRationale.trim();
+            String cleanRationale = overrideRationale.trim().replace("\nInstructor Comments:", "\n[Instructor Comments]:");
+            return "Override Rationale: " + cleanRationale;
         } else if (hasComments) {
-            return instructorComments.trim();
+            return "Instructor Comments: " + instructorComments.trim();
         } else {
             return null;
         }

@@ -96,4 +96,18 @@ class SimilarityMatrixServiceTest {
             assertTrue(id1.compareTo(id2) < 0, "Pair ordering is not normalized: " + id1 + " >= " + id2);
         }
     }
+
+    @Test
+    void testDeadlockRetryExhaustionThrowsAndDoesNotReportFalseSuccess() {
+        when(coordinationRepository.findByExamIdForUpdate("exam-lock-fail"))
+                .thenThrow(new org.springframework.dao.CannotAcquireLockException("Deadlock 1213"));
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.CannotAcquireLockException.class,
+                () -> service.acquireLease("exam-lock-fail", "worker-1")
+        );
+
+        verify(coordinationRepository, times(3)).findByExamIdForUpdate("exam-lock-fail");
+        verify(similarityPairRepository, never()).save(any());
+    }
 }

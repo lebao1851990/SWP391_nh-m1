@@ -19,12 +19,21 @@ apiClient.interceptors.response.use(
         // Token expired or invalid
         useSessionStore.getState().clearSession();
         if (typeof window !== 'undefined') {
+          // Clear role cookie to prevent stale role state
+          document.cookie = 'codeassess_role=; path=/; max-age=0; SameSite=Lax';
+
           const pathname = window.location.pathname;
           const search = window.location.search;
-          if (pathname !== '/login' && pathname !== '/dev/preview' && !pathname.startsWith('/dev/preview/')) {
-            // Ensure redirect target is a safe internal path (starts with / but not //)
+          const isAuthPage =
+            pathname === '/login' ||
+            pathname === '/forgot-password' ||
+            pathname === '/reset-password' ||
+            pathname === '/register';
+
+          if (!isAuthPage && pathname !== '/dev/preview' && !pathname.startsWith('/dev/preview/')) {
+            // Ensure redirect target is a safe internal path (starts with / but not // or /\)
             const fullPath = pathname + search;
-            const isSafePath = fullPath.startsWith('/') && !fullPath.startsWith('//');
+            const isSafePath = fullPath.startsWith('/') && !fullPath.startsWith('//') && !fullPath.startsWith('/\\');
             
             let redirectUrl = '/login';
             if (isSafePath) {

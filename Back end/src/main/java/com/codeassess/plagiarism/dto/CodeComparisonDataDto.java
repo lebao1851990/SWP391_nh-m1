@@ -29,6 +29,7 @@ public class CodeComparisonDataDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class MatchDto {
+        private String id;
         private int startLineA;
         private int endLineA;
         private int startLineB;

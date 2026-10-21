@@ -60,6 +60,7 @@ public class PlagiarismMapper {
     public CodeComparisonDataDto toComparisonDto(SimilarityPair pair, List<PlagiarismEvidence> evidences) {
         List<CodeComparisonDataDto.MatchDto> matches = evidences.stream().map(e ->
                 CodeComparisonDataDto.MatchDto.builder()
+                        .id(e.getId())
                         .startLineA(e.getStartLineA())
                         .endLineA(e.getEndLineA())
                         .startLineB(e.getStartLineB())

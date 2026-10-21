@@ -30,6 +30,9 @@ class AuthControllerTest {
     @MockBean
     private AuthService authService;
 
+    @MockBean
+    private com.codeassess.auth.service.PasswordResetService passwordResetService;
+
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -79,6 +82,19 @@ class AuthControllerTest {
     }
 
     @Test
+    void getCurrentUserWhenUnauthenticatedReturns401() throws Exception {
+        mockMvc.perform(get("/api/auth/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @org.springframework.security.test.context.support.WithMockUser(username = "student@codeassess.com", roles = "STUDENT")
+    void studentCannotAccessTeacherEndpointsReturns403() throws Exception {
+        mockMvc.perform(get("/api/teacher/exams"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void registerWithValidDataReturns201() throws Exception {
         com.codeassess.auth.dto.request.RegisterRequest request = new com.codeassess.auth.dto.request.RegisterRequest(
                 "John Doe", "john@student.com", "Password123!", "Password123!", "student", true
@@ -119,5 +135,95 @@ class AuthControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void forgotPasswordReturns200WithNeutralMessage() throws Exception {
+        com.codeassess.auth.dto.request.ForgotPasswordRequest request = 
+                com.codeassess.auth.dto.request.ForgotPasswordRequest.builder()
+                        .email("student@codeassess.edu.vn")
+                        .build();
+
+        com.codeassess.auth.dto.response.ForgotPasswordResponse response = 
+                com.codeassess.auth.dto.response.ForgotPasswordResponse.builder()
+                        .message("If an account exists with this email, a verification code has been sent.")
+                        .build();
+
+        Mockito.when(passwordResetService.requestPasswordReset(any())).thenReturn(response);
+
+        mockMvc.perform(post("/api/auth/forgot-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("If an account exists with this email, a verification code has been sent."));
+    }
+
+    @Test
+    void resendOtpReturns200WithCooldown() throws Exception {
+        com.codeassess.auth.dto.request.ResendOtpRequest request =
+                com.codeassess.auth.dto.request.ResendOtpRequest.builder()
+                        .email("student@codeassess.edu.vn")
+                        .build();
+
+        com.codeassess.auth.dto.response.ResendOtpResponse response =
+                com.codeassess.auth.dto.response.ResendOtpResponse.builder()
+                        .message("If an account exists with this email, a new verification code has been sent.")
+                        .cooldownSeconds(60)
+                        .build();
+
+        Mockito.when(passwordResetService.resendOtp(any())).thenReturn(response);
+
+        mockMvc.perform(post("/api/auth/resend-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("If an account exists with this email, a new verification code has been sent."))
+                .andExpect(jsonPath("$.cooldownSeconds").value(60));
+    }
+
+    @Test
+    void verifyOtpReturns200WithResetToken() throws Exception {
+        com.codeassess.auth.dto.request.VerifyOtpRequest request = 
+                com.codeassess.auth.dto.request.VerifyOtpRequest.builder()
+                        .email("student@codeassess.edu.vn")
+                        .otp("123456")
+                        .build();
+
+        com.codeassess.auth.dto.response.VerifyOtpResponse response = 
+                com.codeassess.auth.dto.response.VerifyOtpResponse.builder()
+                        .resetToken("token_abc_123")
+                        .message("Verification code verified successfully.")
+                        .build();
+
+        Mockito.when(passwordResetService.verifyOtp(any())).thenReturn(response);
+
+        mockMvc.perform(post("/api/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resetToken").value("token_abc_123"));
+    }
+
+    @Test
+    void resetPasswordReturns200OnSuccess() throws Exception {
+        com.codeassess.auth.dto.request.ResetPasswordRequest request = 
+                com.codeassess.auth.dto.request.ResetPasswordRequest.builder()
+                        .token("token_abc_123")
+                        .password("NewSecretPassword123")
+                        .confirmPassword("NewSecretPassword123")
+                        .build();
+
+        com.codeassess.auth.dto.response.ResetPasswordResponse response = 
+                com.codeassess.auth.dto.response.ResetPasswordResponse.builder()
+                        .message("Password has been successfully reset.")
+                        .build();
+
+        Mockito.when(passwordResetService.resetPassword(any())).thenReturn(response);
+
+        mockMvc.perform(post("/api/auth/reset-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Password has been successfully reset."));
     }
 }

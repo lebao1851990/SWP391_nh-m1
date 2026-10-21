@@ -22,4 +22,6 @@ public class ScoringDetail {
     private BigDecimal effectiveScore;
     private BigDecimal maxTotalScore;
     private List<CriterionScoreDto> criteria;
+    private String instructorEvaluationComments;
+    private String overrideRationale;
 }

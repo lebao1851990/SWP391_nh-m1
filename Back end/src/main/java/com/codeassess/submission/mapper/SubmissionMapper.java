@@ -58,7 +58,7 @@ public class SubmissionMapper {
                 .compileOutput(submission.getCompileOutput())
                 .stdout(submission.getStdout())
                 .stderr(submission.getStderr())
-                .executionDurationMs(isDone ? submission.getExecutionDurationMs() : null)
+                .executionDurationMs(submission.getExecutionDurationMs())
                 .build();
     }
 }

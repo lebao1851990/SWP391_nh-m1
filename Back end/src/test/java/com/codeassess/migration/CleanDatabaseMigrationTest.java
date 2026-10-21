@@ -50,8 +50,8 @@ public class CleanDatabaseMigrationTest {
             System.out.println("Flyway target schema version: " + result.targetSchemaVersion);
 
             assertTrue(result.success, "Flyway migrations must succeed");
-            assertEquals(13, result.migrationsExecuted, "Must execute exactly 13 migrations (V1, V1.1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12)");
-            assertEquals("12", result.targetSchemaVersion, "Target version must be 12");
+            assertEquals(14, result.migrationsExecuted, "Must execute exactly 14 migrations (V1, V1.1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13)");
+            assertEquals("13", result.targetSchemaVersion, "Target version must be 13");
 
             // 4. Verify all core tables exist in clean DB
             Set<String> testTables = getTableNames(TEST_DB_URL);

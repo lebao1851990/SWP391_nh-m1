@@ -7,21 +7,20 @@ import {
   ArrowLeft, 
   CheckCircle2, 
   XCircle, 
-  Clock, 
-  Scale, 
-  FileText, 
   AlertCircle,
   ShieldCheck
 } from 'lucide-react';
+import { useTranslation } from '@/i18n';
 
 export function StudentAppealDetailView({ appealId }: { appealId: string }) {
+  const { t, formatDate } = useTranslation();
   const { data: appeal, isLoading, isError } = useStudentAppeal(appealId);
 
   if (isLoading) {
     return (
       <div className="flex flex-col h-72 items-center justify-center gap-3">
         <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-        <p className="text-on-surface-variant font-label-md text-xs">Loading appeal dossier...</p>
+        <p className="text-on-surface-variant font-label-md text-xs">{t.common.loading}</p>
       </div>
     );
   }
@@ -29,13 +28,13 @@ export function StudentAppealDetailView({ appealId }: { appealId: string }) {
   if (isError || !appeal) {
     return (
       <div className="max-w-xl mx-auto my-12 p-8 rounded-2xl bg-surface-container-lowest border border-outline-variant/40 shadow-lg text-center flex flex-col items-center gap-3">
-        <div className="p-3 rounded-full bg-rose-50 text-rose-600">
+        <div className="p-3 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300">
           <AlertCircle className="w-8 h-8" />
         </div>
-        <h2 className="font-headline-md text-headline-md text-on-surface">Appeal Not Found</h2>
-        <p className="font-body-md text-on-surface-variant text-xs">Could not retrieve this appeal record.</p>
-        <Link href="/student/appeals" className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium">
-          Back to Appeals
+        <h2 className="font-headline-md text-headline-md text-on-surface">{t.appeals.appealNotFound}</h2>
+        <p className="font-body-md text-on-surface-variant text-xs">{t.appeals.appealNotFoundDesc}</p>
+        <Link href="/student/appeals" className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors">
+          {t.appeals.backToAppeals}
         </Link>
       </div>
     );
@@ -53,36 +52,36 @@ export function StudentAppealDetailView({ appealId }: { appealId: string }) {
             <nav className="flex items-center gap-2 text-on-surface-variant text-xs mb-1">
               <Link className="hover:text-primary transition-colors flex items-center gap-1 font-medium" href="/student/appeals">
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>My Appeals</span>
+                <span>{t.appeals.appealsListTitle}</span>
               </Link>
               <span className="text-outline">/</span>
               <span className="text-primary font-semibold">Case #{appeal.id.substring(0, 8)}</span>
             </nav>
             <div className="flex items-center gap-space-sm flex-wrap">
               <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">
-                Appeal Case Review — #{appeal.id.substring(0, 8)}
+                {t.appeals.appealDetailTitle} &mdash; #{appeal.id.substring(0, 8)}
               </h1>
               {isPending && (
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-semibold flex items-center gap-1">
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40 font-semibold flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                  <span>In Review</span>
+                  <span>{t.appeals.appealStatusPending}</span>
                 </span>
               )}
               {isApproved && (
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Approved</span>
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40 font-semibold flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>{t.appeals.appealStatusApproved}</span>
                 </span>
               )}
               {!isPending && !isApproved && (
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-semibold flex items-center gap-1">
-                  <XCircle className="w-3.5 h-3.5 text-rose-600" />
-                  <span>Rejected</span>
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/40 font-semibold flex items-center gap-1">
+                  <XCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                  <span>{t.appeals.appealStatusRejected}</span>
                 </span>
               )}
             </div>
             <p className="text-xs text-on-surface-variant">
-              Filing Date: {new Date(appeal.createdAt).toLocaleDateString()}
+              Filing Date: {formatDate(appeal.createdAt)}
             </p>
           </div>
 
@@ -91,7 +90,7 @@ export function StudentAppealDetailView({ appealId }: { appealId: string }) {
               href="/student/appeals"
               className="px-4 py-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-medium border border-outline-variant/40 transition-colors"
             >
-              Back to Appeals
+              {t.appeals.backToAppeals}
             </Link>
           </div>
         </div>
@@ -129,7 +128,7 @@ export function StudentAppealDetailView({ appealId }: { appealId: string }) {
             <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 shadow-xs p-space-lg space-y-4">
               <div className="space-y-1">
                 <span className="text-xs font-semibold text-outline uppercase tracking-wider block">
-                  Appeal Classification
+                  {t.appeals.appealBasisLabel}
                 </span>
                 <div className="inline-block px-3 py-1.5 rounded-lg bg-surface-container text-xs font-semibold text-on-surface capitalize">
                   {appeal.basis.replace(/_/g, ' ')}
@@ -138,7 +137,7 @@ export function StudentAppealDetailView({ appealId }: { appealId: string }) {
 
               <div className="space-y-1 pt-space-md border-t border-outline-variant/20">
                 <span className="text-xs font-semibold text-outline uppercase tracking-wider block">
-                  Candidate Explanation Submitted
+                  {t.appeals.studentExplanation}
                 </span>
                 <div className="bg-surface-container-low p-space-md rounded-xl whitespace-pre-wrap text-xs text-on-surface leading-relaxed font-mono border border-outline-variant/20">
                   {appeal.explanation}
@@ -147,13 +146,13 @@ export function StudentAppealDetailView({ appealId }: { appealId: string }) {
 
               <div className="space-y-2 pt-space-md border-t border-outline-variant/20">
                 <span className="text-xs font-semibold text-outline uppercase tracking-wider block">
-                  Examination Board Resolution
+                  {t.appeals.resolutionRemarks}
                 </span>
                 <div className="bg-surface-container-low p-space-md rounded-xl space-y-2 border border-outline-variant/20">
                   <div className="text-xs">
                     {appeal.resolvedAt ? (
                       <span className="font-semibold text-on-surface">
-                        Decision: {appeal.status} (Concluded on {new Date(appeal.resolvedAt).toLocaleDateString()})
+                        Decision: {appeal.status} (Concluded on {formatDate(appeal.resolvedAt)})
                       </span>
                     ) : (
                       <span className="text-on-surface-variant italic">
@@ -164,7 +163,7 @@ export function StudentAppealDetailView({ appealId }: { appealId: string }) {
                   {appeal.reviewerNotes && (
                     <div className="pt-2 border-t border-outline-variant/20">
                       <span className="font-label-xs uppercase tracking-wider text-outline block mb-1">
-                        Faculty Reviewer Notes:
+                        {t.appeals.reviewerNotes}:
                       </span>
                       <div className="text-xs text-on-surface whitespace-pre-wrap">{appeal.reviewerNotes}</div>
                     </div>

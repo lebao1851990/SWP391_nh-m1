@@ -11,6 +11,7 @@ export function useTeacherClasses() {
   return useQuery({
     queryKey: TEACHER_EXAMS_QUERY_KEYS.classes,
     queryFn: teacherExamsApi.getMyClasses,
+    retry: 1,
   });
 }
 

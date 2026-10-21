@@ -70,4 +70,15 @@ export const studentExamsApi = {
     const response = await apiClient.post(`/student/exams/${examId}/submissions`, { sourceCode });
     return response.data;
   },
+
+  submitExamZip: async (examId: string, file: File): Promise<{ id: string; status?: string; message?: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post(`/student/exams/${examId}/submissions`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
 };

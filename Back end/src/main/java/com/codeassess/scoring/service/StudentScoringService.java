@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import com.codeassess.scoring.entity.GradeAuditLog;
+import com.codeassess.scoring.repository.GradeAuditLogRepository;
 import java.util.stream.Collectors;
 
 @Service
@@ -19,10 +21,15 @@ public class StudentScoringService {
 
     private final SubmissionRepository submissionRepository;
     private final RuleScoreRepository ruleScoreRepository;
+    private final GradeAuditLogRepository gradeAuditLogRepository;
 
-    public StudentScoringService(SubmissionRepository submissionRepository, RuleScoreRepository ruleScoreRepository) {
+    public StudentScoringService(
+            SubmissionRepository submissionRepository,
+            RuleScoreRepository ruleScoreRepository,
+            GradeAuditLogRepository gradeAuditLogRepository) {
         this.submissionRepository = submissionRepository;
         this.ruleScoreRepository = ruleScoreRepository;
+        this.gradeAuditLogRepository = gradeAuditLogRepository;
     }
 
     @Transactional(readOnly = true)
@@ -51,7 +58,21 @@ public class StudentScoringService {
         }
 
         boolean isDone = "COMPLETED".equalsIgnoreCase(submission.getStatus())
-                || "EVALUATED".equalsIgnoreCase(submission.getStatus());
+                || "EVALUATED".equalsIgnoreCase(submission.getStatus())
+                || "GRADED".equalsIgnoreCase(submission.getStatus());
+
+        String feedback = null;
+        if (isDone) {
+            List<GradeAuditLog> auditLogs = gradeAuditLogRepository.findBySubmission_IdOrderByCreatedAtDesc(submissionId);
+            for (GradeAuditLog log : auditLogs) {
+                if (log.getRationale() != null && !log.getRationale().trim().isEmpty()) {
+                    feedback = extractStudentFeedback(log.getRationale());
+                    if (feedback != null) {
+                        break;
+                    }
+                }
+            }
+        }
 
         return StudentSubmissionResult.builder()
                 .submissionId(submission.getId())
@@ -63,6 +84,36 @@ public class StudentScoringService {
                 .effectiveScore(effectiveScore)
                 .maxTotalScore(maxTotalScore)
                 .criteria(criteriaDtos)
+                .instructorFeedback(feedback)
+                .instructorEvaluationComments(feedback)
                 .build();
+    }
+
+    String extractStudentFeedback(String rationale) {
+        if (rationale == null || rationale.trim().isEmpty()) {
+            return null;
+        }
+        String trimmed = rationale.trim().replace("\r\n", "\n");
+
+        // Case 1: Formatted with "Override Rationale:" header
+        if (trimmed.startsWith("Override Rationale:")) {
+            int commentIdx = trimmed.lastIndexOf("\nInstructor Comments:");
+            if (commentIdx != -1) {
+                String comments = trimmed.substring(commentIdx + "\nInstructor Comments:".length()).trim();
+                return comments.isEmpty() ? null : comments;
+            }
+            // Standalone override rationale - internal teacher note, must NOT be exposed to student
+            return null;
+        }
+
+        // Case 2: Formatted with "Instructor Comments:" header (comments only)
+        if (trimmed.startsWith("Instructor Comments:")) {
+            String comments = trimmed.substring("Instructor Comments:".length()).trim();
+            return comments.isEmpty() ? null : comments;
+        }
+
+        // Case 3: Legacy/unidentified text without explicit public comment header
+        // Under security policy, unidentified text must never be treated as public student feedback.
+        return null;
     }
 }

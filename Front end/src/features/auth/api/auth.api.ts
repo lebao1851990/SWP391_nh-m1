@@ -24,11 +24,28 @@ export const authApi = {
     await apiClient.post('/auth/logout');
   },
 
-  forgotPassword: async (data: ForgotPasswordFormData): Promise<void> => {
-    await apiClient.post('/auth/forgot-password', data);
+  getMe: async (): Promise<UserSession> => {
+    const response = await apiClient.get<UserSession>('/auth/me');
+    return response.data;
   },
 
-  resetPassword: async (token: string, data: ResetPasswordFormData): Promise<void> => {
-    await apiClient.post('/auth/reset-password', { token, ...data });
+  forgotPassword: async (data: ForgotPasswordFormData): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ message: string }>('/auth/forgot-password', data);
+    return response.data;
+  },
+
+  resendOtp: async (data: { email: string }): Promise<{ message: string; cooldownSeconds?: number }> => {
+    const response = await apiClient.post<{ message: string; cooldownSeconds?: number }>('/auth/resend-otp', data);
+    return response.data;
+  },
+
+  verifyOtp: async (data: { email: string; otp: string }): Promise<{ resetToken: string; message: string }> => {
+    const response = await apiClient.post<{ resetToken: string; message: string }>('/auth/verify-otp', data);
+    return response.data;
+  },
+
+  resetPassword: async (token: string, data: ResetPasswordFormData): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ message: string }>('/auth/reset-password', { token, ...data });
+    return response.data;
   },
 };

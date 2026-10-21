@@ -15,6 +15,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { studentAiApi, StudentAiMode, StudentAiResponse } from '../api/student-ai.api';
+import { useTranslation } from '@/i18n';
 
 interface StudentAiAssistantCardProps {
   submissionId: string;
@@ -27,6 +28,7 @@ export function StudentAiAssistantCard({
   defaultCompilerOutput = '',
   initialMode = 'COMPILER_ERROR',
 }: StudentAiAssistantCardProps) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<StudentAiMode>(initialMode);
   const [compilerOutput, setCompilerOutput] = useState<string>(defaultCompilerOutput);
   const [showInputOverride, setShowInputOverride] = useState<boolean>(false);
@@ -75,11 +77,11 @@ export function StudentAiAssistantCard({
   const getModeTitle = (m: StudentAiMode) => {
     switch (m) {
       case 'COMPILER_ERROR':
-        return 'Explain Compiler Error';
+        return t.submissions.explainCompilerError;
       case 'CODE_EXPLANATION':
-        return 'Explain My Code';
+        return t.submissions.explainMyCode;
       case 'DEBUG_HINTS':
-        return 'Incremental Debug Hints';
+        return t.submissions.debugHints;
     }
   };
 
@@ -94,14 +96,14 @@ export function StudentAiAssistantCard({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-headline-sm text-base font-bold text-on-surface tracking-tight">
-                AI Learning Assistant
+                {t.submissions.aiAssistantTitle}
               </h3>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wider uppercase bg-primary/10 text-primary border border-primary/20">
-                Advisory Only
+                {t.submissions.advisoryOnly}
               </span>
             </div>
             <p className="text-xs text-on-surface-variant mt-0.5">
-              Pedagogical feedback on compilation errors, code structure, and debugging hints.
+              {t.submissions.aiAssistantDesc}
             </p>
           </div>
         </div>
@@ -122,7 +124,7 @@ export function StudentAiAssistantCard({
             }`}
           >
             <Terminal className="w-3.5 h-3.5" />
-            <span>Compiler Error</span>
+            <span>{t.submissions.explainCompilerError}</span>
           </button>
 
           <button
@@ -139,7 +141,7 @@ export function StudentAiAssistantCard({
             }`}
           >
             <BookOpen className="w-3.5 h-3.5" />
-            <span>Explain Code</span>
+            <span>{t.submissions.explainMyCode}</span>
           </button>
 
           <button
@@ -156,7 +158,7 @@ export function StudentAiAssistantCard({
             }`}
           >
             <Lightbulb className="w-3.5 h-3.5" />
-            <span>Debug Hints</span>
+            <span>{t.submissions.debugHints}</span>
           </button>
         </div>
       </div>

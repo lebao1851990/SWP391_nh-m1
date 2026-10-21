@@ -105,54 +105,99 @@ public class SimilarityMatrixService {
      * checks if work is pending, and assigns a monotonic lease token.
      */
     public Optional<LeaseGrant> acquireLease(String examId, String workerId) {
-        return executeInTransaction(status -> {
-            coordinationRepository.initCoordinationIfAbsent(examId);
+        int maxRetries = 3;
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                return executeInTransaction(status -> {
+                    Optional<ExamMatrixCoordination> coordOpt = coordinationRepository.findByExamIdForUpdate(examId);
+                    if (coordOpt.isEmpty()) {
+                        coordinationRepository.initCoordinationIfAbsent(examId);
+                        coordOpt = coordinationRepository.findByExamIdForUpdate(examId);
+                    }
 
-            ExamMatrixCoordination coord = coordinationRepository.findByExamIdForUpdate(examId)
-                    .orElseThrow(() -> new IllegalStateException("Coordination row not found for exam: " + examId));
+                    ExamMatrixCoordination coord = coordOpt
+                            .orElseThrow(() -> new IllegalStateException("Coordination row not found for exam: " + examId));
 
-            // Check if exam is in FAILED status (circuit breaker until new refresh requested)
-            if ("FAILED".equalsIgnoreCase(coord.getStatus())) {
-                log.warn("Matrix refresh for exam {} is in FAILED status (retries exhausted). Skipping until reactivated by new refresh request.", examId);
-                return Optional.empty();
+                    // Check if exam is in FAILED status (circuit breaker until new refresh requested)
+                    if ("FAILED".equalsIgnoreCase(coord.getStatus())) {
+                        log.warn("Matrix refresh for exam {} is in FAILED status (retries exhausted). Skipping until reactivated by new refresh request.", examId);
+                        return Optional.empty();
+                    }
+
+                    // Check if exam is in retry backoff
+                    if (coord.getNextRetryAt() != null && LocalDateTime.now().isBefore(coord.getNextRetryAt())) {
+                        log.info("Matrix refresh for exam {} is in retry backoff until {}. Skipping lease acquisition.",
+                                examId, coord.getNextRetryAt());
+                        return Optional.empty();
+                    }
+
+                    // Check if an active, unexpired lease exists
+                    if ("RUNNING".equalsIgnoreCase(coord.getStatus())
+                            && coord.getLeaseExpiresAt() != null
+                            && LocalDateTime.now().isBefore(coord.getLeaseExpiresAt())) {
+                        log.info("Matrix refresh for exam {} is currently running under valid lease until {}",
+                                examId, coord.getLeaseExpiresAt());
+                        return Optional.empty();
+                    }
+
+                    // Check if there is pending work
+                    if (coord.getRequestedGeneration() <= coord.getCurrentGeneration()) {
+                        log.info("Matrix for exam {} is already up to date (requested={}, current={})",
+                                examId, coord.getRequestedGeneration(), coord.getCurrentGeneration());
+                        return Optional.empty();
+                    }
+
+                    // Grant lease
+                    long lockedGen = coord.getRequestedGeneration();
+                    String leaseToken = UUID.randomUUID().toString();
+
+                    coord.setLockedGeneration(lockedGen);
+                    coord.setLeaseToken(leaseToken);
+                    coord.setWorkerId(workerId != null ? workerId : "worker-" + UUID.randomUUID().toString().substring(0, 8));
+                    coord.setLeaseExpiresAt(LocalDateTime.now().plusSeconds(120));
+                    coord.setStatus("RUNNING");
+                    coordinationRepository.save(coord);
+
+                    return Optional.of(new LeaseGrant(examId, lockedGen, leaseToken));
+                });
+            } catch (Exception ex) {
+                if (isLockConflictException(ex)) {
+                    if (attempt == maxRetries) {
+                        log.error("Exhausted retries ({}) acquiring lease for exam {} due to lock conflict: {}",
+                                maxRetries, examId, ex.getMessage());
+                        throw ex;
+                    }
+                    log.warn("Transient lock conflict acquiring lease for exam {} (attempt {}/{}). Retrying: {}",
+                            examId, attempt, maxRetries, ex.getMessage());
+                    try {
+                        Thread.sleep(15L * attempt + (long) (Math.random() * 20));
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw ex;
+                    }
+                } else {
+                    throw ex;
+                }
             }
+        }
+        return Optional.empty();
+    }
 
-            // Check if exam is in retry backoff
-            if (coord.getNextRetryAt() != null && LocalDateTime.now().isBefore(coord.getNextRetryAt())) {
-                log.info("Matrix refresh for exam {} is in retry backoff until {}. Skipping lease acquisition.",
-                        examId, coord.getNextRetryAt());
-                return Optional.empty();
+    private boolean isLockConflictException(Throwable ex) {
+        Throwable current = ex;
+        while (current != null) {
+            if (current instanceof org.springframework.dao.ConcurrencyFailureException
+                    || current instanceof org.hibernate.exception.LockAcquisitionException) {
+                return true;
             }
-
-            // Check if an active, unexpired lease exists
-            if ("RUNNING".equalsIgnoreCase(coord.getStatus())
-                    && coord.getLeaseExpiresAt() != null
-                    && LocalDateTime.now().isBefore(coord.getLeaseExpiresAt())) {
-                log.info("Matrix refresh for exam {} is currently running under valid lease until {}",
-                        examId, coord.getLeaseExpiresAt());
-                return Optional.empty();
+            if (current instanceof java.sql.SQLException sqlEx) {
+                if (sqlEx.getErrorCode() == 1213 || "40001".equals(sqlEx.getSQLState()) || sqlEx.getErrorCode() == 1205) {
+                    return true;
+                }
             }
-
-            // Check if there is pending work
-            if (coord.getRequestedGeneration() <= coord.getCurrentGeneration()) {
-                log.info("Matrix for exam {} is already up to date (requested={}, current={})",
-                        examId, coord.getRequestedGeneration(), coord.getCurrentGeneration());
-                return Optional.empty();
-            }
-
-            // Grant lease
-            long lockedGen = coord.getRequestedGeneration();
-            String leaseToken = UUID.randomUUID().toString();
-
-            coord.setLockedGeneration(lockedGen);
-            coord.setLeaseToken(leaseToken);
-            coord.setWorkerId(workerId != null ? workerId : "worker-" + UUID.randomUUID().toString().substring(0, 8));
-            coord.setLeaseExpiresAt(LocalDateTime.now().plusSeconds(120));
-            coord.setStatus("RUNNING");
-            coordinationRepository.save(coord);
-
-            return Optional.of(new LeaseGrant(examId, lockedGen, leaseToken));
-        });
+            current = current.getCause();
+        }
+        return false;
     }
 
     /**
@@ -444,20 +489,26 @@ public class SimilarityMatrixService {
     }
 
     public void generateMatrixForExam(String examId, String workerId) {
-        Optional<LeaseGrant> leaseOpt = acquireLease(examId, workerId);
-        if (leaseOpt.isEmpty()) {
-            return;
-        }
+        int maxGenerationsPerRun = 10;
+        int round = 0;
+        while (round < maxGenerationsPerRun) {
+            Optional<LeaseGrant> leaseOpt = acquireLease(examId, workerId);
+            if (leaseOpt.isEmpty()) {
+                break;
+            }
 
-        LeaseGrant lease = leaseOpt.get();
-        try (LeaseHeartbeat heartbeat = startLeaseHeartbeat(examId, lease.leaseToken(), 30, 120)) {
-            MatrixCalculationPlan plan = computeCalculation(examId);
-            commitReconciliation(examId, lease.lockedGeneration(), lease.leaseToken(), plan);
-        } catch (StaleWorkerGenerationException e) {
-            log.warn("Matrix calculation for exam {} rejected by fencing: {}", examId, e.getMessage());
-        } catch (Exception e) {
-            handleCalculationFailure(examId, lease.leaseToken(), e);
-            throw e;
+            round++;
+            LeaseGrant lease = leaseOpt.get();
+            try (LeaseHeartbeat heartbeat = startLeaseHeartbeat(examId, lease.leaseToken(), 30, 120)) {
+                MatrixCalculationPlan plan = computeCalculation(examId);
+                commitReconciliation(examId, lease.lockedGeneration(), lease.leaseToken(), plan);
+            } catch (StaleWorkerGenerationException e) {
+                log.warn("Matrix calculation for exam {} rejected by fencing: {}", examId, e.getMessage());
+                break;
+            } catch (Exception e) {
+                handleCalculationFailure(examId, lease.leaseToken(), e);
+                throw e;
+            }
         }
     }
 }

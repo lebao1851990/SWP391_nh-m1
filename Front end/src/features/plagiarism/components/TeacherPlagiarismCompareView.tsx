@@ -18,8 +18,10 @@ import {
   Bookmark 
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from '@/i18n';
 
 export function TeacherPlagiarismCompareView({ recordId }: { recordId: string }) {
+  const { t } = useTranslation();
   const { data, isLoading, isError, error } = usePlagiarismComparison(recordId);
   const { data: detailData } = usePlagiarismDetail(recordId);
   const adjudicateMutation = useAdjudicatePlagiarismPair(recordId);
@@ -50,7 +52,7 @@ export function TeacherPlagiarismCompareView({ recordId }: { recordId: string })
         notes: facultyNotes,
       });
       setIsSaved(true);
-      toast.success('Faculty adjudication decision successfully persisted to dossier.');
+      toast.success(t.plagiarism.adjudicationSuccess);
     } catch (err: unknown) {
       const msg = (err instanceof Error ? err.message : 'Unknown error') || 'Failed to persist adjudication';
       toast.error(msg);
@@ -58,6 +60,10 @@ export function TeacherPlagiarismCompareView({ recordId }: { recordId: string })
   };
 
   const handleRunAiCodeReview = async (evidenceId: string) => {
+    if (!evidenceId) {
+      toast.error('No evidence ID available for AI review');
+      return;
+    }
     setAiModalOpen(true);
     setAiStatus('loading');
     setAiError(undefined);
@@ -65,7 +71,7 @@ export function TeacherPlagiarismCompareView({ recordId }: { recordId: string })
       const response = await plagiarismAiApi.getCodeReview(recordId, evidenceId);
       setAiData(response);
       setAiStatus('success');
-      toast.success('AI Forensic analysis synthesized successfully');
+      toast.success(t.plagiarism.forensicSynthesisSuccess);
     } catch (err: unknown) {
       setAiStatus('error');
       const msg = (err instanceof Error ? err.message : 'Unknown error') || 'Failed to fetch AI code review';
@@ -78,7 +84,7 @@ export function TeacherPlagiarismCompareView({ recordId }: { recordId: string })
     return (
       <div className="flex flex-col h-72 items-center justify-center gap-3">
         <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-        <p className="text-on-surface-variant font-label-md text-xs">Loading AST syntax diff engine...</p>
+        <p className="text-on-surface-variant font-label-md text-xs">{t.common.loading}</p>
       </div>
     );
   }
@@ -87,19 +93,19 @@ export function TeacherPlagiarismCompareView({ recordId }: { recordId: string })
     const status = (error as AxiosError)?.response?.status;
     return (
       <div className="max-w-xl mx-auto my-12 p-8 rounded-2xl bg-surface-container-lowest border border-outline-variant/40 shadow-lg text-center flex flex-col items-center gap-3">
-        <div className="p-3 rounded-full bg-rose-50 text-rose-600">
+        <div className="p-3 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300">
           {status === 403 ? <Lock className="w-8 h-8" /> : <AlertCircle className="w-8 h-8" />}
         </div>
         <h2 className="font-headline-md text-headline-md text-on-surface">
-          {status === 403 ? 'Access Forbidden' : 'Diff Unavailable'}
+          {status === 403 ? t.plagiarism.accessForbidden : t.plagiarism.diffUnavailable}
         </h2>
         <p className="font-body-md text-on-surface-variant text-xs">
           {status === 403 
-            ? 'You do not have permission to view this AST comparison pair.'
+            ? t.errors.forbidden
             : (error as Error).message}
         </p>
-        <Link href="/teacher/plagiarism" className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium">
-          Back to Plagiarism Hub
+        <Link href="/teacher/plagiarism" className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors">
+          {t.common.back}
         </Link>
       </div>
     );
@@ -118,13 +124,13 @@ export function TeacherPlagiarismCompareView({ recordId }: { recordId: string })
                 <nav className="flex items-center gap-2 text-on-surface-variant text-xs">
                   <Link className="hover:text-primary transition-colors flex items-center gap-1 font-medium" href="/teacher/plagiarism">
                     <ArrowLeft className="w-3.5 h-3.5" />
-                    <span>Plagiarism Matrix</span>
+                    <span>{t.plagiarism.astSimilarityMatrix}</span>
                   </Link>
                   <span className="text-outline">/</span>
-                  <span className="text-primary font-semibold">Pair Comparison</span>
+                  <span className="text-primary font-semibold">{t.plagiarism.comparisonTitle}</span>
                 </nav>
                 <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">
-                  AST Structural Code Comparison
+                  {t.plagiarism.comparisonTitle}
                 </h1>
                 <p className="text-xs text-on-surface-variant">
                   Assessment: <strong className="text-on-surface">{detailData?.examName || 'Exam'}</strong> &mdash; Comparison Record #{data.pairId}
@@ -134,14 +140,27 @@ export function TeacherPlagiarismCompareView({ recordId }: { recordId: string })
               <div className="flex items-center gap-2 self-start md:self-auto">
                 <span className="text-xs px-2.5 py-1 rounded-full bg-surface-container border border-outline-variant/40 text-on-surface font-semibold flex items-center gap-1.5">
                   <Cpu className="w-3.5 h-3.5 text-primary" />
-                  <span>AST Engine v4.8</span>
+                  <span>{t.plagiarism.astEngineBadge}</span>
                 </span>
                 <button
-                  onClick={() => handleRunAiCodeReview(data.matches?.[0]?.type || 'CLUSTER_MATCH')}
-                  className="px-3.5 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                  disabled={!data.matches?.[0]?.id}
+                  onClick={() => {
+                    const firstEvId = data.matches?.[0]?.id;
+                    if (firstEvId) {
+                      handleRunAiCodeReview(firstEvId);
+                    } else {
+                      toast.error('No evidence available for AI review');
+                    }
+                  }}
+                  title={data.matches?.[0]?.id ? t.plagiarism.runAiReviewButton : 'No valid evidence available'}
+                  className={`px-3.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs ${
+                    data.matches?.[0]?.id
+                      ? 'bg-purple-50 hover:bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950/40 dark:hover:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800/40 cursor-pointer'
+                      : 'bg-surface-container-high/40 text-outline border-outline-variant/30 cursor-not-allowed opacity-60'
+                  }`}
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-                  <span>AI Structural Audit</span>
+                  <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                  <span>{t.plagiarism.runAiReviewButton}</span>
                 </button>
               </div>
             </div>
@@ -154,14 +173,14 @@ export function TeacherPlagiarismCompareView({ recordId }: { recordId: string })
               <div className="flex flex-col gap-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-title-md text-title-md text-on-surface font-bold">
-                    Evidentiary Standard Notice (Thông báo Tham vấn Học thuật)
+                    {t('plagiarism.evidentiaryNoticeTitle')}
                   </span>
                   <span className="font-mono text-[10px] bg-surface-container-high px-2 py-0.5 rounded font-semibold text-on-surface">
                     ISO-6820 AST Spec
                   </span>
                 </div>
                 <p className="text-xs text-on-surface-variant leading-relaxed">
-                  &ldquo;<strong>Similarity indicates structural or textual overlap between submissions. It is a review signal, not proof of plagiarism.</strong>&rdquo;
+                  &ldquo;<strong>{t.plagiarism.academicRigorQuote}</strong>&rdquo;
                 </p>
                 <p className="text-xs text-on-surface-variant/90 leading-relaxed italic border-t border-outline-variant/20 pt-1 mt-0.5">
                   &ldquo;Độ tương đồng phản ánh sự trùng lặp cấu trúc hoặc cú pháp AST giữa các bài nộp. Đây là tín hiệu tham vấn học thuật dành cho giảng viên đánh giá, không phải bằng chứng khẳng định gian lận.&rdquo;
@@ -172,7 +191,7 @@ export function TeacherPlagiarismCompareView({ recordId }: { recordId: string })
             {/* Matching Sub-tree Evidence List */}
             <div className="flex flex-col space-y-space-xs">
               <div className="flex items-center justify-between">
-                <h2 className="font-headline-sm text-headline-sm text-on-surface">Matching Sub-tree Evidence</h2>
+                <h2 className="font-headline-sm text-headline-sm text-on-surface">{t.plagiarism.identicalSubtrees}</h2>
                 <span className="text-xs text-outline font-mono">{data.matches?.length || 0} isomorphic nodes</span>
               </div>
 
@@ -186,17 +205,29 @@ export function TeacherPlagiarismCompareView({ recordId }: { recordId: string })
                       <div className="flex flex-col">
                         <span className="font-mono text-xs font-bold text-primary">{match.type || 'AST Subtree Equivalence'}</span>
                         <div className="flex items-center gap-4 text-xs text-on-surface-variant font-mono mt-1">
-                          <span>Student A: Lines {match.startLineA}&ndash;{match.endLineA}</span>
+                          <span>{t.plagiarism.studentA}: Lines {match.startLineA}&ndash;{match.endLineA}</span>
                           <span>&bull;</span>
-                          <span>Student B: Lines {match.startLineB}&ndash;{match.endLineB}</span>
+                          <span>{t.plagiarism.studentB}: Lines {match.startLineB}&ndash;{match.endLineB}</span>
                         </div>
                       </div>
 
                       <button
-                        onClick={() => handleRunAiCodeReview(`evidence-${idx}`)}
-                        className="px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high text-xs text-primary font-medium flex items-center gap-1 self-start sm:self-center transition-colors cursor-pointer"
+                        disabled={!match.id}
+                        onClick={() => {
+                          if (match.id) {
+                            handleRunAiCodeReview(match.id);
+                          } else {
+                            toast.error('No valid evidence ID for this fragment');
+                          }
+                        }}
+                        title={match.id ? 'Inspect Match AI' : 'No valid evidence fragment ID available'}
+                        className={`px-2.5 py-1 rounded text-xs font-medium flex items-center gap-1 self-start sm:self-center transition-colors ${
+                          match.id
+                            ? 'bg-surface-container hover:bg-surface-container-high text-primary cursor-pointer'
+                            : 'bg-surface-container-high/40 text-outline cursor-not-allowed opacity-60'
+                        }`}
                       >
-                        <Sparkles className="w-3 h-3 text-purple-600" />
+                        <Sparkles className="w-3 h-3 text-purple-600 dark:text-purple-400" />
                         <span>Inspect Match AI</span>
                       </button>
                     </div>
@@ -277,15 +308,15 @@ export function TeacherPlagiarismCompareView({ recordId }: { recordId: string })
                 <div className="flex items-center gap-2">
                   <Scale className="w-4 h-4 text-primary" />
                   <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
-                    Faculty Adjudication Protocol
+                    {t('plagiarism.adjudicationProtocolTitle')}
                   </h3>
                 </div>
                 {isAdjudicationRecorded && (
-                  <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" />
+                  <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40 font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                     <span>Adjudication Recorded</span>
                     {(data?.adjudicatedBy || detailData?.pair?.adjudicatedBy) && (
-                      <span className="text-emerald-600 font-normal ml-1">
+                      <span className="text-emerald-600 dark:text-emerald-400 font-normal ml-1">
                         ({data?.adjudicatedBy || detailData?.pair?.adjudicatedBy})
                       </span>
                     )}
@@ -295,25 +326,25 @@ export function TeacherPlagiarismCompareView({ recordId }: { recordId: string })
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-on-surface">Preliminary Decision:</label>
+                  <label className="text-xs font-semibold text-on-surface">{t.plagiarism.adjudicationStatusLabel}:</label>
                   <select
                     value={adjudicationStatus}
                     onChange={(e) => setSelectedStatus(e.target.value as 'PENDING' | 'FLAG_CONFIRMED' | 'FALSE_POSITIVE' | 'HEARING_SCHEDULED')}
                     className="w-full px-3 py-2 text-xs bg-surface-container-low border border-outline-variant/40 rounded-lg text-on-surface font-medium focus:outline-none focus:ring-1 focus:ring-primary shadow-xs cursor-pointer"
                   >
-                    <option value="PENDING">Under Faculty Review (Pending)</option>
-                    <option value="FALSE_POSITIVE">False Positive (Instructor Scaffold / Common Boilerplate)</option>
-                    <option value="HEARING_SCHEDULED">Academic Inquiry (Schedule Student Hearing)</option>
-                    <option value="FLAG_CONFIRMED">Flag Confirmed (Substantial Unattributed Congruence)</option>
+                    <option value="PENDING">{t.plagiarism.statusPending}</option>
+                    <option value="FALSE_POSITIVE">{t.plagiarism.statusFalsePositive}</option>
+                    <option value="HEARING_SCHEDULED">{t.plagiarism.statusHearingScheduled}</option>
+                    <option value="FLAG_CONFIRMED">{t.plagiarism.statusConfirmed}</option>
                   </select>
                 </div>
 
                 <div className="md:col-span-2 flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-on-surface">Faculty Review Notes &amp; Rationales:</label>
+                  <label className="text-xs font-semibold text-on-surface">{t.plagiarism.facultyNotesLabel}:</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="e.g. Scrutinized loop structures and helper functions; shared code matches lab skeleton..."
+                      placeholder={t.plagiarism.facultyNotesPlaceholder}
                       value={facultyNotes}
                       onChange={(e) => setCustomNotes(e.target.value)}
                       className="flex-1 px-3 py-2 text-xs bg-surface-container-low border border-outline-variant/40 rounded-lg text-on-surface placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
@@ -326,12 +357,12 @@ export function TeacherPlagiarismCompareView({ recordId }: { recordId: string })
                       {adjudicateMutation.isPending ? (
                         <>
                           <div className="w-3.5 h-3.5 border-2 border-on-primary border-t-transparent rounded-full animate-spin" />
-                          <span>Saving...</span>
+                          <span>{t.plagiarism.savingAdjudication}</span>
                         </>
                       ) : (
                         <>
                           <Bookmark className="w-3.5 h-3.5" />
-                          <span>Record Review</span>
+                          <span>{t.plagiarism.saveAdjudicationButton}</span>
                         </>
                       )}
                     </button>
@@ -346,7 +377,7 @@ export function TeacherPlagiarismCompareView({ recordId }: { recordId: string })
       <AiAnalysisModal 
         isOpen={aiModalOpen}
         onClose={() => setAiModalOpen(false)}
-        title="AI Forensic Code Review Assistant"
+        title={t.plagiarism.aiReviewTitle}
         status={aiStatus}
         data={aiData}
         errorMessage={aiError}

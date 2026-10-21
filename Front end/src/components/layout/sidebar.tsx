@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LogoutButton } from '@/features/auth/components/logout-button';
 import { useUiStore } from '@/stores/ui.store';
+import { useTranslation } from '@/i18n';
 import {
   LayoutDashboard,
   FileCode2,
@@ -33,27 +34,28 @@ interface SidebarProps {
 export function Sidebar({ role }: SidebarProps) {
   const pathname = usePathname();
   const { isMobileNavOpen, setMobileNavOpen } = useUiStore();
+  const { t } = useTranslation();
 
   const teacherNav: NavItem[] = [
-    { name: 'Dashboard', href: '/teacher/dashboard', icon: LayoutDashboard },
-    { name: 'Exams', href: '/teacher/exams', icon: FileCode2 },
-    { name: 'Submissions', href: '/teacher/submissions', icon: Code2 },
-    { name: 'Plagiarism Check', href: '/teacher/plagiarism', icon: GitCompare, badge: { text: 'AST', type: 'AST' } },
-    { name: 'Appeals', href: '/teacher/appeals', icon: Scale },
+    { name: t('nav.dashboard'), href: '/teacher/dashboard', icon: LayoutDashboard },
+    { name: t('nav.exams'), href: '/teacher/exams', icon: FileCode2 },
+    { name: t('nav.submissions'), href: '/teacher/submissions', icon: Code2 },
+    { name: t('nav.plagiarismCheck'), href: '/teacher/plagiarism', icon: GitCompare, badge: { text: t('nav.astCheck'), type: 'AST' } },
+    { name: t('nav.appeals'), href: '/teacher/appeals', icon: Scale },
   ];
 
   const studentNav: NavItem[] = [
-    { name: 'Dashboard', href: '/student/dashboard', icon: LayoutDashboard },
-    { name: 'My Exams', href: '/student/exams', icon: FileCode2 },
-    { name: 'My Submissions', href: '/student/submissions', icon: Code2 },
-    { name: 'Appeals', href: '/student/appeals', icon: Scale },
+    { name: t('nav.dashboard'), href: '/student/dashboard', icon: LayoutDashboard },
+    { name: t('nav.myExams'), href: '/student/exams', icon: FileCode2 },
+    { name: t('nav.mySubmissions'), href: '/student/submissions', icon: Code2 },
+    { name: t('nav.appeals'), href: '/student/appeals', icon: Scale },
   ];
 
   const adminNav: NavItem[] = [
-    { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
-    { name: 'Users', href: '/admin/users', icon: Users },
-    { name: 'Classes', href: '/admin/classes', icon: GraduationCap },
-    { name: 'Exams', href: '/admin/exams', icon: BookOpen },
+    { name: t('nav.dashboard'), href: '/admin/dashboard', icon: LayoutDashboard },
+    { name: t('nav.users'), href: '/admin/users', icon: Users },
+    { name: t('nav.classes'), href: '/admin/classes', icon: GraduationCap },
+    { name: t('nav.exams'), href: '/admin/exams', icon: BookOpen },
   ];
 
   const navItems = role === 'ADMIN' ? adminNav : role === 'TEACHER' ? teacherNav : studentNav;
@@ -86,16 +88,16 @@ export function Sidebar({ role }: SidebarProps) {
               </div>
               <div className="flex flex-col">
                 <span className="font-semibold text-sm text-slate-100 tracking-tight leading-none group-hover:text-white transition-colors">
-                  CodeAssess
+                  {t('common.appName')}
                 </span>
                 <span className="text-[10px] text-slate-400 font-mono tracking-wider mt-1">
-                  ACADEMIC PORTAL
+                  {t('common.academicPortal')}
                 </span>
               </div>
             </Link>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-950 border border-indigo-700/50 text-indigo-300 font-mono">
-                {role === 'TEACHER' ? 'FACULTY' : role}
+                {role === 'TEACHER' ? t('nav.facultyRole') : role === 'STUDENT' ? t('nav.studentRole') : t('nav.adminRole')}
               </span>
               <button
                 type="button"
@@ -111,7 +113,7 @@ export function Sidebar({ role }: SidebarProps) {
         {/* Section Title */}
         <div className="px-4 pt-5 pb-2">
           <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest font-mono">
-            Navigation
+            {t('nav.navigationTitle')}
           </span>
         </div>
 
@@ -160,7 +162,7 @@ export function Sidebar({ role }: SidebarProps) {
             <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
             <span className="text-[11px] text-slate-300 font-medium">AST Engine v2.0</span>
           </div>
-          <span className="text-[10px] font-mono text-emerald-400 font-semibold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/40">ONLINE</span>
+          <span className="text-[10px] font-mono text-emerald-400 font-semibold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/40">{t('common.systemOnline')}</span>
         </div>
         <LogoutButton />
       </div>

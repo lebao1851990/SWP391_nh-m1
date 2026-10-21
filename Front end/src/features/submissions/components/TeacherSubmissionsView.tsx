@@ -1,24 +1,22 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTeacherSubmissions } from '@/features/exams/hooks/use-teacher-exams';
 import { AppLink as Link } from '@/components/ui/app-link';
 import { 
   Search, 
   ChevronRight, 
   ChevronDown, 
-  CheckCircle2, 
-  Clock, 
-  Award, 
   FileCode2, 
   ExternalLink,
   AlertCircle,
-  Loader2,
   X,
   Code2
 } from 'lucide-react';
+import { useTranslation } from '@/i18n';
 
 export function TeacherSubmissionsView() {
+  const { t, formatDate } = useTranslation();
   const { data: submissions, isLoading, isError, error, refetch } = useTeacherSubmissions();
   const [searchQuery, setSearchQuery] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -72,7 +70,7 @@ export function TeacherSubmissionsView() {
       <div className="max-w-7xl mx-auto px-space-lg py-space-lg">
         <div className="flex flex-col h-72 items-center justify-center gap-3">
           <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-          <p className="text-on-surface-variant font-label-md text-xs">Loading course submissions...</p>
+          <p className="text-on-surface-variant font-label-md text-xs">{t.submissions.loadingSubmissions}</p>
         </div>
       </div>
     );
@@ -80,19 +78,19 @@ export function TeacherSubmissionsView() {
 
   if (isError) {
     return (
-      <div className="max-w-xl mx-auto my-12 p-8 rounded-2xl bg-surface-container-lowest border border-rose-200/60 shadow-lg text-center flex flex-col items-center gap-3">
-        <div className="p-3 rounded-full bg-rose-50 text-rose-600">
+      <div className="max-w-xl mx-auto my-12 p-8 rounded-2xl bg-surface-container-lowest border border-rose-200/60 dark:border-rose-900/60 shadow-lg text-center flex flex-col items-center gap-3">
+        <div className="p-3 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
           <AlertCircle className="w-8 h-8" />
         </div>
-        <h2 className="font-headline-md text-headline-md text-on-surface">Unable to Load Submissions</h2>
+        <h2 className="font-headline-md text-headline-md text-on-surface">{t.submissions.unableToLoadSubmissions}</h2>
         <p className="font-body-md text-on-surface-variant text-xs">
-          {(error as Error)?.message || 'An error occurred while fetching course submissions.'}
+          {(error as Error)?.message || t.submissions.unableToLoadSubmissions}
         </p>
         <button
           onClick={() => refetch()}
           className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-all cursor-pointer shadow-xs"
         >
-          Retry
+          {t.common.retry}
         </button>
       </div>
     );
@@ -104,18 +102,18 @@ export function TeacherSubmissionsView() {
         {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 text-xs text-on-surface-variant">
           <Link className="hover:text-primary transition-colors font-medium" href="/teacher/dashboard">
-            Dashboard
+            {t.nav.dashboard}
           </Link>
           <ChevronRight className="w-3.5 h-3.5 text-outline" />
-          <span className="text-on-surface font-semibold">Submissions &amp; Grading</span>
+          <span className="text-on-surface font-semibold">{t.submissions.submissionsAndGrading}</span>
         </div>
 
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md">
           <div className="flex flex-col gap-0.5">
-            <h1 className="font-display-lg text-display-lg text-on-surface tracking-tight">Student Submissions</h1>
+            <h1 className="font-display-lg text-display-lg text-on-surface tracking-tight">{t.submissions.studentSubmissionsTitle}</h1>
             <p className="text-xs sm:text-sm text-on-surface-variant">
-              Review student code artifacts, evaluate criteria rubrics, and inspect AST plagiarism reports.
+              {t.submissions.studentSubmissionsDesc}
             </p>
           </div>
           <Link
@@ -123,26 +121,26 @@ export function TeacherSubmissionsView() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors self-start lg:self-auto shadow-xs"
           >
             <FileCode2 className="w-4 h-4" />
-            <span>Manage Exams</span>
+            <span>{t.submissions.manageExams}</span>
           </Link>
         </div>
 
         {/* 4 Metric Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-space-sm">
           <div className="bg-surface-container-lowest p-space-md rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between">
-            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">Total Submissions</span>
+            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">{t.dashboard.totalSubmissions}</span>
             <span className="font-display-lg font-bold text-on-surface mt-2">{stats.total}</span>
           </div>
           <div className="bg-surface-container-lowest p-space-md rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between">
-            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">Graded</span>
-            <span className="font-display-lg font-bold text-emerald-600 mt-2">{stats.graded}</span>
+            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">{t.submissions.statusGraded}</span>
+            <span className="font-display-lg font-bold text-emerald-600 dark:text-emerald-400 mt-2">{stats.graded}</span>
           </div>
           <div className="bg-surface-container-lowest p-space-md rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between">
-            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">Needs Review</span>
-            <span className="font-display-lg font-bold text-amber-600 mt-2">{stats.pending}</span>
+            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">{t.submissions.needsReview}</span>
+            <span className="font-display-lg font-bold text-amber-600 dark:text-amber-400 mt-2">{stats.pending}</span>
           </div>
           <div className="bg-surface-container-lowest p-space-md rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between">
-            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">Cohort Avg</span>
+            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">{t.submissions.cohortAvg}</span>
             <div className="mt-2 flex items-baseline gap-1">
               <span className="font-display-lg font-bold text-primary">{stats.avgScore}</span>
               <span className="text-xs text-outline font-normal">/ 100</span>
@@ -156,7 +154,7 @@ export function TeacherSubmissionsView() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-outline w-4 h-4" />
             <input
               type="text"
-              placeholder="Search by student, email, exam or course..."
+              placeholder={t.submissions.searchSubmissionsTeacherPlaceholder}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-8 py-1.5 bg-surface-container-low border border-outline-variant/40 rounded-lg text-xs text-on-surface placeholder:text-outline focus:outline-none focus:border-primary transition-colors"
@@ -171,17 +169,17 @@ export function TeacherSubmissionsView() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-on-surface-variant font-label-xs text-xs font-medium">Filter:</span>
+            <span className="text-on-surface-variant font-label-xs text-xs font-medium">{t.common.filter}:</span>
             <div className="relative">
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
                 className="appearance-none pl-3 pr-8 py-1.5 bg-surface-container-low border border-outline-variant/40 rounded-lg text-xs text-on-surface focus:outline-none cursor-pointer"
               >
-                <option value="all">All Statuses</option>
-                <option value="GRADED">Graded</option>
-                <option value="PENDING">Pending</option>
-                <option value="EVALUATING">Evaluating</option>
+                <option value="all">{t.common.all}</option>
+                <option value="GRADED">{t.submissions.statusGraded}</option>
+                <option value="PENDING">{t.scoring.notEvaluated}</option>
+                <option value="EVALUATING">{t.submissions.statusEvaluating}</option>
               </select>
               <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-outline w-3.5 h-3.5 pointer-events-none" />
             </div>
@@ -194,13 +192,13 @@ export function TeacherSubmissionsView() {
             <table className="w-full text-left border-collapse text-xs" id="teacher-submissions-table">
               <thead>
                 <tr className="bg-surface-container-low text-on-surface-variant font-label-xs uppercase tracking-wider border-b border-outline-variant/30 select-none">
-                  <th className="py-2.5 px-4 font-semibold">Student Name</th>
-                  <th className="py-2.5 px-4 font-semibold">Email</th>
-                  <th className="py-2.5 px-4 font-semibold">Course &amp; Exam</th>
-                  <th className="py-2.5 px-4 font-semibold">Submission Time</th>
-                  <th className="py-2.5 px-4 font-semibold">Score</th>
-                  <th className="py-2.5 px-4 font-semibold">Status</th>
-                  <th className="py-2.5 px-4 font-semibold text-right">Actions</th>
+                  <th className="py-2.5 px-4 font-semibold">{t.submissions.studentName}</th>
+                  <th className="py-2.5 px-4 font-semibold">{t.submissions.studentEmail}</th>
+                  <th className="py-2.5 px-4 font-semibold">{t.exams.course} &amp; {t.exams.examTitle}</th>
+                  <th className="py-2.5 px-4 font-semibold">{t.submissions.submittedAt}</th>
+                  <th className="py-2.5 px-4 font-semibold">{t.submissions.score}</th>
+                  <th className="py-2.5 px-4 font-semibold">{t.common.status}</th>
+                  <th className="py-2.5 px-4 font-semibold text-right">{t.exams.actions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/20 text-on-surface">
@@ -209,11 +207,11 @@ export function TeacherSubmissionsView() {
                     <td colSpan={7} className="py-12 text-center text-on-surface-variant">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <Code2 className="w-8 h-8 text-outline" />
-                        <p className="font-semibold text-on-surface text-sm">No submissions found</p>
+                        <p className="font-semibold text-on-surface text-sm">{t.submissions.noSubmissionsFound}</p>
                         <p className="text-outline text-xs">
                           {searchQuery || statusFilter !== 'all'
-                            ? 'No student submissions match your filter criteria.'
-                            : 'No students have submitted code for your assigned courses yet.'}
+                            ? t.submissions.noSubmissionsTeacherEmpty
+                            : t.submissions.noSubmissionsTeacherEmpty}
                         </p>
                       </div>
                     </td>
@@ -237,7 +235,7 @@ export function TeacherSubmissionsView() {
                           </div>
                         </td>
                         <td className="py-3 px-4 text-on-surface-variant">
-                          {sub.submittedAt ? new Date(sub.submittedAt).toLocaleString() : 'N/A'}
+                          {sub.submittedAt ? formatDate(sub.submittedAt) : 'N/A'}
                         </td>
                         <td className="py-3 px-4">
                           {isGraded ? (
@@ -246,18 +244,18 @@ export function TeacherSubmissionsView() {
                               <span className="text-outline text-[10px] ml-0.5">/100</span>
                             </span>
                           ) : (
-                            <span className="text-outline italic">Pending</span>
+                            <span className="text-outline italic">{t.scoring.notEvaluated}</span>
                           )}
                         </td>
                         <td className="py-3 px-4">
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
                               isGraded
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
                             }`}
                           >
-                            {sub.status || 'PENDING'}
+                            {sub.status || t.scoring.notEvaluated}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-right">
@@ -265,7 +263,7 @@ export function TeacherSubmissionsView() {
                             href={`/teacher/submissions/${sub.id}`}
                             className="inline-flex items-center gap-1 px-3 py-1 bg-surface-container hover:bg-surface-container-high text-primary rounded-lg font-medium transition-colors"
                           >
-                            <span>Grade Code</span>
+                            <span>{t.submissions.gradeCode}</span>
                             <ExternalLink className="w-3 h-3" />
                           </Link>
                         </td>
@@ -279,8 +277,7 @@ export function TeacherSubmissionsView() {
           {filteredSubmissions.length > 0 && (
             <div className="px-4 py-2.5 bg-surface-container-low/40 flex items-center justify-between text-xs text-outline border-t border-outline-variant/20">
               <span>
-                Showing <strong className="text-on-surface">{filteredSubmissions.length}</strong> of{' '}
-                <strong className="text-on-surface">{submissions?.length || 0}</strong> submissions
+                {t.exams.showingSubmissions.replace('{count}', String(filteredSubmissions.length)).replace('{total}', String(submissions?.length || 0))}
               </span>
             </div>
           )}

@@ -9,10 +9,24 @@ export const loginSchema = z.object({
 export type LoginFormData = z.infer<typeof loginSchema>;
 
 export const forgotPasswordSchema = z.object({
-  identity: z.string().min(1, 'Please enter your university ID or email'),
+  email: z
+    .string()
+    .min(1, 'Please enter your university email')
+    .email('Please enter a valid email address'),
 });
 
 export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
+
+export const verifyOtpSchema = z.object({
+  email: z.string().email(),
+  otp: z
+    .string()
+    .min(1, 'Verification code is required')
+    .length(6, 'Verification code must be exactly 6 digits')
+    .regex(/^\d{6}$/, 'Verification code must contain 6 numbers'),
+});
+
+export type VerifyOtpFormData = z.infer<typeof verifyOtpSchema>;
 
 export const resetPasswordSchema = z.object({
   password: z.string().min(8, 'Min. 8 characters required'),

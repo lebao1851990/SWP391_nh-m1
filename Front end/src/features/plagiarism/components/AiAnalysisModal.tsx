@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { AiAnalysisResponse } from '../api/plagiarism-ai.api';
-import { Bot, X, Loader2, AlertCircle, Info, Sparkles } from 'lucide-react';
+import { Bot, X, Loader2, Info, Sparkles } from 'lucide-react';
+import { useTranslation } from '@/i18n';
 
 interface AiAnalysisModalProps {
   isOpen: boolean;
@@ -21,6 +22,8 @@ export function AiAnalysisModal({
   data,
   errorMessage,
 }: AiAnalysisModalProps) {
+  const { t } = useTranslation();
+
   if (!isOpen) return null;
 
   return (
@@ -30,12 +33,12 @@ export function AiAnalysisModal({
         {/* Header */}
         <div className="flex items-center justify-between px-space-lg py-space-md border-b border-outline-variant/30 bg-surface-container-low">
           <div className="flex items-center gap-space-sm">
-            <div className="p-1.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-200/60">
+            <div className="p-1.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-200/60 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/40">
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
               <h2 className="font-headline-sm text-headline-sm font-semibold text-on-surface">{title}</h2>
-              <p className="text-[11px] text-on-surface-variant">Advisory AI Synthesizer — Neural Code Structure Analysis</p>
+              <p className="text-[11px] text-on-surface-variant">{t.plagiarism.aiReviewTitle} &mdash; AST Code Structure</p>
             </div>
           </div>
           <button 
@@ -52,7 +55,7 @@ export function AiAnalysisModal({
             <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
               <Loader2 className="w-8 h-8 text-primary animate-spin" />
               <div className="space-y-1">
-                <span className="font-headline-sm text-sm font-semibold text-on-surface">Synthesizing AI Forensic Review...</span>
+                <span className="font-headline-sm text-sm font-semibold text-on-surface">{t.plagiarism.generatingAnalysis}</span>
                 <p className="font-body-sm text-xs text-on-surface-variant">
                   Analyzing subtree embeddings and compiling neutral academic comparison report.
                 </p>
@@ -62,27 +65,27 @@ export function AiAnalysisModal({
 
           {status === 'error' && (
             <div className="flex flex-col items-center justify-center py-8 px-6 gap-3 bg-surface-container-low rounded-xl border border-outline-variant/30 text-center">
-              <div className="p-3 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
+              <div className="p-3 rounded-full bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40">
                 <Bot className="w-7 h-7" />
               </div>
               <div className="space-y-1.5 max-w-md">
-                <h3 className="font-headline-sm text-sm font-bold text-on-surface">AI Assistant Not Configured</h3>
+                <h3 className="font-headline-sm text-sm font-bold text-on-surface">AI Assistant Unavailable</h3>
                 <p className="font-body-sm text-xs text-on-surface-variant leading-relaxed">
                   {errorMessage || 'AI-assisted code analysis is currently unavailable in this environment. The backend StubAiClient requires external AI provider credentials (Gemini / OpenAI API key) to be configured.'}
                 </p>
               </div>
               <div className="mt-2 p-2.5 rounded-lg bg-surface-container-lowest border border-outline-variant/30 text-[11px] text-outline font-mono">
-                Status: BLOCKED — StubAiClient active
+                Status: BLOCKED &mdash; StubAiClient active
               </div>
             </div>
           )}
 
           {status === 'success' && data && (
             <div className="flex flex-col gap-space-md">
-              <div className="flex items-start gap-2.5 p-3 bg-blue-50/70 text-blue-900 rounded-xl border border-blue-200/60 text-xs">
-                <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2.5 p-3 bg-blue-50/70 text-blue-900 rounded-xl border border-blue-200/60 text-xs dark:bg-blue-950/40 dark:text-blue-200 dark:border-blue-800/40">
+                <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
                 <span className="leading-relaxed">
-                  This analysis is advisory and synthesized from AST syntax tokens. The deterministic AST Plagiarism Engine remains authoritative for formal academic board review.
+                  {t.plagiarism.academicRigorQuote}
                 </span>
               </div>
               <div className="p-4 rounded-xl bg-surface-container-low text-on-surface text-xs font-mono whitespace-pre-wrap leading-relaxed border border-outline-variant/30">
@@ -98,7 +101,7 @@ export function AiAnalysisModal({
             onClick={onClose}
             className="px-4 py-2 rounded-lg bg-primary text-on-primary font-label-md text-xs font-semibold hover:bg-primary/90 transition-colors cursor-pointer shadow-xs"
           >
-            Close Dossier
+            {t.common.close}
           </button>
         </div>
 

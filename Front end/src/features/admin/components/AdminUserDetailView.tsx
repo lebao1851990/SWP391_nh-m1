@@ -3,8 +3,10 @@
 import React from 'react';
 import { useAdminUser } from '../hooks';
 import { AppLink as Link } from '@/components/ui/app-link';
+import { useTranslation } from '@/i18n';
 
 export function AdminUserDetailView({ userId }: { userId: string }) {
+  const { t, formatDate } = useTranslation();
   const { data: user, isLoading, isError } = useAdminUser(userId);
 
   return (
@@ -23,8 +25,8 @@ export function AdminUserDetailView({ userId }: { userId: string }) {
       ) : isError ? (
         <div className="p-10 flex flex-col items-center justify-center text-center bg-surface-container-lowest rounded-xl shadow-sm border border-error/20">
           <span className="material-symbols-outlined text-[48px] text-error mb-2">error</span>
-          <span className="font-headline-sm font-semibold text-on-surface">Integration Pending</span>
-          <span className="font-body-sm text-on-surface-variant">Backend API is currently unavailable.</span>
+          <span className="font-headline-sm font-semibold text-on-surface">{t.admin.integrationPending}</span>
+          <span className="font-body-sm text-on-surface-variant">{t.admin.integrationPendingDesc}</span>
         </div>
       ) : user ? (
         <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 p-space-lg flex flex-col gap-space-md">
@@ -44,7 +46,7 @@ export function AdminUserDetailView({ userId }: { userId: string }) {
               <span className="font-code-body font-mono text-on-surface">{user.id}</span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="font-label-sm text-label-sm uppercase text-outline">System Role</span>
+              <span className="font-label-sm text-label-sm uppercase text-outline">{t.admin.userRole}</span>
               <div>
                 <span className="px-2 py-0.5 rounded bg-primary-container text-on-primary-container font-label-sm text-label-sm font-medium font-mono">
                   {user.role}
@@ -57,7 +59,7 @@ export function AdminUserDetailView({ userId }: { userId: string }) {
             </div>
             <div className="flex flex-col gap-1">
               <span className="font-label-sm text-label-sm uppercase text-outline">Joined</span>
-              <span className="font-body-md text-on-surface">{new Date(user.createdAt).toLocaleDateString()}</span>
+              <span className="font-body-md text-on-surface">{formatDate(user.createdAt)}</span>
             </div>
           </div>
           

@@ -17,12 +17,13 @@ import {
   X,
   Code2,
   Calendar,
-  ExternalLink,
   BookOpen,
   Menu
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUiStore } from '@/stores/ui.store';
+import { useTranslation } from '@/i18n';
+import { LocaleThemeBar } from '@/components/ui/LocaleThemeBar';
 
 export function Header() {
   const router = useRouter();
@@ -30,6 +31,7 @@ export function Header() {
   const user = useSessionStore((state) => state.user);
   const clearSession = useSessionStore((state) => state.clearSession);
   const { toggleMobileNav } = useUiStore();
+  const { t } = useTranslation();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
@@ -99,7 +101,10 @@ export function Header() {
       // ignore network errors on logout
     } finally {
       clearSession();
-      toast.success('Signed out successfully');
+      if (typeof document !== 'undefined') {
+        document.cookie = 'codeassess_role=; path=/; max-age=0; SameSite=Lax';
+      }
+      toast.success(t('nav.signedOutSuccess'));
       router.push('/login');
     }
   };
@@ -125,11 +130,11 @@ export function Header() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-14 py-1.5 bg-surface-container-low rounded border border-outline-variant text-on-surface font-body-sm text-body-sm placeholder:text-outline focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-all" 
-              placeholder="Search exams, courses, or IDs (Enter to search)..." 
+              placeholder={t('header.searchPlaceholder')} 
               type="text"
             />
             <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 font-label-xs text-[10px] text-outline bg-surface-container px-1.5 py-0.5 rounded border border-outline-variant/40 select-none">
-              ⌘K
+              {t('header.searchShortcut')}
             </kbd>
           </div>
         </form>
@@ -140,7 +145,7 @@ export function Header() {
           {/* Semester Badge */}
           <div className="hidden md:flex items-center gap-1.5 px-space-sm py-1 rounded bg-surface-container border border-outline-variant/30 text-on-surface text-xs font-medium">
             <GraduationCap className="w-3.5 h-3.5 text-primary" />
-            <span className="font-label-md text-label-md">Fall 2026 Term</span>
+            <span className="font-label-md text-label-md">{t('header.termBadge')}</span>
           </div>
           
           {/* Notifications Trigger */}
@@ -151,7 +156,7 @@ export function Header() {
                 setProfileOpen(false);
               }}
               className="relative p-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded transition-colors cursor-pointer" 
-              title="System Notifications"
+              title={t('header.systemNotifications')}
             >
               <Bell className="w-4 h-4" />
               <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-surface-container-lowest"></span>
@@ -161,22 +166,22 @@ export function Header() {
             {notificationsOpen && (
               <div className="absolute right-0 mt-2 w-80 bg-surface-container-lowest border border-outline-variant/40 rounded-xl shadow-xl z-50 p-space-md flex flex-col gap-space-sm">
                 <div className="flex items-center justify-between border-b border-outline-variant/30 pb-2">
-                  <span className="font-label-md font-semibold text-on-surface">Platform Telemetry</span>
-                  <span className="font-label-xs text-xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">Active</span>
+                  <span className="font-label-md font-semibold text-on-surface">{t('header.telemetryTitle')}</span>
+                  <span className="font-label-xs text-xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">{t('header.telemetryActive')}</span>
                 </div>
                 <div className="space-y-2 text-xs">
                   <div className="flex items-start gap-2 p-2 rounded bg-surface-container-low">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-semibold text-on-surface">AST Engine Synchronized</p>
-                      <p className="text-on-surface-variant text-[11px]">Real-time bytecode parser ready for submissions.</p>
+                      <p className="font-semibold text-on-surface">{t('header.astEngineReady')}</p>
+                      <p className="text-on-surface-variant text-[11px]">{t('header.astEngineDesc')}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-2 p-2 rounded bg-surface-container-low">
                     <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-semibold text-on-surface">Docker Sandbox v2 Standby</p>
-                      <p className="text-on-surface-variant text-[11px]">Memory cap: 512MB cgroup, 3.0s timeout.</p>
+                      <p className="font-semibold text-on-surface">{t('header.dockerSandboxReady')}</p>
+                      <p className="text-on-surface-variant text-[11px]">{t('header.dockerSandboxDesc')}</p>
                     </div>
                   </div>
                 </div>
@@ -184,7 +189,7 @@ export function Header() {
                   onClick={() => setNotificationsOpen(false)}
                   className="w-full py-1 text-center font-label-xs text-primary hover:underline cursor-pointer"
                 >
-                  Close Telemetry
+                  {t('header.closeTelemetry')}
                 </button>
               </div>
             )}
@@ -194,11 +199,16 @@ export function Header() {
           <button 
             onClick={() => setHelpOpen(true)}
             className="p-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded transition-colors cursor-pointer" 
-            title="Academic Guidelines & Honor Code"
+            title={t('header.guidelinesTitle')}
           >
             <HelpCircle className="w-4 h-4" />
           </button>
           
+          <div className="h-5 w-[1px] bg-outline-variant/40"></div>
+
+          {/* Shared Language & Theme Selector */}
+          <LocaleThemeBar />
+
           <div className="h-5 w-[1px] bg-outline-variant/40"></div>
           
           {/* User Profile Menu */}
@@ -220,10 +230,10 @@ export function Header() {
                   </span>
                   <span className={`font-label-xs text-[10px] px-1.5 py-0.2 rounded font-semibold ${
                     user?.role === 'TEACHER' 
-                      ? 'bg-blue-100 text-blue-800' 
+                      ? 'bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-300' 
                       : user?.role === 'ADMIN' 
-                      ? 'bg-purple-100 text-purple-800' 
-                      : 'bg-emerald-100 text-emerald-800'
+                      ? 'bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300' 
+                      : 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300'
                   }`}>
                     {user?.role === 'ADMIN' ? 'Admin' : user?.role === 'TEACHER' ? 'Faculty' : 'Student'}
                   </span>
@@ -236,7 +246,7 @@ export function Header() {
             {profileOpen && (
               <div className="absolute right-0 mt-2 w-64 bg-surface-container-lowest border border-outline-variant/40 rounded-xl shadow-xl z-50 p-2 flex flex-col gap-1">
                 <div className="px-3 py-2 border-b border-outline-variant/20 mb-1">
-                  <p className="font-label-xs text-outline uppercase tracking-wider">Signed in as</p>
+                  <p className="font-label-xs text-outline uppercase tracking-wider">{t('header.signedInAs')}</p>
                   <p className="font-label-md font-semibold text-on-surface truncate">{user?.email || 'N/A'}</p>
                   <p className="font-label-xs text-outline-variant truncate">ID: {user?.id || 'Pending'}</p>
                 </div>
@@ -249,7 +259,7 @@ export function Header() {
                   className="flex items-center gap-2 px-3 py-2 text-xs text-on-surface hover:bg-surface-container rounded-lg transition-colors cursor-pointer"
                 >
                   <User className="w-3.5 h-3.5 text-outline" />
-                  <span>Dashboard Overview</span>
+                  <span>{t('header.dashboardOverview')}</span>
                 </button>
 
                 <button
@@ -260,7 +270,7 @@ export function Header() {
                   className="flex items-center gap-2 px-3 py-2 text-xs text-on-surface hover:bg-surface-container rounded-lg transition-colors cursor-pointer"
                 >
                   <BookOpen className="w-3.5 h-3.5 text-outline" />
-                  <span>Honor Code &amp; Guidelines</span>
+                  <span>{t('header.honorCodeTitle')}</span>
                 </button>
 
                 <div className="border-t border-outline-variant/20 my-1"></div>
@@ -273,7 +283,7 @@ export function Header() {
                   className="flex items-center gap-2 px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer font-medium"
                 >
                   <LogOut className="w-3.5 h-3.5 text-rose-500" />
-                  <span>Sign Out</span>
+                  <span>{t('nav.signOut')}</span>
                 </button>
               </div>
             )}
@@ -288,7 +298,7 @@ export function Header() {
             <div className="flex items-center justify-between border-b border-outline-variant/30 pb-3">
               <div className="flex items-center gap-2 text-primary font-semibold">
                 <BookOpen className="w-5 h-5" />
-                <h3 className="font-headline-sm text-headline-sm text-on-surface">CodeAssess Academic Standards</h3>
+                <h3 className="font-headline-sm text-headline-sm text-on-surface">{t('header.academicStandardsTitle')}</h3>
               </div>
               <button 
                 onClick={() => setHelpOpen(false)} 
@@ -302,25 +312,25 @@ export function Header() {
               <div className="p-3 rounded-lg bg-surface-container-low border border-outline-variant/30">
                 <p className="font-semibold text-on-surface mb-1 flex items-center gap-1.5">
                   <ShieldAlert className="w-4 h-4 text-amber-600" />
-                  AST Bytecode Verification Policy
+                  {t('header.astPolicyTitle')}
                 </p>
-                <p>All submitted Java code is parsed into Abstract Syntax Trees (AST) and tokenized to detect structural plagiarism across variable renames, statement reordering, and syntactic wrapping.</p>
+                <p>{t('header.astPolicyDesc')}</p>
               </div>
 
               <div className="p-3 rounded-lg bg-surface-container-low border border-outline-variant/30">
                 <p className="font-semibold text-on-surface mb-1 flex items-center gap-1.5">
                   <Calendar className="w-4 h-4 text-blue-600" />
-                  Appeals SLA Policy
+                  {t('header.appealsPolicyTitle')}
                 </p>
-                <p>Students may appeal grading decisions or integrity flags within 48 hours of evaluation publication. The Faculty Review Committee evaluates submitted rationales.</p>
+                <p>{t('header.appealsPolicyDesc')}</p>
               </div>
 
               <div className="p-3 rounded-lg bg-surface-container-low border border-outline-variant/30">
                 <p className="font-semibold text-on-surface mb-1 flex items-center gap-1.5">
                   <Code2 className="w-4 h-4 text-emerald-600" />
-                  Docker Sandbox Execution
+                  {t('header.dockerPolicyTitle')}
                 </p>
-                <p>Code runs in strictly isolated Docker containers without internet access, capped at 512MB RAM and 3.0s CPU timeout per test case.</p>
+                <p>{t('header.dockerPolicyDesc')}</p>
               </div>
             </div>
 
@@ -329,7 +339,7 @@ export function Header() {
                 onClick={() => setHelpOpen(false)}
                 className="px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors cursor-pointer shadow-sm"
               >
-                Understood
+                {t('header.understoodButton')}
               </button>
             </div>
           </div>

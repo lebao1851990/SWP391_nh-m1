@@ -54,6 +54,7 @@ export interface TeacherClassResponse {
   code: string;
   teacherId?: string;
   studentCount?: number;
+  semester?: string;
 }
 
 export interface CreateExamPayload {

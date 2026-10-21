@@ -21,4 +21,6 @@ public class StudentSubmissionResult {
     private BigDecimal maxTotalScore;
     
     private List<CriterionScoreDto> criteria;
+    private String instructorFeedback;
+    private String instructorEvaluationComments;
 }

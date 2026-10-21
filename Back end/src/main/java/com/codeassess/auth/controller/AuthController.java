@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final com.codeassess.auth.mapper.AuthMapper authMapper;
+    private final com.codeassess.auth.service.PasswordResetService passwordResetService;
 
     @PostMapping("/register")
     public ResponseEntity<Void> register(@Valid @RequestBody com.codeassess.auth.dto.request.RegisterRequest request) {
@@ -40,5 +42,38 @@ public class AuthController {
         response.addCookie(roleCookie);
 
         return ResponseEntity.ok(loginResponse);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<com.codeassess.auth.dto.response.ForgotPasswordResponse> forgotPassword(
+            @RequestBody com.codeassess.auth.dto.request.ForgotPasswordRequest request) {
+        return ResponseEntity.ok(passwordResetService.requestPasswordReset(request));
+    }
+
+    @PostMapping("/resend-otp")
+    public ResponseEntity<com.codeassess.auth.dto.response.ResendOtpResponse> resendOtp(
+            @Valid @RequestBody com.codeassess.auth.dto.request.ResendOtpRequest request) {
+        return ResponseEntity.ok(passwordResetService.resendOtp(request));
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<com.codeassess.auth.dto.response.VerifyOtpResponse> verifyOtp(
+            @Valid @RequestBody com.codeassess.auth.dto.request.VerifyOtpRequest request) {
+        return ResponseEntity.ok(passwordResetService.verifyOtp(request));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<com.codeassess.auth.dto.response.ResetPasswordResponse> resetPassword(
+            @Valid @RequestBody com.codeassess.auth.dto.request.ResetPasswordRequest request) {
+        return ResponseEntity.ok(passwordResetService.resetPassword(request));
+    }
+
+    @org.springframework.web.bind.annotation.GetMapping("/me")
+    public ResponseEntity<LoginResponse.UserSessionDto> getCurrentUser(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.codeassess.user.entity.User currentUser) {
+        if (currentUser == null) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED).build();
+        }
+        return ResponseEntity.ok(authMapper.toUserSessionDto(currentUser));
     }
 }

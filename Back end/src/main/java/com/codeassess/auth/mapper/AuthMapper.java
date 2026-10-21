@@ -16,6 +16,7 @@ public class AuthMapper {
                 .id(user.getId())
                 .email(user.getEmail())
                 .role(user.getRole().name())
+                .name(user.getFullName())
                 .build();
     }
 }

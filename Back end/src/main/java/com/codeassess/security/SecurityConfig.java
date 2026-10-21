@@ -26,10 +26,16 @@ public class SecurityConfig {
 
     private final CorsConfigurationSource corsConfigurationSource;
     private final CustomUserDetailsService customUserDetailsService;
+    private final SessionPasswordAgeFilter sessionPasswordAgeFilter;
 
-    public SecurityConfig(CorsConfigurationSource corsConfigurationSource, CustomUserDetailsService customUserDetailsService) {
+    public SecurityConfig(
+            CorsConfigurationSource corsConfigurationSource,
+            CustomUserDetailsService customUserDetailsService,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) SessionPasswordAgeFilter sessionPasswordAgeFilter
+    ) {
         this.corsConfigurationSource = corsConfigurationSource;
         this.customUserDetailsService = customUserDetailsService;
+        this.sessionPasswordAgeFilter = sessionPasswordAgeFilter;
     }
 
     @Bean
@@ -39,7 +45,13 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session
                     .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-            )
+            );
+
+        if (sessionPasswordAgeFilter != null) {
+            http.addFilterAfter(sessionPasswordAgeFilter, org.springframework.security.web.context.SecurityContextHolderFilter.class);
+        }
+
+        http
             .exceptionHandling(exceptions -> exceptions
                     .authenticationEntryPoint(new CustomAuthenticationEntryPoint())
                     .accessDeniedHandler(new CustomAccessDeniedHandler())
@@ -52,7 +64,7 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/api/health").permitAll()
-                    .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/forgot-password", "/api/auth/reset-password").permitAll()
+                    .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/forgot-password", "/api/auth/resend-otp", "/api/auth/verify-otp", "/api/auth/reset-password").permitAll()
                     .requestMatchers("/api/internal/**").permitAll()
                     .requestMatchers("/api/**").authenticated()
                     .anyRequest().denyAll()

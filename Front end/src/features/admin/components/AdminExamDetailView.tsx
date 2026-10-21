@@ -3,8 +3,10 @@
 import React from 'react';
 import { useAdminExam } from '../hooks';
 import { AppLink as Link } from '@/components/ui/app-link';
+import { useTranslation } from '@/i18n';
 
 export function AdminExamDetailView({ examId }: { examId: string }) {
+  const { t } = useTranslation();
   const { data: exam, isLoading, isError } = useAdminExam(examId);
 
   return (
@@ -23,8 +25,8 @@ export function AdminExamDetailView({ examId }: { examId: string }) {
       ) : isError ? (
         <div className="p-10 flex flex-col items-center justify-center text-center bg-surface-container-lowest rounded-xl shadow-sm border border-error/20">
           <span className="material-symbols-outlined text-[48px] text-error mb-2">error</span>
-          <span className="font-headline-sm font-semibold text-on-surface">Integration Pending</span>
-          <span className="font-body-sm text-on-surface-variant">Backend API is currently unavailable.</span>
+          <span className="font-headline-sm font-semibold text-on-surface">{t.admin.integrationPending}</span>
+          <span className="font-body-sm text-on-surface-variant">{t.admin.integrationPendingDesc}</span>
         </div>
       ) : exam ? (
         <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 p-space-lg flex flex-col gap-space-md">
@@ -54,11 +56,11 @@ export function AdminExamDetailView({ examId }: { examId: string }) {
               <span className="font-body-md text-on-surface font-mono">{exam.classId}</span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="font-label-sm text-label-sm uppercase text-outline">Scheduled Date</span>
+              <span className="font-label-sm text-label-sm uppercase text-outline">{t.exams.scheduledDate}</span>
               <span className="font-body-md text-on-surface">{exam.date}</span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="font-label-sm text-label-sm uppercase text-outline">Duration</span>
+              <span className="font-label-sm text-label-sm uppercase text-outline">{t.common.duration}</span>
               <span className="font-body-md text-on-surface">{exam.durationMinutes} Minutes</span>
             </div>
           </div>

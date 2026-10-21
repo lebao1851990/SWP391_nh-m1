@@ -10,9 +10,9 @@ export const plagiarismAiApi = {
     return response.data;
   },
 
-  getCodeReview: async (submissionId: string, evidenceId: number | string): Promise<AiAnalysisResponse> => {
+  getCodeReview: async (submissionId: string, evidenceId: string): Promise<AiAnalysisResponse> => {
     const response = await apiClient.post(`/teacher/plagiarism/${submissionId}/ai/code-review`, {
-      evidenceId: typeof evidenceId === 'string' ? parseInt(evidenceId, 10) : evidenceId
+      evidenceId: String(evidenceId)
     });
     return response.data;
   },

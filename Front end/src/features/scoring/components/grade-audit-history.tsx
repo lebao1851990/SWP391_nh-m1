@@ -19,6 +19,7 @@ import {
   Loader2,
   ShieldCheck
 } from 'lucide-react';
+import { useTranslation } from '@/i18n';
 
 interface GradeAuditHistoryProps {
   submissionId: string;
@@ -26,24 +27,25 @@ interface GradeAuditHistoryProps {
 }
 
 export function GradeAuditHistory({ submissionId, className = '' }: GradeAuditHistoryProps) {
+  const { t, formatDate } = useTranslation();
   const { data: logs, isLoading, isError, error, refetch, isFetching } = useTeacherGradeAuditLogs(submissionId);
 
   const formatRubricScore = (val: number | null | undefined): React.ReactNode => {
     if (val === null || val === undefined) {
-      return <span className="text-outline font-medium">Not evaluated</span>;
+      return <span className="text-outline font-medium">{t.scoring.notEvaluated}</span>;
     }
-    return <span className="font-mono font-semibold">{Number(val).toFixed(2)} pts</span>;
+    return <span className="font-mono font-semibold">{Number(val).toFixed(2)} {t.scoring.points}</span>;
   };
 
   const formatOverrideScore = (val: number | null | undefined): React.ReactNode => {
     if (val === null || val === undefined) {
       return (
         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-surface-container text-outline">
-          No override
+          {t.scoring.noOverride}
         </span>
       );
     }
-    return <span className="font-mono font-semibold text-amber-600 dark:text-amber-400">{Number(val).toFixed(2)} pts</span>;
+    return <span className="font-mono font-semibold text-amber-600 dark:text-amber-400">{Number(val).toFixed(2)} {t.scoring.points}</span>;
   };
 
   const formatEffectiveScore = (val: number | null | undefined, isPost = false): React.ReactNode => {
@@ -52,7 +54,7 @@ export function GradeAuditHistory({ submissionId, className = '' }: GradeAuditHi
     }
     return (
       <span className={`font-mono font-bold ${isPost ? 'text-primary' : 'text-on-surface'}`}>
-        {Number(val).toFixed(2)} pts
+        {Number(val).toFixed(2)} {t.scoring.points}
       </span>
     );
   };
@@ -63,35 +65,35 @@ export function GradeAuditHistory({ submissionId, className = '' }: GradeAuditHi
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Initial Grading</span>
+            <span>{t.scoring.initialGrading}</span>
           </span>
         );
       case 'OVERRIDE_SET':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
             <Sliders className="w-3.5 h-3.5" />
-            <span>Override Set</span>
+            <span>{t.scoring.overrideSet}</span>
           </span>
         );
       case 'OVERRIDE_CLEARED':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-zinc-500/10 text-zinc-700 dark:text-zinc-400 border border-zinc-500/20">
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Override Cleared</span>
+            <span>{t.scoring.overrideCleared}</span>
           </span>
         );
       case 'OVERRIDE_UPDATE':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-sky-500/10 text-sky-700 dark:text-sky-400 border border-sky-500/20">
             <FileEdit className="w-3.5 h-3.5" />
-            <span>Override Updated</span>
+            <span>{t.scoring.overrideUpdated}</span>
           </span>
         );
       case 'RUBRIC_UPDATE':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-500/20">
             <FileText className="w-3.5 h-3.5" />
-            <span>Rubric Updated</span>
+            <span>{t.scoring.rubricUpdated}</span>
           </span>
         );
       default:
@@ -123,7 +125,7 @@ export function GradeAuditHistory({ submissionId, className = '' }: GradeAuditHi
           <div>
             <div className="flex items-center gap-2">
               <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold tracking-tight">
-                Grade & Audit History
+                {t.scoring.gradeAuditTrailTitle}
               </h2>
               {sortedLogs.length > 0 && (
                 <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-surface-container text-on-surface-variant">
@@ -132,7 +134,7 @@ export function GradeAuditHistory({ submissionId, className = '' }: GradeAuditHi
               )}
             </div>
             <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
-              Authoritative chronological record of all rubric scores, manual overrides, and instructor justifications.
+              {t.scoring.gradeAuditTrailDesc}
             </p>
           </div>
         </div>
@@ -141,11 +143,11 @@ export function GradeAuditHistory({ submissionId, className = '' }: GradeAuditHi
           type="button"
           onClick={() => refetch()}
           disabled={isFetching}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-label-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors disabled:opacity-50 self-start sm:self-center"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-label-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors disabled:opacity-50 self-start sm:self-center cursor-pointer"
           title="Refresh audit history"
         >
           <RotateCw className={`w-4 h-4 ${isFetching ? 'animate-spin text-primary' : ''}`} />
-          <span>Refresh</span>
+          <span>{t.common.refresh}</span>
         </button>
       </div>
 
@@ -211,7 +213,7 @@ export function GradeAuditHistory({ submissionId, className = '' }: GradeAuditHi
 
                 <div className="flex items-center gap-1.5 text-xs text-outline font-mono">
                   <Clock className="w-3.5 h-3.5" />
-                  <time dateTime={log.createdAt}>{new Date(log.createdAt).toLocaleString()}</time>
+                  <time dateTime={log.createdAt}>{formatDate(log.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}</time>
                 </div>
               </div>
 
