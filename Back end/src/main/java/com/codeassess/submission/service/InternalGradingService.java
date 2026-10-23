@@ -10,6 +10,7 @@ import com.codeassess.submission.entity.Submission;
 import com.codeassess.submission.repository.SubmissionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,7 +21,6 @@ import java.time.LocalDateTime;
  * Idempotent, safe on retries, and coordinates execution telemetry with plagiarism analysis.
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class InternalGradingService {
 
@@ -29,6 +29,28 @@ public class InternalGradingService {
     private final AstPlagiarismService astPlagiarismService;
     private final SimilarityMatrixService similarityMatrixService;
     private final com.codeassess.testcase.service.AutomatedTestRunnerService automatedTestRunnerService;
+
+    public InternalGradingService(
+            SubmissionRepository submissionRepository,
+            DockerSandboxService dockerSandboxService,
+            AstPlagiarismService astPlagiarismService,
+            SimilarityMatrixService similarityMatrixService) {
+        this(submissionRepository, dockerSandboxService, astPlagiarismService, similarityMatrixService, null);
+    }
+
+    @Autowired
+    public InternalGradingService(
+            SubmissionRepository submissionRepository,
+            DockerSandboxService dockerSandboxService,
+            AstPlagiarismService astPlagiarismService,
+            SimilarityMatrixService similarityMatrixService,
+            @Autowired(required = false) com.codeassess.testcase.service.AutomatedTestRunnerService automatedTestRunnerService) {
+        this.submissionRepository = submissionRepository;
+        this.dockerSandboxService = dockerSandboxService;
+        this.astPlagiarismService = astPlagiarismService;
+        this.similarityMatrixService = similarityMatrixService;
+        this.automatedTestRunnerService = automatedTestRunnerService;
+    }
 
     public InternalGradingResponse processGrading(String submissionId) {
         Submission submission = submissionRepository.findById(submissionId)
@@ -76,8 +98,68 @@ public class InternalGradingService {
         String submissionType = submission.getSubmissionType() != null ? submission.getSubmissionType() : "SINGLE_FILE";
 
         if ("SINGLE_FILE".equalsIgnoreCase(submissionType)) {
-            // Execute single-file submission through AutomatedTestRunnerService
-            automatedTestRunnerService.runAndGrade(submission);
+            String executionStatus = "SUCCESS";
+            Integer exitCode = 0;
+            String compileOutput = null;
+            String stdout = null;
+            String stderr = null;
+            Long duration = 0L;
+
+            if (automatedTestRunnerService != null) {
+                try {
+                    com.codeassess.testcase.dto.sandbox.TestCaseBatchSuiteResult suiteResult =
+                            automatedTestRunnerService.runAndGrade(submission);
+                    if (suiteResult != null) {
+                        executionStatus = !suiteResult.isCompiled() ? "COMPILE_ERROR" :
+                                (suiteResult.getItemResults().stream().allMatch(it -> "PASSED".equalsIgnoreCase(it.getStatus())) ? "SUCCESS" : "FAILED");
+                        exitCode = !suiteResult.isCompiled() ? 1 : ("SUCCESS".equals(executionStatus) ? 0 : 2);
+                        compileOutput = suiteResult.getCompileOutput();
+                        duration = suiteResult.getTotalDurationMs();
+                    }
+                } catch (Exception e) {
+                    log.error("AutomatedTestRunnerService error for submission {}: {}", submissionId, e.getMessage(), e);
+                    executionStatus = "INTERNAL_ERROR";
+                    exitCode = 1;
+                }
+            } else if (dockerSandboxService != null) {
+                try {
+                    SandboxResult sandboxResult = dockerSandboxService.execute(submission.getSourceCode());
+                    if (sandboxResult != null) {
+                        executionStatus = sandboxResult.getStatus() != null ? sandboxResult.getStatus().name() : "INTERNAL_ERROR";
+                        exitCode = sandboxResult.getExitCode();
+                        compileOutput = sandboxResult.getCompilerOutput();
+                        stdout = sandboxResult.getStdout();
+                        stderr = sandboxResult.getStderr();
+                        duration = sandboxResult.getExecutionTimeMs();
+                    }
+                } catch (Exception e) {
+                    log.error("DockerSandboxService error for submission {}: {}", submissionId, e.getMessage(), e);
+                    executionStatus = "INTERNAL_ERROR";
+                    exitCode = 1;
+                }
+            }
+
+            int completed = submissionRepository.completeGradingWithToken(
+                    submissionId,
+                    claimToken,
+                    executionStatus,
+                    exitCode,
+                    compileOutput,
+                    stdout,
+                    stderr,
+                    duration,
+                    LocalDateTime.now()
+            );
+
+            if (completed == 0) {
+                log.warn("Submission {} lost its claim lease during execution (claimToken={}); discarding obsolete results",
+                        submissionId, claimToken);
+                return InternalGradingResponse.builder()
+                        .submissionId(submissionId)
+                        .status("OBSOLETE_CLAIM")
+                        .message("Claim expired or superseded by another worker")
+                        .build();
+            }
 
             // Reload fresh entity state
             submission = submissionRepository.findById(submissionId).orElse(submission);
@@ -101,9 +183,9 @@ public class InternalGradingService {
             return InternalGradingResponse.builder()
                     .submissionId(submissionId)
                     .status("COMPLETED")
-                    .executionStatus(submission.getExecutionStatus())
-                    .exitCode(submission.getExitCode())
-                    .message("Successfully graded single-file submission with automated test cases")
+                    .executionStatus(executionStatus)
+                    .exitCode(exitCode)
+                    .message("Successfully graded single-file submission")
                     .build();
         } else {
             // ZIP submission: execution telemetry was persisted during upload; complete with fencing check

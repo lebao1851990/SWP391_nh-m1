@@ -62,7 +62,7 @@ public class StudentAppealControllerTest {
         AppealCreateRequestDto req = new AppealCreateRequestDto();
         req.setSubmissionId("sub1");
         req.setBasis("Valid basis");
-        req.setExplanation("Exp");
+        req.setExplanation("Detailed explanation of why this submission should be reviewed");
         
         AppealResponseDto res = AppealResponseDto.builder()
                 .id("apl_123")
@@ -89,7 +89,7 @@ public class StudentAppealControllerTest {
         AppealCreateRequestDto req = new AppealCreateRequestDto();
         req.setSubmissionId("sub1");
         req.setBasis("Valid basis");
-        req.setExplanation("Exp");
+        req.setExplanation("Detailed explanation of why this submission should be reviewed");
         
         when(studentAppealService.createAppeal(any(), any()))
                 .thenThrow(new ConflictException("Already exists"));

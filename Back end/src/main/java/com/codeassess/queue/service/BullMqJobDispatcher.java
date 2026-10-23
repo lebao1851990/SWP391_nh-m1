@@ -42,6 +42,10 @@ public class BullMqJobDispatcher {
                 .build();
     }
 
+    public boolean isEnabled() {
+        return enabled;
+    }
+
     /**
      * Attempts to enqueue a grading job to BullMQ.
      *

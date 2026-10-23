@@ -197,6 +197,9 @@ public class StudentSubmissionService {
                                                 log.warn("Direct test runner error for submission {}: {}", submissionId, e.getMessage(), e);
                                             }
                                         }
+                                        if (eventPublisher != null) {
+                                            eventPublisher.publishEvent(new SubmissionCreatedEvent(this, examIdStr, submissionId));
+                                        }
                                     }
                                 });
                             }
@@ -223,12 +226,18 @@ public class StudentSubmissionService {
                             log.warn("Direct test runner error for submission {}: {}", submissionId, e.getMessage(), e);
                         }
                     }
+                    if (eventPublisher != null) {
+                        eventPublisher.publishEvent(new SubmissionCreatedEvent(this, examIdStr, submissionId));
+                    }
                 }
             });
         }
 
-        // Publish event for AST processing
-        eventPublisher.publishEvent(new SubmissionCreatedEvent(this, exam.getId(), submission.getId()));
+        // Only publish legacy event if BullMQ queue dispatcher is absent or disabled,
+        // preventing duplicate concurrent processing between old listener and queue consumer.
+        if (bullMqJobDispatcher == null || !bullMqJobDispatcher.isEnabled()) {
+            eventPublisher.publishEvent(new SubmissionCreatedEvent(this, exam.getId(), submission.getId()));
+        }
 
         return submissionMapper.toDetailResponse(submission);
     }
