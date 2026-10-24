@@ -98,6 +98,12 @@ public class Submission {
     @Column(name = "lease_expires_at")
     private LocalDateTime leaseExpiresAt;
 
+    @Column(name = "zip_storage_path", length = 500)
+    private String zipStoragePath;
+
+    @Column(name = "instructor_feedback", columnDefinition = "TEXT")
+    private String instructorFeedback;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

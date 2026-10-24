@@ -287,4 +287,102 @@ class AutomatedTestRunnerServiceTest {
         assertEquals(BigDecimal.ZERO, saved.getPointsAwarded());
         assertEquals(0, submission.getTestCasesPassed());
     }
+
+    @Test
+    @DisplayName("ZIP workspace with valid test cases runs through workspace test suite and computes auto_score")
+    void testZipWorkspaceExecutionWithTestCases() {
+        com.codeassess.submission.service.SubmissionStorageService storageService = mock(com.codeassess.submission.service.SubmissionStorageService.class);
+        com.codeassess.submission.service.ZipExtractionService zipService = mock(com.codeassess.submission.service.ZipExtractionService.class);
+        com.codeassess.submission.service.EntryPointDiscoveryService epService = mock(com.codeassess.submission.service.EntryPointDiscoveryService.class);
+
+        org.springframework.test.util.ReflectionTestUtils.setField(runnerService, "submissionStorageService", storageService);
+        org.springframework.test.util.ReflectionTestUtils.setField(runnerService, "zipExtractionService", zipService);
+        org.springframework.test.util.ReflectionTestUtils.setField(runnerService, "entryPointDiscoveryService", epService);
+
+        submission.setSubmissionType("ZIP");
+        when(storageService.hasZip("sub-100")).thenReturn(true);
+        when(storageService.getZipBytes("sub-100")).thenReturn(new byte[]{1, 2, 3});
+
+        com.codeassess.submission.dto.ExtractedWorkspace mockWorkspace = mock(com.codeassess.submission.dto.ExtractedWorkspace.class);
+        when(zipService.extract(any(byte[].class))).thenReturn(mockWorkspace);
+        when(epService.discoverEntryPoint(mockWorkspace))
+                .thenReturn(com.codeassess.submission.dto.EntryPointResult.found("com.example.Main", List.of("com.example.Main")));
+
+        TestCase tc = new TestCase();
+        tc.setId("tc-zip-1");
+        tc.setName("Zip Test 1");
+        tc.setPoints(BigDecimal.valueOf(100));
+        tc.setExpectedOutput("Hello Zip");
+
+        when(testCaseRepository.findByExam_IdOrderByDisplayOrderAscCreatedAtAsc("exam-1"))
+                .thenReturn(List.of(tc));
+
+        TestCaseExecutionItemResult itemRes = TestCaseExecutionItemResult.builder()
+                .testCaseId("tc-zip-1")
+                .testCaseName("Zip Test 1")
+                .status("PASSED")
+                .actualOutput("Hello Zip\n")
+                .expectedOutput("Hello Zip")
+                .pointsAwarded(BigDecimal.valueOf(100))
+                .maxPoints(BigDecimal.valueOf(100))
+                .exitCode(0)
+                .executionTimeMs(150L)
+                .build();
+
+        TestCaseBatchSuiteResult suiteRes = TestCaseBatchSuiteResult.builder()
+                .compiled(true)
+                .compileOutput("Workspace compiled cleanly")
+                .itemResults(List.of(itemRes))
+                .totalDurationMs(150L)
+                .build();
+
+        when(dockerSandboxService.executeTestCaseSuiteForWorkspace(eq(mockWorkspace), eq("com.example.Main"), anyList()))
+                .thenReturn(suiteRes);
+
+        runnerService.runAndGrade(submission);
+
+        assertEquals("SUCCESS", submission.getExecutionStatus());
+        assertEquals(new BigDecimal("100.00"), submission.getAutoScore());
+        assertEquals(1, submission.getTestCasesPassed());
+        assertEquals(1, submission.getTestCasesTotal());
+        verify(mockWorkspace).close();
+    }
+
+    @Test
+    @DisplayName("Corrupt ZIP during test runner handles extraction exception safely with INTERNAL_ERROR and 0 score")
+    void testCorruptZipHandlingInRunner() {
+        com.codeassess.submission.service.SubmissionStorageService storageService = mock(com.codeassess.submission.service.SubmissionStorageService.class);
+        com.codeassess.submission.service.ZipExtractionService zipService = mock(com.codeassess.submission.service.ZipExtractionService.class);
+
+        org.springframework.test.util.ReflectionTestUtils.setField(runnerService, "submissionStorageService", storageService);
+        org.springframework.test.util.ReflectionTestUtils.setField(runnerService, "zipExtractionService", zipService);
+
+        submission.setSubmissionType("ZIP");
+        when(storageService.hasZip("sub-100")).thenReturn(true);
+        when(storageService.getZipBytes("sub-100")).thenReturn(new byte[]{0x1F, 0x00});
+        when(zipService.extract(any(byte[].class))).thenThrow(new IllegalArgumentException("Corrupt ZIP header"));
+
+        TestCase tc = new TestCase();
+        tc.setId("tc-1");
+        tc.setName("TC1");
+        tc.setPoints(BigDecimal.valueOf(50));
+        when(testCaseRepository.findByExam_IdOrderByDisplayOrderAscCreatedAtAsc("exam-1"))
+                .thenReturn(List.of(tc));
+
+        runnerService.runAndGrade(submission);
+
+        assertEquals("INTERNAL_ERROR", submission.getExecutionStatus());
+        assertNull(submission.getAutoScore(), "Infrastructure error must have null auto_score so it is not treated as a graded 0.00 score");
+        assertNull(submission.getTotalScore(), "Total score must not be overridden to 0.00 on infrastructure error");
+        assertEquals("FAILED", submission.getStatus());
+        assertEquals(0, submission.getTestCasesPassed());
+        assertEquals(1, submission.getTestCasesTotal());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<SubmissionTestResult>> captor = ArgumentCaptor.forClass(List.class);
+        verify(submissionTestResultRepository).saveAll(captor.capture());
+        SubmissionTestResult saved = captor.getValue().get(0);
+        assertEquals("INTERNAL_ERROR", saved.getStatus());
+        assertTrue(saved.getErrorMessage().contains("Workspace extraction failure"));
+    }
 }

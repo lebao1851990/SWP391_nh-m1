@@ -44,53 +44,38 @@ import com.codeassess.testcase.dto.sandbox.TestCaseExecutionItemResult;
 import com.codeassess.testcase.util.OutputNormalizer;
 
 /**
- * Runs untrusted Java source code inside a hardened, disposable Docker
- * container.
+ * Runs untrusted Java source code inside a hardened, disposable Docker container.
  *
- * <p>
- * <strong>Security controls implemented:</strong>
+ * <p><strong>Security controls implemented:</strong>
  * <ul>
- * <li>Network disabled ({@code NetworkDisabled=true})</li>
- * <li>512 MiB memory hard limit via cgroup</li>
- * <li>0.5 CPU via CFS quota/period</li>
- * <li>50 process PID limit</li>
- * <li>Non-root user (nobody, UID 65534)</li>
- * <li>All Linux capabilities dropped</li>
- * <li>no-new-privileges security opt</li>
- * <li>Read-only root filesystem; /tmp provided as tmpfs (32 MiB max)</li>
- * <li>Empty environment — no host env vars leaked</li>
- * <li>No bind mounts — host paths, repository, home dir, Docker socket are
- * never mounted</li>
- * <li>Hard wall-clock timeout; container forcibly stopped and removed on
- * timeout</li>
- * <li>Bounded stdout/stderr — read is capped at max-output-bytes while
- * consuming the stream</li>
- * <li>Concurrency semaphore — rejects requests when max-concurrent-executions
- * is reached</li>
- * <li>Container always removed in a finally block, even on exceptions during
- * partial startup</li>
- * <li>Source injected via echo+base64 pipe, never shell-concatenated</li>
+ *   <li>Network disabled ({@code NetworkDisabled=true})</li>
+ *   <li>512 MiB memory hard limit via cgroup</li>
+ *   <li>0.5 CPU via CFS quota/period</li>
+ *   <li>50 process PID limit</li>
+ *   <li>Non-root user (nobody, UID 65534)</li>
+ *   <li>All Linux capabilities dropped</li>
+ *   <li>no-new-privileges security opt</li>
+ *   <li>Read-only root filesystem; /tmp provided as tmpfs (32 MiB max)</li>
+ *   <li>Empty environment — no host env vars leaked</li>
+ *   <li>No bind mounts — host paths, repository, home dir, Docker socket are never mounted</li>
+ *   <li>Hard wall-clock timeout; container forcibly stopped and removed on timeout</li>
+ *   <li>Bounded stdout/stderr — read is capped at max-output-bytes while consuming the stream</li>
+ *   <li>Concurrency semaphore — rejects requests when max-concurrent-executions is reached</li>
+ *   <li>Container always removed in a finally block, even on exceptions during partial startup</li>
+ *   <li>Source injected via echo+base64 pipe, never shell-concatenated</li>
  * </ul>
  *
- * <p>
- * <strong>Known Docker/OS limitations:</strong>
+ * <p><strong>Known Docker/OS limitations:</strong>
  * <ol>
- * <li>Memory limit: JVM off-heap (code cache, metaspace) briefly exceeds heap
- * soft limit
- * before OOM killer fires. The 512 MiB container ceiling is still enforced by
- * the kernel.</li>
- * <li>CPU: Container can spike to 100% for up to one cpuPeriod (100 ms) before
- * being throttled.</li>
- * <li>Read-only FS: Tested with Alpine + Temurin; some JVM builds write temp
- * files outside /tmp.
- * If startup fails, check JVM flags in the entrypoint.</li>
- * <li>Disk limit: Docker Engine does not support per-container disk quotas via
- * the API without
- * overlay2 quota support. A 32 MiB tmpfs cap on /tmp bounds temp disk usage
- * instead.</li>
- * <li>no-new-privileges: On Windows Docker Desktop (WSL2), this is enforced
- * inside the Linux VM,
- * not on the Windows host kernel directly.</li>
+ *   <li>Memory limit: JVM off-heap (code cache, metaspace) briefly exceeds heap soft limit
+ *       before OOM killer fires. The 512 MiB container ceiling is still enforced by the kernel.</li>
+ *   <li>CPU: Container can spike to 100% for up to one cpuPeriod (100 ms) before being throttled.</li>
+ *   <li>Read-only FS: Tested with Alpine + Temurin; some JVM builds write temp files outside /tmp.
+ *       If startup fails, check JVM flags in the entrypoint.</li>
+ *   <li>Disk limit: Docker Engine does not support per-container disk quotas via the API without
+ *       overlay2 quota support. A 32 MiB tmpfs cap on /tmp bounds temp disk usage instead.</li>
+ *   <li>no-new-privileges: On Windows Docker Desktop (WSL2), this is enforced inside the Linux VM,
+ *       not on the Windows host kernel directly.</li>
  * </ol>
  */
 @Service
@@ -99,12 +84,11 @@ public class DockerSandboxService {
     private static final Logger log = LoggerFactory.getLogger(DockerSandboxService.class);
 
     // Relative source and class paths inside /tmp (the writable tmpfs)
-    private static final String TMP_DIR = "/tmp/sandbox";
-    private static final String CLASS_DIR = TMP_DIR + "/classes";
-    private static final String SOURCE_FILE = TMP_DIR + "/Main.java";
+    private static final String TMP_DIR        = "/tmp/sandbox";
+    private static final String CLASS_DIR      = TMP_DIR + "/classes";
 
-    private static final java.util.regex.Pattern PUBLIC_CLASS_PATTERN = java.util.regex.Pattern
-            .compile("\\bpublic\\s+(?:final\\s+)?class\\s+([A-Za-z0-9_$]+)");
+    private static final java.util.regex.Pattern PUBLIC_CLASS_PATTERN =
+            java.util.regex.Pattern.compile("\\bpublic\\s+(?:final\\s+)?class\\s+([A-Za-z0-9_$]+)");
 
     static String extractMainClassName(String sourceCode) {
         if (sourceCode != null) {
@@ -119,19 +103,19 @@ public class DockerSandboxService {
         return "Main";
     }
 
-    // Shell script written as a single argument — NOT string-concatenated with
-    // source code.
+    // Shell script written as a single argument — NOT string-concatenated with source code.
     // Source is transferred via base64 to avoid any shell injection.
     // Steps:
-    // 1. mkdir -p both dirs
-    // 2. decode the base64 source into <ClassName>.java
-    // 3. compile with javac (exit 1 on compile error → special marker)
-    // 4. run the compiled class (exit 2+ on runtime error)
+    //  1. mkdir -p both dirs
+    //  2. decode the base64 source into <ClassName>.java
+    //  3. compile with javac  (exit 1 on compile error → special marker)
+    //  4. run the compiled class (exit 2+ on runtime error)
     // Exit codes:
-    // 0 = success
-    // 1 = compile error (javac returned non-zero; compiler output routed to stderr)
-    // * = runtime error (java process exited non-zero)
-    private static final String SCRIPT_TEMPLATE = "set -e; " +
+    //   0  = success
+    //   1  = compile error  (javac returned non-zero; compiler output routed to stderr)
+    //   *  = runtime error (java process exited non-zero)
+    private static final String SCRIPT_TEMPLATE =
+            "set -e; " +
             "mkdir -p " + TMP_DIR + " " + CLASS_DIR + "; " +
             // %1$s is the class name, %2$s is the base64-encoded source
             "echo '%2$s' | base64 -d > " + TMP_DIR + "/%1$s.java; " +
@@ -146,10 +130,10 @@ public class DockerSandboxService {
             "ec=$?; " +
             "[ $ec -eq 1 ] && exit 2 || exit $ec";
 
-    // Multi-file execution script: compiles all .java files listed in
-    // /tmp/sandbox/sources.txt
+    // Multi-file execution script: compiles all .java files listed in /tmp/sandbox/sources.txt
     // %s is replaced by the validated entry-point class name
-    private static final String MULTI_FILE_SCRIPT_TEMPLATE = "set -e; " +
+    private static final String MULTI_FILE_SCRIPT_TEMPLATE =
+            "set -e; " +
             "mkdir -p " + CLASS_DIR + "; " +
             "if ! javac -d " + CLASS_DIR + " @/tmp/sandbox/sources.txt 2>/tmp/sandbox/compile.err; then " +
             "  cat /tmp/sandbox/compile.err; exit 1; " +
@@ -163,7 +147,8 @@ public class DockerSandboxService {
             "[ $ec -eq 1 ] && exit 2 || exit $ec";
 
     // Multi-file compile-only script (when no executable main method is executed)
-    private static final String MULTI_FILE_COMPILE_ONLY_SCRIPT = "set -e; " +
+    private static final String MULTI_FILE_COMPILE_ONLY_SCRIPT =
+            "set -e; " +
             "mkdir -p " + CLASS_DIR + "; " +
             "if ! javac -d " + CLASS_DIR + " @/tmp/sandbox/sources.txt 2>/tmp/sandbox/compile.err; then " +
             "  cat /tmp/sandbox/compile.err; exit 1; " +
@@ -197,15 +182,12 @@ public class DockerSandboxService {
     }
 
     /**
-     * Validates source code, schedules a container execution, and returns a bounded
-     * result.
+     * Validates source code, schedules a container execution, and returns a bounded result.
      *
      * @param sourceCode the raw Java source submitted by the student
-     * @return execution result with status, stdout, stderr, exitCode, and
-     *         executionTimeMs
+     * @return execution result with status, stdout, stderr, exitCode, and executionTimeMs
      * @throws IllegalArgumentException if source is blank or exceeds the byte limit
-     * @throws SandboxException         if Docker infrastructure is unavailable or
-     *                                  fails
+     * @throws SandboxException         if Docker infrastructure is unavailable or fails
      */
     public SandboxResult execute(String sourceCode) {
         validateSource(sourceCode);
@@ -224,16 +206,12 @@ public class DockerSandboxService {
     }
 
     /**
-     * Executes a multi-file extracted workspace inside an isolated, hardened Docker
-     * container.
+     * Executes a multi-file extracted workspace inside an isolated, hardened Docker container.
      *
-     * @param workspace       safely extracted submission workspace
-     * @param entryPointClass optional fully qualified or simple main class name; if
-     *                        null/empty, compiles only
-     * @return {@link SandboxResult} capturing compilation, execution stdout/stderr,
-     *         and duration
-     * @throws IllegalArgumentException if workspace is null/empty or entry-point
-     *                                  name is invalid
+     * @param workspace        safely extracted submission workspace
+     * @param entryPointClass  optional fully qualified or simple main class name; if null/empty, compiles only
+     * @return {@link SandboxResult} capturing compilation, execution stdout/stderr, and duration
+     * @throws IllegalArgumentException if workspace is null/empty or entry-point name is invalid
      * @throws SandboxException         if Docker infrastructure fails
      */
     public SandboxResult executeWorkspace(ExtractedWorkspace workspace, String entryPointClass) {
@@ -284,16 +262,13 @@ public class DockerSandboxService {
     }
 
     /**
-     * Executes single-file Java source code against a batch of test cases inside an
-     * isolated Docker container.
-     * Compiles once; if compile fails, returns compiled=false with compilation
-     * error.
-     * If compile succeeds, runs each test case sequentially with input redirected
-     * from stdin,
+     * Executes single-file Java source code against a batch of test cases inside an isolated Docker container.
+     * Compiles once; if compile fails, returns compiled=false with compilation error.
+     * If compile succeeds, runs each test case sequentially with input redirected from stdin,
      * enforcing individual per-test timeouts with /usr/bin/timeout.
      *
      * @param sourceCode raw Java source code
-     * @param testCases  list of test cases with input, expected output, and timeout
+     * @param testCases list of test cases with input, expected output, and timeout
      * @return test suite execution results
      */
     public TestCaseBatchSuiteResult executeTestCaseSuite(String sourceCode, List<TestCaseBatchItem> testCases) {
@@ -326,12 +301,13 @@ public class DockerSandboxService {
         String tcErr = "TC_ERR_" + runToken + "_";
         String tcEnd = "TC_END_" + runToken + "_";
 
+        String mainClassName = extractMainClassName(sourceCode);
+        String sourceFilePath = TMP_DIR + "/" + mainClassName + ".java";
         StringBuilder script = new StringBuilder();
         script.append("set -e; ");
         script.append("mkdir -p ").append(TMP_DIR).append(" ").append(CLASS_DIR).append("; ");
-        script.append("echo '").append(base64Source).append("' | base64 -d > ").append(SOURCE_FILE).append("; ");
-        script.append("if ! javac -d ").append(CLASS_DIR).append(" ").append(SOURCE_FILE)
-                .append(" 2>/tmp/sandbox/compile.err; then ");
+        script.append("echo '").append(base64Source).append("' | base64 -d > ").append(sourceFilePath).append("; ");
+        script.append("if ! javac -d ").append(CLASS_DIR).append(" ").append(sourceFilePath).append(" 2>/tmp/sandbox/compile.err; then ");
         script.append("  echo '<<<").append(compileMarker).append(":FAILED>>>'; ");
         script.append("  cat /tmp/sandbox/compile.err; ");
         script.append("  exit 1; ");
@@ -347,14 +323,12 @@ public class DockerSandboxService {
             int timeoutSec = tc.getTimeoutSeconds() > 0 ? tc.getTimeoutSeconds() : 5;
             totalTimeoutSeconds += timeoutSec;
 
-            script.append("echo '").append(base64Input).append("' | base64 -d > /tmp/sandbox/in_").append(i)
-                    .append(".txt; ");
+            script.append("echo '").append(base64Input).append("' | base64 -d > /tmp/sandbox/in_").append(i).append(".txt; ");
             script.append("echo '<<<").append(tcStart).append(i).append(">>>'; ");
             script.append("START_TS=$(date +%s%3N 2>/dev/null || date +%s000); ");
             script.append("timeout ").append(timeoutSec).append(" java -cp ").append(CLASS_DIR)
-                    .append(" -Xmx256m -Xms32m -Djava.security.manager=disallow Main < /tmp/sandbox/in_").append(i)
-                    .append(".txt > /tmp/sandbox/out_").append(i).append(".txt 2> /tmp/sandbox/err_").append(i)
-                    .append(".txt; ");
+                  .append(" -Xmx256m -Xms32m -Djava.security.manager=disallow Main < /tmp/sandbox/in_").append(i)
+                  .append(".txt > /tmp/sandbox/out_").append(i).append(".txt 2> /tmp/sandbox/err_").append(i).append(".txt; ");
             script.append("ec=$?; ");
             script.append("END_TS=$(date +%s%3N 2>/dev/null || date +%s000); ");
             script.append("DUR=$((END_TS - START_TS)); ");
@@ -404,8 +378,7 @@ public class DockerSandboxService {
 
                 try {
                     logCallback.awaitCompletion(3, TimeUnit.SECONDS);
-                } catch (Exception ignored) {
-                }
+                } catch (Exception ignored) {}
 
                 timeoutThread.interrupt();
                 long totalElapsedMs = System.currentTimeMillis() - startMs;
@@ -482,8 +455,7 @@ public class DockerSandboxService {
                             String codeStr = fullLog.substring(exitStart + exitTagPrefix.length(), exitEnd).trim();
                             try {
                                 exitCode = Integer.parseInt(codeStr);
-                            } catch (NumberFormatException ignored) {
-                            }
+                            } catch (NumberFormatException ignored) {}
                         }
                     }
 
@@ -496,8 +468,7 @@ public class DockerSandboxService {
                             String timeStr = fullLog.substring(timeStart + timeTagPrefix.length(), timeEnd).trim();
                             try {
                                 execDurationMs = Long.parseLong(timeStr);
-                            } catch (NumberFormatException ignored) {
-                            }
+                            } catch (NumberFormatException ignored) {}
                         }
                     }
 
@@ -588,6 +559,355 @@ public class DockerSandboxService {
         }
     }
 
+    /**
+     * Executes a batch test suite against a multi-file extracted workspace inside the Docker Sandbox.
+     *
+     * @param workspace extracted student workspace
+     * @param entryPointClass validated fully-qualified or simple main class
+     * @param testCases list of test cases with input, expected output, and timeout
+     * @return test suite execution results
+     */
+    public TestCaseBatchSuiteResult executeTestCaseSuiteForWorkspace(
+            ExtractedWorkspace workspace,
+            String entryPointClass,
+            List<TestCaseBatchItem> testCases) {
+
+        if (workspace == null || workspace.files() == null || workspace.files().isEmpty()) {
+            throw new IllegalArgumentException("workspace must not be empty");
+        }
+        if (testCases == null || testCases.isEmpty()) {
+            throw new IllegalArgumentException("testCases list must not be empty");
+        }
+
+        if (!getSemaphore().tryAcquire()) {
+            log.warn("Sandbox concurrency limit ({}) reached — rejecting request",
+                    props.getMaxConcurrentExecutions());
+            throw new SandboxException("Sandbox is at capacity. Try again shortly.");
+        }
+
+        try {
+            return runTestCaseSuiteForWorkspaceInContainer(workspace, entryPointClass, testCases);
+        } finally {
+            getSemaphore().release();
+        }
+    }
+
+    private TestCaseBatchSuiteResult runTestCaseSuiteForWorkspaceInContainer(
+            ExtractedWorkspace workspace,
+            String entryPointClass,
+            List<TestCaseBatchItem> testCases) {
+
+        byte[] tarBytes;
+        try {
+            tarBytes = createWorkspaceTar(workspace);
+        } catch (IOException e) {
+            throw new SandboxException("Failed to create workspace archive", e);
+        }
+
+        if (tarBytes.length > MAX_INLINE_TAR_BYTES) {
+            log.warn("Workspace archive size ({} bytes) exceeds inline transfer limit ({} bytes)",
+                    tarBytes.length, MAX_INLINE_TAR_BYTES);
+            throw new SandboxException("Workspace archive size exceeds container inline transfer limit");
+        }
+
+        String base64Tar = Base64.getEncoder().encodeToString(tarBytes);
+        String runToken = UUID.randomUUID().toString().replace("-", "");
+        String compileMarker = "TC_COMPILE_" + runToken;
+        String tcStart = "TC_START_" + runToken + "_";
+        String tcExit = "TC_EXIT_" + runToken + "_";
+        String tcTime = "TC_TIME_" + runToken + "_";
+        String tcOut = "TC_OUT_" + runToken + "_";
+        String tcErr = "TC_ERR_" + runToken + "_";
+        String tcEnd = "TC_END_" + runToken + "_";
+
+        StringBuilder script = new StringBuilder();
+        script.append("set -e -o pipefail 2>/dev/null || set -e; ");
+        script.append("if ! ( echo '").append(base64Tar).append("' | base64 -d | tar -xf - -C /tmp ); then ");
+        script.append("  echo 'Failed to unpack workspace archive' >&2; exit 43; ");
+        script.append("fi; ");
+        script.append("mkdir -p ").append(CLASS_DIR).append("; ");
+        script.append("if ! javac -d ").append(CLASS_DIR).append(" @/tmp/sandbox/sources.txt 2>/tmp/sandbox/compile.err; then ");
+        script.append("  echo '<<<").append(compileMarker).append(":FAILED>>>'; ");
+        script.append("  cat /tmp/sandbox/compile.err; ");
+        script.append("  exit 1; ");
+        script.append("fi; ");
+        script.append("echo '<<<").append(compileMarker).append(":SUCCESS>>>'; ");
+        script.append("set +e; ");
+
+        boolean hasValidEntryPoint = entryPointClass != null && !entryPointClass.isBlank();
+        int totalTimeoutSeconds = 15; // 15s startup and compilation budget
+
+        if (hasValidEntryPoint) {
+            for (int i = 0; i < testCases.size(); i++) {
+                TestCaseBatchItem tc = testCases.get(i);
+                String input = tc.getInputData() != null ? tc.getInputData() : "";
+                String base64Input = Base64.getEncoder().encodeToString(input.getBytes(StandardCharsets.UTF_8));
+                int timeoutSec = tc.getTimeoutSeconds() > 0 ? tc.getTimeoutSeconds() : 5;
+                totalTimeoutSeconds += timeoutSec;
+
+                script.append("echo '").append(base64Input).append("' | base64 -d > /tmp/sandbox/in_").append(i).append(".txt; ");
+                script.append("echo '<<<").append(tcStart).append(i).append(">>>'; ");
+                script.append("START_TS=$(date +%s%3N 2>/dev/null || date +%s000); ");
+                script.append("timeout ").append(timeoutSec).append(" java -cp ").append(CLASS_DIR)
+                      .append(" -Xmx256m -Xms32m -Djava.security.manager=disallow ").append(entryPointClass)
+                      .append(" < /tmp/sandbox/in_").append(i).append(".txt > /tmp/sandbox/out_").append(i)
+                      .append(".txt 2> /tmp/sandbox/err_").append(i).append(".txt; ");
+                script.append("ec=$?; ");
+                script.append("END_TS=$(date +%s%3N 2>/dev/null || date +%s000); ");
+                script.append("DUR=$((END_TS - START_TS)); ");
+                script.append("echo '<<<").append(tcExit).append(i).append(":'$ec'>>>'; ");
+                script.append("echo '<<<").append(tcTime).append(i).append(":'$DUR'>>>'; ");
+                script.append("echo '<<<").append(tcOut).append(i).append(">>>'; ");
+                script.append("cat /tmp/sandbox/out_").append(i).append(".txt; ");
+                script.append("echo '<<<").append(tcErr).append(i).append(">>>'; ");
+                script.append("cat /tmp/sandbox/err_").append(i).append(".txt; ");
+                script.append("echo '<<<").append(tcEnd).append(i).append(">>>'; ");
+            }
+        }
+        script.append("exit 0;");
+
+        String containerId = null;
+        long startMs = System.currentTimeMillis();
+        AtomicBoolean timedOut = new AtomicBoolean(false);
+
+        try {
+            containerId = createContainer(script.toString());
+            dockerClient.startContainerCmd(containerId).exec();
+
+            final String finalContainerId = containerId;
+            final int maxWaitSec = Math.max(totalTimeoutSeconds, props.getTimeoutSeconds());
+            Thread timeoutThread = new Thread(() -> {
+                try {
+                    Thread.sleep(maxWaitSec * 1000L);
+                    log.warn("Workspace test suite container {} timed out after {}s — stopping", finalContainerId, maxWaitSec);
+                    timedOut.set(true);
+                    stopContainer(finalContainerId);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }, "sandbox-ws-tc-timeout-" + finalContainerId.substring(0, 12));
+            timeoutThread.setDaemon(true);
+            timeoutThread.start();
+
+            OutputCollector collector = new OutputCollector(props.getMaxOutputBytes());
+            try (RawLogResultCallback logCallback = dockerClient.logContainerCmd(containerId)
+                    .withStdOut(true)
+                    .withStdErr(true)
+                    .withFollowStream(true)
+                    .exec(new RawLogResultCallback(collector))) {
+
+                dockerClient.waitContainerCmd(containerId)
+                        .exec(new WaitContainerResultCallback())
+                        .awaitStatusCode(maxWaitSec + 2L, TimeUnit.SECONDS);
+
+                try {
+                    logCallback.awaitCompletion(3, TimeUnit.SECONDS);
+                } catch (Exception ignored) {}
+
+                timeoutThread.interrupt();
+                long totalElapsedMs = System.currentTimeMillis() - startMs;
+
+                String fullLog = collector.getStdout() + "\n" + collector.getStderr();
+                log.info("Full workspace test suite container output for {}: [{}]", containerId, fullLog);
+
+                // Check compile marker
+                String failedMarker = "<<<" + compileMarker + ":FAILED>>>";
+                String successMarker = "<<<" + compileMarker + ":SUCCESS>>>";
+
+                if (fullLog.contains(failedMarker)) {
+                    int idx = fullLog.indexOf(failedMarker);
+                    String compileErr = fullLog.substring(idx + failedMarker.length()).trim();
+                    List<TestCaseExecutionItemResult> items = new ArrayList<>();
+                    for (TestCaseBatchItem tc : testCases) {
+                        items.add(TestCaseExecutionItemResult.builder()
+                                .testCaseId(tc.getId())
+                                .testCaseName(tc.getName())
+                                .isHidden(tc.getIsHidden())
+                                .status("COMPILE_ERROR")
+                                .errorMessage(compileErr)
+                                .actualOutput("")
+                                .expectedOutput(tc.getExpectedOutput())
+                                .pointsAwarded(BigDecimal.ZERO)
+                                .maxPoints(tc.getPoints())
+                                .executionTimeMs(0L)
+                                .exitCode(1)
+                                .build());
+                    }
+                    return TestCaseBatchSuiteResult.builder()
+                            .compiled(false)
+                            .compileOutput(compileErr)
+                            .itemResults(items)
+                            .totalDurationMs(totalElapsedMs)
+                            .build();
+                }
+
+                if (!hasValidEntryPoint) {
+                    List<TestCaseExecutionItemResult> items = new ArrayList<>();
+                    for (TestCaseBatchItem tc : testCases) {
+                        items.add(TestCaseExecutionItemResult.builder()
+                                .testCaseId(tc.getId())
+                                .testCaseName(tc.getName())
+                                .isHidden(tc.getIsHidden())
+                                .status("COMPILE_ERROR")
+                                .errorMessage("No public static void main(String[] args) entry point found in submission")
+                                .actualOutput("")
+                                .expectedOutput(tc.getExpectedOutput())
+                                .pointsAwarded(BigDecimal.ZERO)
+                                .maxPoints(tc.getPoints())
+                                .executionTimeMs(0L)
+                                .exitCode(1)
+                                .build());
+                    }
+                    return TestCaseBatchSuiteResult.builder()
+                            .compiled(true)
+                            .compileOutput("Compiled successfully, but no valid main entry point discovered")
+                            .itemResults(items)
+                            .totalDurationMs(totalElapsedMs)
+                            .build();
+                }
+
+                boolean compiled = fullLog.contains(successMarker);
+                List<TestCaseExecutionItemResult> items = new ArrayList<>();
+
+                for (int i = 0; i < testCases.size(); i++) {
+                    TestCaseBatchItem tc = testCases.get(i);
+                    String startTag = "<<<" + tcStart + i + ">>>";
+                    String exitTagPrefix = "<<<" + tcExit + i + ":";
+                    String timeTagPrefix = "<<<" + tcTime + i + ":";
+                    String outTag = "<<<" + tcOut + i + ">>>";
+                    String errTag = "<<<" + tcErr + i + ">>>";
+                    String endTag = "<<<" + tcEnd + i + ">>>";
+
+                    if (!fullLog.contains(startTag) || !fullLog.contains(endTag)) {
+                        items.add(TestCaseExecutionItemResult.builder()
+                                .testCaseId(tc.getId())
+                                .testCaseName(tc.getName())
+                                .isHidden(tc.getIsHidden())
+                                .status(timedOut.get() ? "TIMEOUT" : "NOT_EXECUTED")
+                                .errorMessage(timedOut.get() ? "Execution timed out" : "Process terminated prematurely")
+                                .actualOutput("")
+                                .expectedOutput(tc.getExpectedOutput())
+                                .pointsAwarded(BigDecimal.ZERO)
+                                .maxPoints(tc.getPoints())
+                                .executionTimeMs(0L)
+                                .exitCode(null)
+                                .build());
+                        continue;
+                    }
+
+                    // Extract exit code
+                    Integer exitCode = null;
+                    int exitStart = fullLog.indexOf(exitTagPrefix);
+                    if (exitStart >= 0) {
+                        int exitEnd = fullLog.indexOf(">>>", exitStart);
+                        if (exitEnd > exitStart) {
+                            String codeStr = fullLog.substring(exitStart + exitTagPrefix.length(), exitEnd).trim();
+                            try {
+                                exitCode = Integer.parseInt(codeStr);
+                            } catch (NumberFormatException ignored) {}
+                        }
+                    }
+
+                    // Extract time ms
+                    Long execDurationMs = null;
+                    int timeStart = fullLog.indexOf(timeTagPrefix);
+                    if (timeStart >= 0) {
+                        int timeEnd = fullLog.indexOf(">>>", timeStart);
+                        if (timeEnd > timeStart) {
+                            String timeStr = fullLog.substring(timeStart + timeTagPrefix.length(), timeEnd).trim();
+                            try {
+                                execDurationMs = Long.parseLong(timeStr);
+                            } catch (NumberFormatException ignored) {}
+                        }
+                    }
+
+                    // Extract stdout
+                    String stdout = "";
+                    int outStart = fullLog.indexOf(outTag);
+                    int errStart = fullLog.indexOf(errTag);
+                    if (outStart >= 0 && errStart > outStart) {
+                        stdout = fullLog.substring(outStart + outTag.length(), errStart);
+                        if (stdout.startsWith("\r\n")) {
+                            stdout = stdout.substring(2);
+                        } else if (stdout.startsWith("\n")) {
+                            stdout = stdout.substring(1);
+                        }
+                    }
+
+                    // Extract stderr
+                    String stderr = "";
+                    int endStart = fullLog.indexOf(endTag);
+                    if (errStart >= 0 && endStart > errStart) {
+                        stderr = fullLog.substring(errStart + errTag.length(), endStart);
+                        if (stderr.startsWith("\r\n")) {
+                            stderr = stderr.substring(2);
+                        } else if (stderr.startsWith("\n")) {
+                            stderr = stderr.substring(1);
+                        }
+                    }
+
+                    String status;
+                    BigDecimal pointsAwarded = BigDecimal.ZERO;
+                    String errorMessage = null;
+
+                    if (exitCode != null && (exitCode == 124 || exitCode == 137 || exitCode == 143)) {
+                        status = "TIMEOUT";
+                        errorMessage = "Execution timed out (exceeded " + tc.getTimeoutSeconds() + "s limit)";
+                    } else if (exitCode != null && exitCode != 0) {
+                        status = "RUNTIME_ERROR";
+                        errorMessage = stderr.trim();
+                    } else {
+                        boolean matches = OutputNormalizer.matches(stdout, tc.getExpectedOutput());
+                        if (matches) {
+                            status = "PASSED";
+                            pointsAwarded = tc.getPoints() != null ? tc.getPoints() : BigDecimal.valueOf(10.00);
+                        } else {
+                            status = "FAILED";
+                        }
+                    }
+
+                    items.add(TestCaseExecutionItemResult.builder()
+                            .testCaseId(tc.getId())
+                            .testCaseName(tc.getName())
+                            .isHidden(tc.getIsHidden())
+                            .status(status)
+                            .actualOutput(stdout)
+                            .expectedOutput(tc.getExpectedOutput())
+                            .pointsAwarded(pointsAwarded)
+                            .maxPoints(tc.getPoints())
+                            .executionTimeMs(execDurationMs)
+                            .exitCode(exitCode)
+                            .errorMessage(errorMessage)
+                            .build());
+                }
+
+                return TestCaseBatchSuiteResult.builder()
+                        .compiled(compiled)
+                        .compileOutput(compiled ? "Compilation successful" : "Failed")
+                        .itemResults(items)
+                        .totalDurationMs(totalElapsedMs)
+                        .build();
+
+            } catch (Exception e) {
+                timeoutThread.interrupt();
+                log.error("Error collecting workspace container test suite output for {}", containerId, e);
+                throw new SandboxException("Failed to collect workspace container test suite output", e);
+            }
+        } catch (SandboxException | IllegalArgumentException e) {
+            throw e;
+        } catch (DockerException e) {
+            log.error("Docker error during workspace sandbox test suite execution", e);
+            throw new SandboxException("Docker engine error: " + sanitizeDockerError(e), e);
+        } catch (Exception e) {
+            log.error("Unexpected sandbox error during workspace test suite execution", e);
+            throw new SandboxException("Sandbox infrastructure failure", e);
+        } finally {
+            if (containerId != null) {
+                removeContainer(containerId);
+            }
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Private helpers
     // ─────────────────────────────────────────────────────────────────────────
@@ -624,8 +944,7 @@ public class DockerSandboxService {
             Thread timeoutThread = new Thread(() -> {
                 try {
                     Thread.sleep(props.getTimeoutSeconds() * 1000L);
-                    log.warn("Container {} timed out after {}s — stopping", finalContainerId,
-                            props.getTimeoutSeconds());
+                    log.warn("Container {} timed out after {}s — stopping", finalContainerId, props.getTimeoutSeconds());
                     timedOut.set(true);
                     stopContainer(finalContainerId);
                 } catch (InterruptedException e) {
@@ -648,6 +967,19 @@ public class DockerSandboxService {
                         .waitContainerCmd(containerId)
                         .exec(new WaitContainerResultCallback())
                         .awaitStatusCode(props.getTimeoutSeconds() + 2L, TimeUnit.SECONDS);
+
+                boolean logCompleted = false;
+                try {
+                    logCompleted = logCallback.awaitCompletion(3, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.warn("Log collection interrupted for container {}", containerId);
+                } catch (Exception e) {
+                    log.warn("Log collection encountered exception for container {}: {}", containerId, e.getMessage());
+                }
+                if (!logCompleted) {
+                    log.warn("Log callback did not signal EOF within 3s for container {} — output might be truncated", containerId);
+                }
 
                 // Cancel the timeout thread if still running
                 timeoutThread.interrupt();
@@ -724,8 +1056,7 @@ public class DockerSandboxService {
         }
     }
 
-    // Bounded size for inline Base64 TAR fallback to fit safely within Linux kernel
-    // MAX_ARG_STRLEN (128 KiB)
+    // Bounded size for inline Base64 TAR fallback to fit safely within Linux kernel MAX_ARG_STRLEN (128 KiB)
     private static final int MAX_INLINE_TAR_BYTES = 90 * 1024;
 
     private SandboxResult runWorkspaceInContainer(ExtractedWorkspace workspace, String entryPointClass) {
@@ -739,10 +1070,8 @@ public class DockerSandboxService {
     }
 
     /**
-     * Executes an in-memory TAR workspace payload inside the isolated Docker
-     * container.
-     * Visible for testing to verify fail-closed behavior on corrupted/malformed
-     * archive bytes.
+     * Executes an in-memory TAR workspace payload inside the isolated Docker container.
+     * Visible for testing to verify fail-closed behavior on corrupted/malformed archive bytes.
      */
     public SandboxResult runWorkspaceInContainerWithTar(byte[] tarBytes, String entryPointClass) {
         if (tarBytes.length > MAX_INLINE_TAR_BYTES) {
@@ -766,24 +1095,18 @@ public class DockerSandboxService {
 
     /**
      * Executes a raw base64 TAR string inside the isolated container.
-     * Visible for testing to verify fail-closed behavior on corrupted/invalid
-     * Base64 payloads.
+     * Visible for testing to verify fail-closed behavior on corrupted/invalid Base64 payloads.
      */
     public SandboxResult runWorkspaceInContainerWithBase64Tar(String base64Tar, String entryPointClass) {
         return runWorkspaceInContainerInternal(null, base64Tar, entryPointClass);
     }
 
     private SandboxResult runWorkspaceInContainerInternal(byte[] tarBytes, String base64Tar, String entryPointClass) {
-        // Prepend inline base64 TAR extraction into /tmp to guarantee safe unpack
-        // inside tmpfs
-        // while preserving strict ReadonlyRootfs=true (which Docker Engine daemon
-        // otherwise blocks in copyArchive).
-        // Uses 'set -e -o pipefail' (supported by BusyBox ash in Alpine) so that if
-        // EITHER base64 decode
-        // or tar extraction fails, the pipeline exits with non-zero and triggers the
-        // fail-closed handler (exit 43),
-        // preventing partial or corrupted workspace files from proceeding to javac or
-        // java.
+        // Prepend inline base64 TAR extraction into /tmp to guarantee safe unpack inside tmpfs
+        // while preserving strict ReadonlyRootfs=true (which Docker Engine daemon otherwise blocks in copyArchive).
+        // Uses 'set -e -o pipefail' (supported by BusyBox ash in Alpine) so that if EITHER base64 decode
+        // or tar extraction fails, the pipeline exits with non-zero and triggers the fail-closed handler (exit 43),
+        // preventing partial or corrupted workspace files from proceeding to javac or java.
         String unpackPrefix = "set -e -o pipefail 2>/dev/null || set -e; " +
                 "if ! ( echo '" + base64Tar + "' | base64 -d | tar -xf - -C /tmp ); then " +
                 "echo 'Failed to unpack workspace archive' >&2; exit 43; " +
@@ -799,12 +1122,10 @@ public class DockerSandboxService {
         try {
             containerId = createContainer(script);
 
-            // Copy workspace TAR archive directly into container tmpfs (/tmp) if raw TAR is
-            // available.
+            // Copy workspace TAR archive directly into container tmpfs (/tmp) if raw TAR is available.
             // Note: Docker Engine daemon intentionally rejects PUT /containers/{id}/archive
             // when container.HostConfig.ReadonlyRootfs is true (moby #35749).
-            // The try-catch ensures compatibility with environments/mocks where copyArchive
-            // succeeds
+            // The try-catch ensures compatibility with environments/mocks where copyArchive succeeds
             // without weakening read-only rootfs security controls.
             if (tarBytes != null && tarBytes.length > 0) {
                 try {
@@ -817,8 +1138,7 @@ public class DockerSandboxService {
                 } catch (BadRequestException e) {
                     String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
                     if (msg.contains("read-only") || msg.contains("readonly")) {
-                        log.debug("Docker Engine archive copy skipped due to ReadonlyRootfs enforcement: {}",
-                                e.getMessage());
+                        log.debug("Docker Engine archive copy skipped due to ReadonlyRootfs enforcement: {}", e.getMessage());
                     } else {
                         throw e;
                     }
@@ -831,8 +1151,7 @@ public class DockerSandboxService {
             Thread timeoutThread = new Thread(() -> {
                 try {
                     Thread.sleep(props.getTimeoutSeconds() * 1000L);
-                    log.warn("Multi-file container {} timed out after {}s — stopping", finalContainerId,
-                            props.getTimeoutSeconds());
+                    log.warn("Multi-file container {} timed out after {}s — stopping", finalContainerId, props.getTimeoutSeconds());
                     timedOut.set(true);
                     stopContainer(finalContainerId);
                 } catch (InterruptedException e) {
@@ -854,6 +1173,19 @@ public class DockerSandboxService {
                         .waitContainerCmd(containerId)
                         .exec(new WaitContainerResultCallback())
                         .awaitStatusCode(props.getTimeoutSeconds() + 2L, TimeUnit.SECONDS);
+
+                boolean logCompleted = false;
+                try {
+                    logCompleted = logCallback.awaitCompletion(3, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.warn("Log collection interrupted for workspace container {}", containerId);
+                } catch (Exception e) {
+                    log.warn("Log collection encountered exception for workspace container {}: {}", containerId, e.getMessage());
+                }
+                if (!logCompleted) {
+                    log.warn("Log callback did not signal EOF within 3s for workspace container {} — output might be truncated", containerId);
+                }
 
                 timeoutThread.interrupt();
                 long elapsedMs = System.currentTimeMillis() - startMs;
@@ -943,8 +1275,7 @@ public class DockerSandboxService {
                 throw new IllegalArgumentException("Workspace file path contains newline character: " + path);
             }
             if (path.contains("\"") || path.contains("'")) {
-                throw new IllegalArgumentException(
-                        "Workspace file path contains unsupported quote characters: " + path);
+                throw new IllegalArgumentException("Workspace file path contains unsupported quote characters: " + path);
             }
             if (path.contains("\\")) {
                 throw new IllegalArgumentException("Workspace file path contains backslash: " + path);
@@ -958,10 +1289,8 @@ public class DockerSandboxService {
                 }
             }
             for (char ch : path.toCharArray()) {
-                if (Character.isISOControl(ch) || ch == ';' || ch == '`' || ch == '|' || ch == '&' || ch == '<'
-                        || ch == '>') {
-                    throw new IllegalArgumentException(
-                            "Workspace file path contains unsupported or unsafe character '" + ch + "': " + path);
+                if (Character.isISOControl(ch) || ch == ';' || ch == '`' || ch == '|' || ch == '&' || ch == '<' || ch == '>') {
+                    throw new IllegalArgumentException("Workspace file path contains unsupported or unsafe character '" + ch + "': " + path);
                 }
             }
             if (!seenPaths.add(path)) {
@@ -972,8 +1301,9 @@ public class DockerSandboxService {
 
     private byte[] createWorkspaceTar(ExtractedWorkspace workspace) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        try (TarArchiveOutputStream taos = new TarArchiveOutputStream(baos)) {
+        try (TarArchiveOutputStream taos = new TarArchiveOutputStream(baos, StandardCharsets.UTF_8.name())) {
             taos.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
+            taos.setAddPaxHeadersForNonAsciiNames(true);
 
             // Pre-register directories to ensure explicit 0755 directory entries in TAR
             Set<String> createdDirs = new HashSet<>();
@@ -1046,7 +1376,7 @@ public class DockerSandboxService {
         HostConfig hostConfig = HostConfig.newHostConfig()
                 // Memory hard limit
                 .withMemory(props.getMemoryBytes())
-                .withMemorySwap(props.getMemoryBytes()) // swap == memory → no swap
+                .withMemorySwap(props.getMemoryBytes())   // swap == memory → no swap
                 // CPU throttle
                 .withCpuPeriod(props.getCpuPeriodMicros())
                 .withCpuQuota(props.getCpuQuotaMicros())
@@ -1065,19 +1395,21 @@ public class DockerSandboxService {
                 // Read-only root filesystem; /tmp is writable tmpfs
                 .withReadonlyRootfs(true)
                 .withTmpFs(java.util.Map.of(
-                        "/tmp", "rw,noexec,nosuid,size=" + props.getTmpfsSizeBytes()))
+                        "/tmp", "rw,noexec,nosuid,size=" + props.getTmpfsSizeBytes()
+                ))
                 // Log driver: json-file with a size cap to prevent log-based DoS
                 .withLogConfig(new LogConfig(
                         LogConfig.LoggingType.JSON_FILE,
-                        java.util.Map.of("max-size", "1m", "max-file", "1")));
+                        java.util.Map.of("max-size", "1m", "max-file", "1")
+                ));
 
         CreateContainerResponse container = dockerClient.createContainerCmd(props.getImage())
                 // Non-root user (nobody)
                 .withUser("65534:65534")
                 // Disable all networking
                 .withNetworkDisabled(true)
-                // Empty environment — no host vars leaked
-                .withEnv(List.of())
+                // Safe UTF-8 environment — no host vars leaked
+                .withEnv(List.of("LANG=C.UTF-8", "LC_ALL=C.UTF-8"))
                 // No bind mounts — see HostConfig above (no Binds set)
                 .withHostConfig(hostConfig)
                 // Entrypoint: sh -c '<script>'
@@ -1095,8 +1427,7 @@ public class DockerSandboxService {
         } catch (NotModifiedException ignored) {
             // Container already stopped — this is fine
         } catch (Exception e) {
-            String shortId = containerId != null ? containerId.substring(0, Math.min(12, containerId.length()))
-                    : "unknown";
+            String shortId = containerId != null ? containerId.substring(0, Math.min(12, containerId.length())) : "unknown";
             log.warn("Could not stop container {} cleanly: {}", shortId, e.getMessage());
             try {
                 dockerClient.killContainerCmd(containerId).exec();
@@ -1112,12 +1443,10 @@ public class DockerSandboxService {
                     .withForce(true)
                     .withRemoveVolumes(true)
                     .exec();
-            String shortId = containerId != null ? containerId.substring(0, Math.min(12, containerId.length()))
-                    : "unknown";
+            String shortId = containerId != null ? containerId.substring(0, Math.min(12, containerId.length())) : "unknown";
             log.debug("Removed sandbox container: {}", shortId);
         } catch (Exception e) {
-            String shortId = containerId != null ? containerId.substring(0, Math.min(12, containerId.length()))
-                    : "unknown";
+            String shortId = containerId != null ? containerId.substring(0, Math.min(12, containerId.length())) : "unknown";
             log.warn("Could not remove container {}: {}", shortId, e.getMessage());
         }
     }
@@ -1128,10 +1457,8 @@ public class DockerSandboxService {
      */
     private static String sanitizeDockerError(DockerException e) {
         String msg = e.getMessage();
-        if (msg == null)
-            return "unknown Docker error";
-        // Return only the first line — daemon messages are often multi-line with
-        // internal details
+        if (msg == null) return "unknown Docker error";
+        // Return only the first line — daemon messages are often multi-line with internal details
         int newline = msg.indexOf('\n');
         return newline > 0 ? msg.substring(0, newline) : msg;
     }
@@ -1196,8 +1523,8 @@ public class DockerSandboxService {
      * (8-byte header per frame: stream type + length) into stdout / stderr.
      */
     static final class RawLogResultCallback
-            extends
-            com.github.dockerjava.api.async.ResultCallbackTemplate<RawLogResultCallback, com.github.dockerjava.api.model.Frame> {
+            extends com.github.dockerjava.api.async.ResultCallbackTemplate<RawLogResultCallback,
+                    com.github.dockerjava.api.model.Frame> {
 
         private final OutputCollector collector;
 
@@ -1207,14 +1534,12 @@ public class DockerSandboxService {
 
         @Override
         public void onNext(com.github.dockerjava.api.model.Frame frame) {
-            if (frame == null || frame.getPayload() == null)
-                return;
+            if (frame == null || frame.getPayload() == null) return;
             byte[] payload = frame.getPayload();
             switch (frame.getStreamType()) {
                 case STDOUT -> collector.appendStdout(payload, 0, payload.length);
                 case STDERR -> collector.appendStderr(payload, 0, payload.length);
-                default -> {
-                    /* RAW / other frame types ignored */ }
+                default -> { /* RAW / other frame types ignored */ }
             }
         }
     }
