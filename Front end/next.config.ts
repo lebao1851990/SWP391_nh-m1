@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const backendUrl = process.env.BACKEND_URL || "http://localhost:8088";
+const backendUrl = process.env.BACKEND_URL || "http://localhost:8081";
 
 const nextConfig: NextConfig = {
   async rewrites() {

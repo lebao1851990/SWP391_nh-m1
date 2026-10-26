@@ -24,7 +24,7 @@ echo JAVA_HOME: %JAVA_HOME%
 echo ========================================================
 
 if "%DB_PORT%"=="" set "DB_PORT=3306"
-if "%PORT%"=="" set "PORT=8088"
+if "%PORT%"=="" set "PORT=8081"
 call mvnw.cmd spring-boot:run
 pause
 endlocal

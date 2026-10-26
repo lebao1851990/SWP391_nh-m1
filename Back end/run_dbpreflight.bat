@@ -17,6 +17,6 @@ echo JAVA_HOME: %JAVA_HOME%
 "%JAVA_HOME%\bin\javac.exe" -version
 echo ========================================================
 
-if "%DB_PORT%"=="" set "DB_PORT=3307"
+if "%DB_PORT%"=="" set "DB_PORT=3306"
 call mvnw.cmd test-compile exec:java -Dexec.classpathScope=test -Dexec.mainClass=com.codeassess.DbPreflight
 endlocal
