@@ -327,7 +327,7 @@ public class DockerSandboxService {
             script.append("echo '<<<").append(tcStart).append(i).append(">>>'; ");
             script.append("START_TS=$(date +%s%3N 2>/dev/null || date +%s000); ");
             script.append("timeout ").append(timeoutSec).append(" java -cp ").append(CLASS_DIR)
-                  .append(" -Xmx256m -Xms32m -Djava.security.manager=disallow Main < /tmp/sandbox/in_").append(i)
+                  .append(" -Xmx256m -Xms32m -Djava.security.manager=disallow ").append(mainClassName).append(" < /tmp/sandbox/in_").append(i)
                   .append(".txt > /tmp/sandbox/out_").append(i).append(".txt 2> /tmp/sandbox/err_").append(i).append(".txt; ");
             script.append("ec=$?; ");
             script.append("END_TS=$(date +%s%3N 2>/dev/null || date +%s000); ");

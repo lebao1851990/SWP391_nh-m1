@@ -29,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -155,11 +156,7 @@ public class StudentSubmissionService {
         return submissionStorageService.getSubmissionFiles(submission.getId());
     }
 
-    @Transactional
-    public SubmissionDetailResponse submitCode(String examId, String studentId, SubmissionCreateRequest request) {
-        Exam exam = examRepository.findByIdAndStudentId(examId, studentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Exam not found or you are not enrolled in this class"));
-
+    private void validateExamAvailability(Exam exam) {
         if (exam.getDeletedAt() != null) {
             throw new ResourceNotFoundException("Exam not found or access denied");
         }
@@ -168,12 +165,26 @@ public class StudentSubmissionService {
             throw new IllegalStateException("Exam is not currently active for submissions");
         }
 
-        if (exam.getExamDate() != null && exam.getDuration() != null && exam.getDuration() > 0) {
-            java.time.LocalDateTime deadline = exam.getExamDate().plusMinutes(exam.getDuration());
-            if (java.time.LocalDateTime.now().isAfter(deadline)) {
-                throw new com.codeassess.common.exception.ExamTimeExpiredException("Exam submission window has expired. Deadline was: " + deadline);
+        if (exam.getExamDate() != null) {
+            LocalDateTime now = LocalDateTime.now();
+            if (now.isBefore(exam.getExamDate())) {
+                throw new IllegalStateException("Exam has not started yet");
+            }
+            if (exam.getDuration() != null && exam.getDuration() > 0) {
+                LocalDateTime deadline = exam.getExamDate().plusMinutes(exam.getDuration());
+                if (now.isAfter(deadline)) {
+                    throw new com.codeassess.common.exception.ExamTimeExpiredException("Exam submission window has expired. Deadline was: " + deadline);
+                }
             }
         }
+    }
+
+    @Transactional
+    public SubmissionDetailResponse submitCode(String examId, String studentId, SubmissionCreateRequest request) {
+        Exam exam = examRepository.findByIdAndStudentId(examId, studentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Exam not found or you are not enrolled in this class"));
+
+        validateExamAvailability(exam);
 
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
@@ -256,20 +267,7 @@ public class StudentSubmissionService {
         Exam exam = examRepository.findByIdAndStudentId(examId, studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found or you are not enrolled in this class"));
 
-        if (exam.getDeletedAt() != null) {
-            throw new ResourceNotFoundException("Exam not found or access denied");
-        }
-
-        if (exam.getStatus() == null || !exam.getStatus().equalsIgnoreCase("active")) {
-            throw new IllegalStateException("Exam is not currently active for submissions");
-        }
-
-        if (exam.getExamDate() != null && exam.getDuration() != null && exam.getDuration() > 0) {
-            java.time.LocalDateTime deadline = exam.getExamDate().plusMinutes(exam.getDuration());
-            if (java.time.LocalDateTime.now().isAfter(deadline)) {
-                throw new com.codeassess.common.exception.ExamTimeExpiredException("Exam submission window has expired. Deadline was: " + deadline);
-            }
-        }
+        validateExamAvailability(exam);
 
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
