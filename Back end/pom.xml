@@ -74,6 +74,13 @@
             <version>5.2.5</version>
         </dependency>
 
+        <!-- PDF Processing for AI Document Extraction -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.2</version>
+        </dependency>
+
         <!-- Docker Java Client (sandbox feature) -->
         <dependency>
             <groupId>com.github.docker-java</groupId>

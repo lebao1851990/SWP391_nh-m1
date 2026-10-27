@@ -32,6 +32,7 @@ import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { teacherExamsApi, SubmissionFileDto } from '@/features/exams/api/teacher-exams.api';
 import { GradeAuditHistory } from './grade-audit-history';
+import { SemanticCodeReviewView } from '@/features/submissions/components';
 
 interface TeacherScoringFormProps {
   submissionId: string;
@@ -228,6 +229,9 @@ export function TeacherScoringForm({ submissionId, initialData }: TeacherScoring
           )}
         </div>
       )}
+
+      {/* Semantic Code Review for Instructor */}
+      <SemanticCodeReviewView submissionId={submissionId} isTeacher={true} />
 
       {updateMutation.isError && (
         <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">

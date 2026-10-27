@@ -22,7 +22,8 @@ import {
   UploadCloud,
   FileArchive,
   X,
-  Cpu
+  Cpu,
+  FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -65,11 +66,32 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
     return () => clearInterval(interval);
   }, [exam?.endTime, exam?.serverTime]);
 
-  const isExpiredByTimer = remainingSeconds !== null && remainingSeconds <= 0;
-  const isLocked = Boolean(exam?.isExpired) || isExpiredByTimer || exam?.status === 'completed' || exam?.status === 'missed';
+  // Check if exam is scheduled for future
+  const [secondsUntilStart, setSecondsUntilStart] = useState<number | null>(null);
 
-  const is5MinWarning = !isLocked && remainingSeconds !== null && remainingSeconds <= 300 && remainingSeconds > 60;
-  const is1MinWarning = !isLocked && remainingSeconds !== null && remainingSeconds <= 60 && remainingSeconds > 0;
+  useEffect(() => {
+    if (!exam?.startTime) return;
+    const serverTimestamp = exam.serverTime ? new Date(exam.serverTime).getTime() : Date.now();
+    const clientOffset = serverTimestamp - Date.now();
+    const startTimestamp = new Date(exam.startTime).getTime();
+
+    const updateStartTimer = () => {
+      const currentServerTime = Date.now() + clientOffset;
+      const diffSec = Math.floor((startTimestamp - currentServerTime) / 1000);
+      setSecondsUntilStart(diffSec);
+    };
+
+    updateStartTimer();
+    const interval = setInterval(updateStartTimer, 1000);
+    return () => clearInterval(interval);
+  }, [exam?.startTime, exam?.serverTime]);
+
+  const isNotStarted = (secondsUntilStart !== null && secondsUntilStart > 0) || exam?.status === 'upcoming';
+  const isExpiredByTimer = remainingSeconds !== null && remainingSeconds <= 0;
+  const isLocked = Boolean(exam?.isExpired) || isExpiredByTimer || exam?.status === 'completed' || exam?.status === 'missed' || isNotStarted;
+
+  const is5MinWarning = !isLocked && !isNotStarted && remainingSeconds !== null && remainingSeconds <= 300 && remainingSeconds > 60;
+  const is1MinWarning = !isLocked && !isNotStarted && remainingSeconds !== null && remainingSeconds <= 60 && remainingSeconds > 0;
 
   const formattedCountdown = useMemo(() => {
     if (remainingSeconds === null) return '--:--:--';
@@ -306,8 +328,21 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
           </div>
         )}
 
+        {/* Upcoming Not Started Exam Alert Banner */}
+        {isNotStarted && (
+          <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs flex items-center gap-3 shadow-sm">
+            <Clock className="w-5 h-5 text-blue-600 shrink-0" />
+            <div>
+              <p className="font-bold text-sm">Bài thi chưa đến giờ bắt đầu</p>
+              <p className="text-blue-700 mt-0.5">
+                Thời gian mở thi: {exam.startTime ? new Date(exam.startTime).toLocaleString('vi-VN') : 'Sắp diễn ra'}. Hệ thống chưa mở nộp bài.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Closed/Expired Exam Alert Banner */}
-        {isLocked && (
+        {isLocked && !isNotStarted && (
           <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-3 shadow-sm">
             <Lock className="w-5 h-5 text-rose-600 shrink-0" />
             <div>
@@ -376,6 +411,96 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
           </div>
         )}
 
+        {/* AI-Generated Problem Statement & Rubric Card */}
+        {exam.problemStatement && (
+          <div className="bg-surface-container-lowest p-space-md rounded-2xl border border-outline-variant/40 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-outline-variant/30 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold">Đề bài & Yêu cầu Kỹ thuật</h2>
+                  <p className="text-[11px] text-outline">
+                    {exam.sourceDocumentName ? `Trích xuất từ tài liệu: ${exam.sourceDocumentName}` : 'Đề bài lập trình và barem đánh giá chính thức'}
+                  </p>
+                </div>
+              </div>
+              {exam.programmingLanguage && (
+                <span className="px-2.5 py-1 rounded bg-purple-50 border border-purple-200 text-purple-800 font-mono text-xs font-semibold">
+                  {exam.programmingLanguage}
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-3 text-xs leading-relaxed text-on-surface">
+              <div className="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/40 whitespace-pre-wrap font-sans text-sm">
+                {exam.problemStatement}
+              </div>
+
+              {(exam.inputSpecification || exam.outputSpecification) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {exam.inputSpecification && (
+                    <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30">
+                      <span className="font-bold text-outline block mb-1">Đặc tả đầu vào (Input Spec):</span>
+                      <pre className="font-mono text-xs whitespace-pre-wrap">{exam.inputSpecification}</pre>
+                    </div>
+                  )}
+                  {exam.outputSpecification && (
+                    <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30">
+                      <span className="font-bold text-outline block mb-1">Đặc tả đầu ra (Output Spec):</span>
+                      <pre className="font-mono text-xs whitespace-pre-wrap">{exam.outputSpecification}</pre>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {exam.constraints && (
+                <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30">
+                  <span className="font-bold text-outline block mb-0.5">Giới hạn & Ràng buộc:</span>
+                  <pre className="font-mono text-xs whitespace-pre-wrap">{exam.constraints}</pre>
+                </div>
+              )}
+
+              {(exam.sampleInput || exam.sampleOutput) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {exam.sampleInput && (
+                    <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 font-mono">
+                      <span className="font-bold text-outline block mb-1">Dữ liệu mẫu đầu vào (Sample Input):</span>
+                      <pre className="text-xs whitespace-pre-wrap">{exam.sampleInput}</pre>
+                    </div>
+                  )}
+                  {exam.sampleOutput && (
+                    <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 font-mono">
+                      <span className="font-bold text-outline block mb-1">Dữ liệu mẫu đầu ra (Sample Output):</span>
+                      <pre className="text-xs whitespace-pre-wrap">{exam.sampleOutput}</pre>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {exam.rubricCriteria && exam.rubricCriteria.length > 0 && (
+                <div className="pt-2 border-t border-outline-variant/20 space-y-2">
+                  <span className="font-bold text-on-surface block">Tiêu chí chấm điểm (Rubric Barem):</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {exam.rubricCriteria.map((c: { name: string; description?: string; maxScore: number }, idx: number) => (
+                      <div key={idx} className="p-2.5 rounded-lg bg-surface-container-low border border-outline-variant/30 flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-on-surface">{c.name}</p>
+                          {c.description && <p className="text-[11px] text-outline">{c.description}</p>}
+                        </div>
+                        <span className="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 shrink-0 ml-2">
+                          {c.maxScore} đ
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Submission Archive Card - Strictly ZIP Submission */}
         <div className="bg-surface-container-lowest p-space-md rounded-2xl border border-outline-variant/40 shadow-xs">
           <form onSubmit={handlePreSubmit} className="flex flex-col gap-4">
@@ -429,10 +554,16 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                     <UploadCloud className="w-8 h-8" />
                   </div>
                   <span className="font-semibold text-sm text-on-surface mb-1">
-                    Kéo thả file .zip vào đây hoặc nhấn để chọn tệp
+                    {isNotStarted
+                      ? 'Bài thi chưa đến giờ mở nộp bài'
+                      : isLocked
+                      ? 'Hệ thống đã khóa nộp bài'
+                      : 'Kéo thả file .zip vào đây hoặc nhấn để chọn tệp'}
                   </span>
                   <span className="text-xs text-outline">
-                    Chỉ chấp nhận định dạng .zip chứa các file mã nguồn Java (.java)
+                    {isNotStarted
+                      ? `Thời gian mở thi: ${exam?.startTime ? new Date(exam.startTime).toLocaleString('vi-VN') : 'Sắp diễn ra'}`
+                      : 'Chỉ chấp nhận định dạng .zip chứa các file mã nguồn Java (.java)'}
                   </span>
                   <div className="flex flex-wrap items-center justify-center gap-3 mt-3 text-[11px] text-outline-variant font-mono">
                     <span className="px-2 py-0.5 rounded bg-surface-container">Kích thước nén &le; 10 MB</span>

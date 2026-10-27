@@ -70,6 +70,14 @@ public class ExamMapper {
                 .endTime(endTime)
                 .serverTime(now)
                 .isExpired(isExpired)
+                .problemStatement(exam.getProblemStatement())
+                .inputSpecification(exam.getInputSpecification())
+                .outputSpecification(exam.getOutputSpecification())
+                .constraints(exam.getConstraints())
+                .sampleInput(exam.getSampleInput())
+                .sampleOutput(exam.getSampleOutput())
+                .programmingLanguage(exam.getProgrammingLanguage())
+                .sourceDocumentName(exam.getSourceDocumentName())
                 .build();
     }
 }

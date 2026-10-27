@@ -4,7 +4,7 @@ import React from 'react';
 import { useStudentResult } from '../hooks';
 import { AxiosError } from 'axios';
 import { AppLink as Link } from '@/components/ui/app-link';
-import { StudentAiAssistantCard } from '@/features/submissions/components';
+import { StudentAiAssistantCard, SemanticCodeReviewView } from '@/features/submissions/components';
 import { 
   ArrowLeft, 
   Award, 
@@ -257,6 +257,9 @@ export function StudentResultView({ submissionId }: StudentResultViewProps) {
           ))}
         </div>
       </div>
+
+      {/* Semantic Code Review (Independent Static Analysis) */}
+      <SemanticCodeReviewView submissionId={submissionId} />
 
       {/* Student AI Learning Assistant */}
       <StudentAiAssistantCard submissionId={submissionId} />

@@ -62,6 +62,17 @@ export function useUpdateExam() {
   });
 }
 
+export function usePublishExam() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => teacherExamsApi.publishExam(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: TEACHER_EXAMS_QUERY_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: TEACHER_EXAMS_QUERY_KEYS.detail(id) });
+    },
+  });
+}
+
 export function useDeleteExam() {
   const queryClient = useQueryClient();
   return useMutation({
