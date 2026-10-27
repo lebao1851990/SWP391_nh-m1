@@ -62,11 +62,40 @@ export function useUpdateExam() {
   });
 }
 
+export function usePublishExam() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => teacherExamsApi.publishExam(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: TEACHER_EXAMS_QUERY_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: TEACHER_EXAMS_QUERY_KEYS.detail(id) });
+    },
+  });
+}
+
+export function useDeleteExam() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => teacherExamsApi.deleteExam(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: TEACHER_EXAMS_QUERY_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: TEACHER_EXAMS_QUERY_KEYS.detail(id) });
+    },
+  });
+}
+
 export function useTeacherExamSubmissions(id: string) {
   return useQuery({
     queryKey: [...TEACHER_EXAMS_QUERY_KEYS.detail(id), 'submissions'],
     queryFn: () => teacherExamsApi.getExamSubmissions(id),
     enabled: !!id,
+    refetchInterval: (query) => {
+      const submissions = query.state.data as Array<{ status?: string; executionStatus?: string }> | undefined;
+      const isProcessing = submissions?.some(
+        s => s.status === 'PENDING' || s.status === 'PROCESSING' || s.executionStatus === 'PENDING' || s.executionStatus === 'PROCESSING'
+      );
+      return isProcessing ? 3000 : false;
+    },
   });
 }
 

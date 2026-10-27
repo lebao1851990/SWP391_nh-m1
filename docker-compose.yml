@@ -57,9 +57,9 @@ services:
       REDIS_PORT: 6379
       BULLMQ_PRODUCER_URL: http://bullmq-service:3001
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-codeassess-internal-secret-2026}
-      PORT: 8080
+      PORT: 8081
     ports:
-      - "${PORT:-8080}:8080"
+      - "${PORT:-8081}:8081"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
@@ -77,7 +77,7 @@ services:
     environment:
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      BACKEND_URL: http://backend:8080
+      BACKEND_URL: http://backend:8081
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-codeassess-internal-secret-2026}
       BULLMQ_CONCURRENCY: ${BULLMQ_CONCURRENCY:-2}
       PORT: 3001

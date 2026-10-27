@@ -28,4 +28,15 @@ public interface AiClient {
      * @throws AiIntegrationException if provider integration fails.
      */
     String generateStudentFeedback(String systemPrompt, String userPrompt) throws AiIntegrationException;
+
+    /**
+     * Generates structured JSON output mapped to a target class.
+     * @param systemPrompt System prompt with schema constraints.
+     * @param userPrompt User prompt.
+     * @param targetClass Class type to deserialize into.
+     * @param <T> Target type.
+     * @return Deserialized object of type T.
+     * @throws AiIntegrationException if provider fails or deserialization fails.
+     */
+    <T> T generateStructuredOutput(String systemPrompt, String userPrompt, Class<T> targetClass) throws AiIntegrationException;
 }

@@ -6,6 +6,7 @@ import com.codeassess.exam.dto.response.ExamResponse;
 import com.codeassess.exam.entity.Exam;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -46,6 +47,12 @@ public class ExamMapper {
         String primaryCourseName = !classNames.isEmpty() ? String.join(", ", classNames) : (exam.getCourseClass() != null ? exam.getCourseClass().getName() : null);
         String primaryCourseCode = !classCodes.isEmpty() ? String.join(", ", classCodes) : (exam.getCourseClass() != null ? exam.getCourseClass().getCode() : null);
 
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime endTime = exam.getExamDate() != null && exam.getDuration() != null && exam.getDuration() > 0
+                ? exam.getExamDate().plusMinutes(exam.getDuration())
+                : null;
+        boolean isExpired = endTime != null && now.isAfter(endTime);
+
         return ExamResponse.builder()
                 .id(exam.getId())
                 .classId(primaryClassId)
@@ -60,6 +67,17 @@ public class ExamMapper {
                 .classCodes(classCodes)
                 .classNames(classNames)
                 .assignedClasses(assignedClasses)
+                .endTime(endTime)
+                .serverTime(now)
+                .isExpired(isExpired)
+                .problemStatement(exam.getProblemStatement())
+                .inputSpecification(exam.getInputSpecification())
+                .outputSpecification(exam.getOutputSpecification())
+                .constraints(exam.getConstraints())
+                .sampleInput(exam.getSampleInput())
+                .sampleOutput(exam.getSampleOutput())
+                .programmingLanguage(exam.getProgrammingLanguage())
+                .sourceDocumentName(exam.getSourceDocumentName())
                 .build();
     }
 }

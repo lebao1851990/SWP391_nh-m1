@@ -26,4 +26,25 @@ public class ExamResponse {
     private java.util.List<String> classCodes;
     private java.util.List<String> classNames;
     private java.util.List<ClassSummaryDto> assignedClasses;
+
+    // Time tracking & auto-lock metadata
+    private LocalDateTime endTime;
+    private LocalDateTime serverTime;
+    private Boolean isExpired;
+
+    // AI & Problem Specifications
+    private String problemStatement;
+    private String inputSpecification;
+    private String outputSpecification;
+    private String constraints;
+    private String sampleInput;
+    private String sampleOutput;
+    private String programmingLanguage;
+    private String sourceDocumentName;
+    private java.util.List<com.codeassess.ai.dto.AiRubricItemDto> rubricCriteria;
+
+    @com.fasterxml.jackson.annotation.JsonProperty("durationMinutes")
+    public Integer getDurationMinutes() {
+        return duration;
+    }
 }

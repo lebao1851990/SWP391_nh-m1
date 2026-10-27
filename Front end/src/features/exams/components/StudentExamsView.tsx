@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { useStudentExams } from '../hooks/use-student-exams';
 import { useStudentSubmissions } from '../../submissions/hooks';
 import { AppLink as Link } from '@/components/ui/app-link';
+import { useTranslation } from '@/i18n';
 import { 
   Search, 
   X, 
@@ -18,6 +19,7 @@ import {
 } from 'lucide-react';
 
 export function StudentExamsView() {
+  const { t } = useTranslation();
   const { data: exams, isLoading: isLoadingExams, isError: isErrorExams } = useStudentExams();
   const { data: submissions, isLoading: isLoadingSubmissions } = useStudentSubmissions();
 
@@ -37,7 +39,9 @@ export function StudentExamsView() {
       const submission = submissions?.find(s => s.examId === exam.id);
       
       const startTimeMs = exam.startTime ? new Date(exam.startTime).getTime() : now;
-      const durationMs = (exam.durationMinutes || exam.duration || 60) * 60 * 1000;
+      const durationMinutes = Number(exam.durationMinutes ?? exam.duration);
+      const safeDuration = !isNaN(durationMinutes) && durationMinutes > 0 ? durationMinutes : 90;
+      const durationMs = safeDuration * 60 * 1000;
       const endTimeMs = exam.endTime ? new Date(exam.endTime).getTime() : (startTimeMs + durationMs);
 
       let derivedStatus = 'UPCOMING';
@@ -295,7 +299,7 @@ export function StudentExamsView() {
                       <td className="py-3 px-4">
                         {exam.submission ? (
                           <span className="font-mono bg-surface-container px-2 py-0.5 rounded font-bold text-xs text-on-surface">
-                            {exam.submission.totalScore ?? 0} <span className="text-outline text-[10px]">/ 100</span>
+                            {exam.submission.totalScore ?? 0} <span className="text-outline text-[10px]">/ 10</span>
                           </span>
                         ) : (
                           <span className="text-outline text-xs">--</span>
@@ -308,7 +312,7 @@ export function StudentExamsView() {
                               href={`/student/submissions/${exam.submission.id}`} 
                               className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-xs font-medium transition-colors border border-emerald-200"
                             >
-                              Kết quả
+                              {t('studentExams.viewResult')}
                             </Link>
                           )}
                           <Link 
@@ -319,7 +323,7 @@ export function StudentExamsView() {
                                 : 'bg-primary text-on-primary hover:bg-primary/90'
                             }`}
                           >
-                            <span>{exam.derivedStatus === 'MISSED' ? 'Chi tiết' : (exam.derivedStatus === 'ACTIVE' ? 'Vào thi ngay' : 'Vào thi')}</span>
+                            <span>{exam.derivedStatus === 'MISSED' ? t('common.details') : t('studentExams.openButton')}</span>
                             <ExternalLink className="w-3 h-3" />
                           </Link>
                         </div>

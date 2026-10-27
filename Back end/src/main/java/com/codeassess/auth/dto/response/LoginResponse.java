@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class LoginResponse {
     private UserSessionDto user;
+    private String token;
 
     @Data
     @Builder

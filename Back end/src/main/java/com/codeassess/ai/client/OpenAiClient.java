@@ -77,6 +77,30 @@ public class OpenAiClient implements AiClient {
         return executeChatCompletion(systemPrompt, userPrompt);
     }
 
+    @Override
+    public <T> T generateStructuredOutput(String systemPrompt, String userPrompt, Class<T> targetClass) throws AiIntegrationException {
+        String structuredSystemPrompt = systemPrompt + "\n\nCRITICAL: Respond ONLY with valid, raw JSON adhering to standard format without markdown triple backticks. Do not prepend ```json or append ```. Provide all required fields.";
+        String rawResponse = executeChatCompletion(structuredSystemPrompt, userPrompt);
+        
+        String cleanedJson = rawResponse.trim();
+        if (cleanedJson.startsWith("```json")) {
+            cleanedJson = cleanedJson.substring(7);
+        } else if (cleanedJson.startsWith("```")) {
+            cleanedJson = cleanedJson.substring(3);
+        }
+        if (cleanedJson.endsWith("```")) {
+            cleanedJson = cleanedJson.substring(0, cleanedJson.length() - 3);
+        }
+        cleanedJson = cleanedJson.trim();
+
+        try {
+            return objectMapper.readValue(cleanedJson, targetClass);
+        } catch (Exception ex) {
+            log.error("Failed to parse structured JSON response from OpenAI for {}: {}", targetClass.getSimpleName(), ex.getMessage());
+            throw new AiIntegrationException("AI provider returned invalid structured JSON output: " + ex.getMessage());
+        }
+    }
+
     private String executeChatCompletion(String systemPrompt, String userPrompt) throws AiIntegrationException {
         if (userPrompt == null || userPrompt.trim().isEmpty()) {
             throw new IllegalArgumentException("Prompt cannot be empty");

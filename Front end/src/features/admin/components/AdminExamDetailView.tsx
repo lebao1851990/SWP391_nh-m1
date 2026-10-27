@@ -59,7 +59,7 @@ export function AdminExamDetailView({ examId }: { examId: string }) {
             </div>
             <div className="flex flex-col gap-1">
               <span className="font-label-sm text-label-sm uppercase text-outline">Duration</span>
-              <span className="font-body-md text-on-surface">{exam.durationMinutes} Minutes</span>
+              <span className="font-body-md text-on-surface">{exam.durationMinutes ?? exam.duration} Minutes</span>
             </div>
           </div>
           

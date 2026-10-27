@@ -49,6 +49,14 @@ export interface ScoringDetail {
   astSimilarityPercentage?: number;
   
   instructorEvaluationComments?: string;
+  instructorFeedback?: string;
+  originalFilename?: string;
+  submissionType?: string;
+  archiveHash?: string;
+  executionStatus?: string;
+  compileOutput?: string;
+  stdout?: string;
+  stderr?: string;
 }
 
 export interface SubmissionTestResultDto {

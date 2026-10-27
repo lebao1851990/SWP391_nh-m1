@@ -145,7 +145,7 @@ export function TeacherSubmissionsView() {
             <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">Điểm trung bình</span>
             <div className="mt-2 flex items-baseline gap-1">
               <span className="font-display-lg font-bold text-primary">{stats.avgScore}</span>
-              <span className="text-xs text-outline font-normal">/ 100</span>
+              <span className="text-xs text-outline font-normal">/ 10</span>
             </div>
           </div>
         </div>
@@ -220,7 +220,11 @@ export function TeacherSubmissionsView() {
                   </tr>
                 ) : (
                   filteredSubmissions.map(sub => {
-                    const isGraded = sub.status === 'GRADED';
+                    const isFailed = sub.status === 'FAILED' || sub.executionStatus === 'FAILED' || sub.executionStatus === 'COMPILATION_ERROR' || sub.executionStatus === 'RUNTIME_ERROR' || sub.executionStatus === 'TIMEOUT';
+                    const isProcessing = sub.status === 'PROCESSING' || sub.executionStatus === 'RUNNING';
+                    const isPending = sub.status === 'PENDING' || sub.status === 'SUBMITTED' || sub.executionStatus === 'PENDING';
+                    const isGraded = (sub.status === 'GRADED' || sub.status === 'COMPLETED' || sub.status === 'EVALUATED') && !isFailed;
+
                     return (
                       <tr
                         key={sub.id}
@@ -240,32 +244,48 @@ export function TeacherSubmissionsView() {
                           {sub.submittedAt ? new Date(sub.submittedAt).toLocaleString('vi-VN') : 'N/A'}
                         </td>
                         <td className="py-3 px-4">
-                          {isGraded ? (
+                          {isProcessing || isPending ? (
+                            <span className="text-outline italic text-[11px]">Đang chấm...</span>
+                          ) : isGraded ? (
                             <span className="font-mono bg-surface-container px-2 py-0.5 rounded font-bold text-on-surface">
-                              {sub.totalScore != null ? sub.totalScore : 0}
-                              <span className="text-outline text-[10px] ml-0.5">/100</span>
+                              {sub.totalScore != null ? sub.totalScore : (sub.autoScore != null ? sub.autoScore : 0)}
+                              <span className="text-outline text-[10px] ml-0.5">/10</span>
                             </span>
+                          ) : isFailed ? (
+                            <span className="text-rose-600 font-medium text-[11px]">0/10 (Lỗi)</span>
                           ) : (
-                            <span className="text-outline italic">Chờ chấm</span>
+                            <span className="text-outline italic">Chưa có điểm</span>
                           )}
                         </td>
                         <td className="py-3 px-4">
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
-                              isGraded
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : 'bg-amber-50 text-amber-700 border border-amber-200'
-                            }`}
-                          >
-                            {isGraded ? 'Đã chấm' : 'Chờ chấm'}
-                          </span>
+                          {isProcessing ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              <span>Đang chấm</span>
+                            </span>
+                          ) : isPending ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                              <Clock className="w-3 h-3" />
+                              <span>Chờ chấm</span>
+                            </span>
+                          ) : isFailed ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                              <AlertCircle className="w-3 h-3" />
+                              <span>Lỗi thi hành</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Hoàn tất</span>
+                            </span>
+                          )}
                         </td>
                         <td className="py-3 px-4 text-right">
                           <Link
                             href={`/teacher/submissions/${sub.id}`}
                             className="inline-flex items-center gap-1 px-3 py-1 bg-surface-container hover:bg-surface-container-high text-primary rounded-lg font-medium transition-colors"
                           >
-                            <span>Chấm điểm</span>
+                            <span>Xem chi tiết</span>
                             <ExternalLink className="w-3 h-3" />
                           </Link>
                         </td>

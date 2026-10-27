@@ -14,6 +14,9 @@ public interface SubmissionRepository extends JpaRepository<Submission, String> 
     
     long countByExam_Id(String examId);
 
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(s) FROM Submission s WHERE s.exam.id = :examId AND (s.status = 'PROCESSING' OR s.executionStatus = 'IN_PROGRESS')")
+    long countActiveGradingSubmissionsByExamId(@org.springframework.data.repository.query.Param("examId") String examId);
+
     List<Submission> findByExam_CourseClass_Teacher_Id(String teacherId);
 
     Optional<Submission> findByIdAndExam_CourseClass_Teacher_Id(String id, String teacherId);

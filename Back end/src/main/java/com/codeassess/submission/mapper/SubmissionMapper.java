@@ -62,6 +62,7 @@ public class SubmissionMapper {
                 .stdout(submission.getStdout())
                 .stderr(submission.getStderr())
                 .executionDurationMs(submission.getExecutionDurationMs())
+                .instructorFeedback(submission.getInstructorFeedback())
                 .build();
     }
 }

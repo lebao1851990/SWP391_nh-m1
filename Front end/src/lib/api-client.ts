@@ -10,13 +10,13 @@ export const apiClient = axios.create({
   },
 });
 
-// Response Interceptor: Handle 401 & 403 globally
+// Response Interceptor: Handle 401 & 403 globally without redirect loops
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response) {
       if (error.response.status === 401) {
-        // Token expired or invalid
+        // Session expired or unauthenticated
         useSessionStore.getState().clearSession();
         if (typeof window !== 'undefined') {
           const pathname = window.location.pathname;
@@ -34,9 +34,9 @@ apiClient.interceptors.response.use(
           }
         }
       } else if (error.response.status === 403) {
-        // Forbidden: Valid token but lacks permission for resource
-        // We log this, but the UI should handle the specific feedback
-        console.warn('Access denied to resource (403 Forbidden).', error.config.url);
+        // Forbidden: Valid session cookie exists but lacks permission for the requested resource
+        // Log access denial; UI/Guard will handle role mismatch without triggering a redirect loop
+        console.warn('[RBAC 403 Forbidden] Access denied to resource:', error.config?.url);
       }
     }
     return Promise.reject(error);

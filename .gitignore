@@ -4,3 +4,12 @@
 # Machine-specific environment/build cache
 Back end/classpath.txt
 /Back end/classpath.txt
+
+# Local Environment files
+.env
+.env.local
+*.env
+
+# Runtime data & uploads
+Back end/data/
+/Back end/data/

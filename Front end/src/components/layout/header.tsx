@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUiStore } from '@/stores/ui.store';
+import { useTranslation } from '@/i18n';
+import { LanguageSwitcher } from '@/components/ui/language-switcher';
 
 export function Header() {
   const router = useRouter();
@@ -30,6 +32,7 @@ export function Header() {
   const user = useSessionStore((state) => state.user);
   const clearSession = useSessionStore((state) => state.clearSession);
   const { toggleMobileNav } = useUiStore();
+  const { t } = useTranslation();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
@@ -190,11 +193,14 @@ export function Header() {
             )}
           </div>
           
+          {/* Language Switcher */}
+          <LanguageSwitcher />
+
           {/* Academic Integrity Guide Trigger */}
           <button 
             onClick={() => setHelpOpen(true)}
             className="p-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded transition-colors cursor-pointer" 
-            title="Quy tắc liêm chính & Hướng dẫn học thuật"
+            title={t('header.integrityGuide')}
           >
             <HelpCircle className="w-4 h-4" />
           </button>
@@ -216,16 +222,24 @@ export function Header() {
               <div className="flex flex-col hidden sm:flex">
                 <div className="flex items-center gap-1.5">
                   <span className="font-label-md text-label-md font-semibold text-on-surface truncate max-w-[120px]">
-                    {user?.email ? user.email.split('@')[0] : 'Người dùng'}
+                    {user?.fullName || (user?.email ? user.email.split('@')[0] : '...')}
                   </span>
                   <span className={`font-label-xs text-[10px] px-1.5 py-0.2 rounded font-semibold ${
                     user?.role === 'TEACHER' 
                       ? 'bg-blue-100 text-blue-800' 
                       : user?.role === 'ADMIN' 
                       ? 'bg-purple-100 text-purple-800' 
-                      : 'bg-emerald-100 text-emerald-800'
+                      : user?.role === 'STUDENT'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-slate-100 text-slate-700'
                   }`}>
-                    {user?.role === 'ADMIN' ? 'Quản trị viên' : user?.role === 'TEACHER' ? 'Giảng viên' : 'Sinh viên'}
+                    {user?.role === 'ADMIN' 
+                      ? t('header.admin') 
+                      : user?.role === 'TEACHER' 
+                      ? t('header.teacher') 
+                      : user?.role === 'STUDENT' 
+                      ? t('header.student') 
+                      : '...'}
                   </span>
                 </div>
               </div>
@@ -236,9 +250,9 @@ export function Header() {
             {profileOpen && (
               <div className="absolute right-0 mt-2 w-64 bg-surface-container-lowest border border-outline-variant/40 rounded-xl shadow-xl z-50 p-2 flex flex-col gap-1">
                 <div className="px-3 py-2 border-b border-outline-variant/20 mb-1">
-                  <p className="font-label-xs text-outline uppercase tracking-wider">Đăng nhập với tư cách</p>
+                  <p className="font-label-xs text-outline uppercase tracking-wider">{t('header.loggedInAs')}</p>
                   <p className="font-label-md font-semibold text-on-surface truncate">{user?.email || 'N/A'}</p>
-                  <p className="font-label-xs text-outline-variant truncate">ID: {user?.id || 'Đang xử lý'}</p>
+                  <p className="font-label-xs text-outline-variant truncate">ID: {user?.id || '...'}</p>
                 </div>
 
                 <button
@@ -249,7 +263,7 @@ export function Header() {
                   className="flex items-center gap-2 px-3 py-2 text-xs text-on-surface hover:bg-surface-container rounded-lg transition-colors cursor-pointer"
                 >
                   <User className="w-3.5 h-3.5 text-outline" />
-                  <span>Tổng quan bảng điều khiển</span>
+                  <span>{t('nav.dashboard')}</span>
                 </button>
 
                 <button
@@ -260,7 +274,7 @@ export function Header() {
                   className="flex items-center gap-2 px-3 py-2 text-xs text-on-surface hover:bg-surface-container rounded-lg transition-colors cursor-pointer"
                 >
                   <BookOpen className="w-3.5 h-3.5 text-outline" />
-                  <span>Quy tắc liêm chính & Hướng dẫn</span>
+                  <span>{t('header.integrityGuide')}</span>
                 </button>
 
                 <div className="border-t border-outline-variant/20 my-1"></div>
@@ -273,7 +287,7 @@ export function Header() {
                   className="flex items-center gap-2 px-3 py-2 text-xs text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer font-medium"
                 >
                   <LogOut className="w-3.5 h-3.5 text-rose-500" />
-                  <span>Đăng xuất</span>
+                  <span>{t('nav.logout')}</span>
                 </button>
               </div>
             )}

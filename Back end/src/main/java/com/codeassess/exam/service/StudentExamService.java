@@ -13,11 +13,25 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class StudentExamService {
 
     private final ExamRepository examRepository;
     private final ExamMapper examMapper;
+    private final com.codeassess.scoring.repository.ExamRubricCriteriaRepository examRubricCriteriaRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public StudentExamService(
+            ExamRepository examRepository,
+            ExamMapper examMapper,
+            com.codeassess.scoring.repository.ExamRubricCriteriaRepository examRubricCriteriaRepository) {
+        this.examRepository = examRepository;
+        this.examMapper = examMapper;
+        this.examRubricCriteriaRepository = examRubricCriteriaRepository;
+    }
+
+    public StudentExamService(ExamRepository examRepository, ExamMapper examMapper) {
+        this(examRepository, examMapper, null);
+    }
 
     @Transactional(readOnly = true)
     public List<ExamResponse> getStudentExams(String studentId) {
@@ -30,6 +44,13 @@ public class StudentExamService {
     public ExamResponse getStudentExamById(String id, String studentId) {
         Exam exam = examRepository.findByIdAndStudentId(id, studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found or access denied"));
-        return examMapper.toResponse(exam);
+        ExamResponse response = examMapper.toResponse(exam);
+        if (examRubricCriteriaRepository != null && response != null) {
+            var criteria = examRubricCriteriaRepository.findByExam_IdOrderByDisplayOrderAsc(id).stream()
+                    .map(c -> new com.codeassess.ai.dto.AiRubricItemDto(c.getName(), c.getDescription(), c.getMaxScore()))
+                    .collect(Collectors.toList());
+            response.setRubricCriteria(criteria);
+        }
+        return response;
     }
 }

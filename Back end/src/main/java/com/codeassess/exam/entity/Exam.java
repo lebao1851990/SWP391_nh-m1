@@ -48,4 +48,31 @@ public class Exam {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "problem_statement", columnDefinition = "LONGTEXT")
+    private String problemStatement;
+
+    @Column(name = "input_specification", columnDefinition = "LONGTEXT")
+    private String inputSpecification;
+
+    @Column(name = "output_specification", columnDefinition = "LONGTEXT")
+    private String outputSpecification;
+
+    @Column(name = "constraints_text", columnDefinition = "LONGTEXT")
+    private String constraints;
+
+    @Column(name = "sample_input", columnDefinition = "LONGTEXT")
+    private String sampleInput;
+
+    @Column(name = "sample_output", columnDefinition = "LONGTEXT")
+    private String sampleOutput;
+
+    @Column(name = "programming_language")
+    private String programmingLanguage;
+
+    @Column(name = "source_document_name")
+    private String sourceDocumentName;
 }

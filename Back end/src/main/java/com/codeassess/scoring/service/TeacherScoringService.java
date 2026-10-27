@@ -92,7 +92,7 @@ public class TeacherScoringService {
                 .filter(java.util.Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         if (maxTotalScore.compareTo(BigDecimal.ZERO) == 0) {
-            maxTotalScore = BigDecimal.valueOf(100);
+            maxTotalScore = BigDecimal.valueOf(10);
         }
 
         boolean isDone = "COMPLETED".equalsIgnoreCase(submission.getStatus())
@@ -115,6 +115,14 @@ public class TeacherScoringService {
                 .effectiveScore(effectiveScore)
                 .maxTotalScore(maxTotalScore)
                 .criteria(criteriaDtos)
+                .instructorFeedback(submission.getInstructorFeedback())
+                .originalFilename(submission.getOriginalFilename())
+                .submissionType(submission.getSubmissionType())
+                .archiveHash(submission.getArchiveHash())
+                .executionStatus(submission.getExecutionStatus())
+                .compileOutput(submission.getCompileOutput())
+                .stdout(submission.getStdout())
+                .stderr(submission.getStderr())
                 .build();
     }
 
@@ -138,13 +146,13 @@ public class TeacherScoringService {
                 .filter(rs -> rs.getCriteria() != null)
                 .collect(Collectors.toMap(rs -> rs.getCriteria().getId(), RuleScore::getScore, (a, b) -> a));
 
-        ruleScoreRepository.deleteBySubmission_Id(submissionId);
-
-        BigDecimal totalScore = BigDecimal.ZERO;
+        BigDecimal totalScore = submission.getTotalScore() != null ? submission.getTotalScore() : BigDecimal.ZERO;
         BigDecimal maxScale = BigDecimal.ZERO;
         Map<String, BigDecimal> postCriteriaMap = new java.util.HashMap<>();
 
         if (payload.getCriteriaScores() != null) {
+            ruleScoreRepository.deleteBySubmission_Id(submissionId);
+            totalScore = BigDecimal.ZERO;
             for (SaveScoringPayload.CriteriaScoreRequest csRequest : payload.getCriteriaScores()) {
                 ScoringCriteria criteria = scoringCriteriaRepository.findById(csRequest.getCriterionId())
                         .orElseThrow(() -> new ResourceNotFoundException("Scoring criteria not found: " + csRequest.getCriterionId()));
@@ -179,7 +187,7 @@ public class TeacherScoringService {
             }
         }
         if (maxScale.compareTo(BigDecimal.ZERO) == 0) {
-            maxScale = BigDecimal.valueOf(100);
+            maxScale = BigDecimal.valueOf(10);
         }
 
         if (payload.getOverrideTotalScore() != null) {
@@ -219,9 +227,12 @@ public class TeacherScoringService {
 
         submission.setTotalScore(totalScore);
         submission.setOverrideScore(postOverrideScore);
+        if (payload.getInstructorEvaluationComments() != null) {
+            submission.setInstructorFeedback(payload.getInstructorEvaluationComments());
+        }
         submission.setEvaluatedAt(LocalDateTime.now());
         
-        if (submission.getStatus() == null || submission.getStatus().equals("PENDING")) {
+        if (submission.getStatus() == null || submission.getStatus().equals("PENDING") || submission.getStatus().equals("PROCESSING")) {
             submission.setStatus("GRADED");
         }
 

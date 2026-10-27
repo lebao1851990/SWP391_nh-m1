@@ -44,14 +44,14 @@ RUN chown appuser:appgroup app.jar
 USER appuser
 
 # Expose the port the Spring Boot app listens on (matches server.port in YML)
-EXPOSE 8080
+EXPOSE 8081
 
 # Activate the docker profile so application-docker.yml overrides are applied
 ENV SPRING_PROFILES_ACTIVE=docker
 
 # Health check: uses the /api/health endpoint (HealthController exists in project)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD wget -qO- http://localhost:8080/api/health || exit 1
+    CMD wget -qO- http://localhost:8081/api/health || exit 1
 
 # Run the application
 ENTRYPOINT ["java", "-jar", "app.jar"]

@@ -71,8 +71,12 @@ public class AuthService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new IllegalStateException("User not found after successful authentication"));
 
+        // Register in SessionTokenRegistry for header-based tab isolation
+        com.codeassess.security.SessionTokenRegistry.registerSession(session);
+
         return LoginResponse.builder()
                 .user(authMapper.toUserSessionDto(user))
+                .token(session.getId())
                 .build();
     }
 

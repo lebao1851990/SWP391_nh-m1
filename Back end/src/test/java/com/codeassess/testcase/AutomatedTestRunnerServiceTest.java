@@ -126,7 +126,7 @@ class AutomatedTestRunnerServiceTest {
     }
 
     @Test
-    @DisplayName("When all test cases pass with different weights, calculates 100.00 score and SUCCESS status")
+    @DisplayName("When all test cases pass with different weights, calculates 10.00 score and SUCCESS status")
     void testAllTestCasesPass() {
         TestCase tc1 = new TestCase();
         tc1.setId("tc-1");
@@ -181,14 +181,14 @@ class AutomatedTestRunnerServiceTest {
         runnerService.runAndGrade(submission);
 
         assertEquals("SUCCESS", submission.getExecutionStatus());
-        assertEquals(new BigDecimal("100.00"), submission.getAutoScore());
-        assertEquals(new BigDecimal("100.00"), submission.getTotalScore());
+        assertEquals(new BigDecimal("10.00"), submission.getAutoScore());
+        assertEquals(new BigDecimal("10.00"), submission.getTotalScore());
         assertEquals(2, submission.getTestCasesPassed());
         assertEquals(2, submission.getTestCasesTotal());
     }
 
     @Test
-    @DisplayName("Partial pass calculates proportional weighted auto_score and PARTIAL_SUCCESS status")
+    @DisplayName("Partial pass calculates proportional weighted auto_score on 10-point scale and PARTIAL_SUCCESS status")
     void testPartialPassWeightCalculation() {
         TestCase tc1 = new TestCase();
         tc1.setId("tc-1");
@@ -239,8 +239,8 @@ class AutomatedTestRunnerServiceTest {
         runnerService.runAndGrade(submission);
 
         assertEquals("PARTIAL_SUCCESS", submission.getExecutionStatus());
-        // 20 out of 100 points -> 20.00%
-        assertEquals(new BigDecimal("20.00"), submission.getAutoScore());
+        // 20 out of 100 points -> 2.00 on 10-point scale
+        assertEquals(new BigDecimal("2.00"), submission.getAutoScore());
         assertEquals(1, submission.getTestCasesPassed());
         assertEquals(2, submission.getTestCasesTotal());
     }

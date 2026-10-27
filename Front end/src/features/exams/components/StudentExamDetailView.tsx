@@ -1,31 +1,36 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStudentExam, useSubmitExam, useSubmitExamZip } from '../hooks/use-student-exams';
 import { SubmissionResultResponse } from '../api/student-exams.api';
 import { AxiosError } from 'axios';
 import { AppLink as Link } from '@/components/ui/app-link';
-import { 
-  ArrowLeft, 
-  Code2, 
-  Send, 
-  AlertCircle, 
-  Clock, 
-  BookOpen, 
-  Lock, 
-  FileCheck, 
-  CheckCircle2, 
-  Loader2, 
+import { useTranslation } from '@/i18n';
+import {
+  ArrowLeft,
+  Code2,
+  Send,
+  AlertCircle,
+  Clock,
+  BookOpen,
+  Lock,
+  FileCheck,
+  CheckCircle2,
+  Loader2,
   ShieldAlert,
+  AlertTriangle,
+  Timer,
   UploadCloud,
   FileArchive,
   Trash2,
   Terminal,
-  Cpu,
   Copy,
   Check,
-  ExternalLink
+  ExternalLink,
+  X,
+  Cpu,
+  FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -35,6 +40,7 @@ interface StudentExamDetailViewProps {
 
 export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
   const router = useRouter();
+  const { t } = useTranslation();
   const { data: exam, isLoading, isError, error } = useStudentExam(examId);
   const submitExam = useSubmitExam();
   const submitExamZip = useSubmitExamZip();
@@ -48,70 +54,79 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [submissionResult, setSubmissionResult] = useState<SubmissionResultResponse | null>(null);
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
+  const [submissionPhase, setSubmissionPhase] = useState<'idle' | 'uploading' | 'processing' | 'completed' | 'failed'>('idle');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col h-72 items-center justify-center gap-3">
-        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-        <p className="text-on-surface-variant font-label-md text-xs">Đang tải thông số bài thi...</p>
-      </div>
-    );
-  }
+  // Real-time server-synchronized countdown timer
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
+  const [isUpcoming, setIsUpcoming] = useState(false);
 
-  if (isError) {
-    const status = (error as AxiosError)?.response?.status;
-    if (status === 403) {
-      return (
-        <div className="max-w-xl mx-auto my-12 p-8 rounded-2xl bg-surface-container-lowest border border-outline-variant/40 shadow-lg text-center flex flex-col items-center gap-3">
-          <div className="p-3 rounded-full bg-rose-50 text-rose-600">
-            <Lock className="w-8 h-8" />
-          </div>
-          <h2 className="font-headline-md text-headline-md text-on-surface">Truy cập bị giới hạn</h2>
-          <p className="font-body-md text-on-surface-variant text-xs">Bạn chưa được ghi danh vào lớp học được phân công bài thi này.</p>
-          <Link href="/student/exams" className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium">
-            Quay lại danh sách bài thi
-          </Link>
-        </div>
-      );
+  useEffect(() => {
+    if (!exam) return;
+
+    // Calculate server offset: serverTimestamp - localTimestamp
+    // Client clock adjustment will NOT alter real deadline calculation!
+    const serverTimestamp = exam.serverTime ? new Date(exam.serverTime).getTime() : Date.now();
+    const clientOffset = serverTimestamp - Date.now();
+    const startTimestamp = exam.startTime ? new Date(exam.startTime).getTime() : 0;
+    const endTimestamp = exam.endTime ? new Date(exam.endTime).getTime() : 0;
+
+    const updateTimer = () => {
+      const currentServerTime = Date.now() + clientOffset;
+      setIsUpcoming(Boolean(startTimestamp && currentServerTime < startTimestamp));
+      if (endTimestamp) {
+        const diffSec = Math.max(0, Math.floor((endTimestamp - currentServerTime) / 1000));
+        setRemainingSeconds(diffSec);
+      }
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [exam]);
+
+  // Check if exam is scheduled for future
+  const [secondsUntilStart, setSecondsUntilStart] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!exam?.startTime) return;
+    const serverTimestamp = exam.serverTime ? new Date(exam.serverTime).getTime() : Date.now();
+    const clientOffset = serverTimestamp - Date.now();
+    const startTimestamp = new Date(exam.startTime).getTime();
+
+    const updateStartTimer = () => {
+      const currentServerTime = Date.now() + clientOffset;
+      const diffSec = Math.floor((startTimestamp - currentServerTime) / 1000);
+      setSecondsUntilStart(diffSec);
+    };
+
+    updateStartTimer();
+    const interval = setInterval(updateStartTimer, 1000);
+    return () => clearInterval(interval);
+  }, [exam?.startTime, exam?.serverTime]);
+
+  const isNotStarted = (secondsUntilStart !== null && secondsUntilStart > 0) || exam?.status === 'upcoming';
+  const isExpiredByTimer = remainingSeconds !== null && remainingSeconds <= 0;
+  const isDeadlinePassed = Boolean(exam?.isExpired) || isExpiredByTimer;
+  const isClosed = exam?.status === 'completed' || exam?.status === 'missed' || isDeadlinePassed || isNotStarted;
+  const isLocked = isClosed;
+
+  const is5MinWarning = !isClosed && !isNotStarted && remainingSeconds !== null && remainingSeconds <= 300 && remainingSeconds > 60;
+  const is1MinWarning = !isClosed && !isNotStarted && remainingSeconds !== null && remainingSeconds <= 60 && remainingSeconds > 0;
+
+  const formattedCountdown = useMemo(() => {
+    if (remainingSeconds === null) return '--:--:--';
+    if (remainingSeconds <= 0) return '00:00:00';
+    const hours = Math.floor(remainingSeconds / 3600);
+    const mins = Math.floor((remainingSeconds % 3600) / 60);
+    const secs = remainingSeconds % 60;
+    if (hours > 0) {
+      return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     }
-    if (status === 404) {
-      return (
-        <div className="max-w-xl mx-auto my-12 p-8 rounded-2xl bg-surface-container-lowest border border-outline-variant/40 shadow-lg text-center flex flex-col items-center gap-3">
-          <div className="p-3 rounded-full bg-amber-50 text-amber-600">
-            <AlertCircle className="w-8 h-8" />
-          </div>
-          <h2 className="font-headline-md text-headline-md text-on-surface">Không tìm thấy bài thi</h2>
-          <p className="font-body-md text-on-surface-variant text-xs">Bài thi này không tồn tại hoặc đã được lưu trữ.</p>
-          <Link href="/student/exams" className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium">
-            Quay lại danh sách bài thi
-          </Link>
-        </div>
-      );
-    }
-    return (
-      <div className="max-w-xl mx-auto my-12 p-8 rounded-2xl bg-surface-container-lowest border border-rose-200/60 shadow-lg text-center flex flex-col items-center gap-3">
-        <div className="p-3 rounded-full bg-rose-50 text-rose-600">
-          <AlertCircle className="w-8 h-8" />
-        </div>
-        <h2 className="font-headline-md text-headline-md text-on-surface">Lỗi tải thông tin bài thi</h2>
-        <p className="font-body-md text-on-surface-variant text-xs">{(error as Error).message}</p>
-        <button onClick={() => window.location.reload()} className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium cursor-pointer">
-          Thử lại
-        </button>
-      </div>
-    );
-  }
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  }, [remainingSeconds]);
 
-  if (!exam) return null;
-
-  const nowMs = Date.now();
-  const startMs = exam.startTime ? new Date(exam.startTime).getTime() : 0;
-  const endMs = exam.endTime ? new Date(exam.endTime).getTime() : 0;
-  const isUpcoming = Boolean(startMs && nowMs < startMs);
-  const isDeadlinePassed = Boolean(endMs && nowMs > endMs);
-  const isClosed = exam.status === 'completed' || exam.status === 'missed' || isDeadlinePassed || isUpcoming;
   const lineCount = sourceCode ? sourceCode.split('\n').length : 0;
   const charCount = sourceCode.length;
   const isPending = submitExam.isPending || submitExamZip.isPending;
@@ -200,11 +215,15 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
   const handlePreSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isUpcoming) {
-      setLocalError(`Bài thi chưa bắt đầu. Cổng nộp bài sẽ mở lúc ${new Date(exam.startTime).toLocaleString('vi-VN')}.`);
+      const msg = `Bài thi chưa bắt đầu. Cổng nộp bài sẽ mở lúc ${exam?.startTime ? new Date(exam.startTime).toLocaleString('vi-VN') : ''}.`;
+      setLocalError(msg);
+      toast.error(msg);
       return;
     }
-    if (isDeadlinePassed || exam.status === 'completed' || exam.status === 'missed') {
-      setLocalError(`Thời gian làm bài đã kết thúc (${new Date(exam.endTime).toLocaleString('vi-VN')}). Cổng nộp bài đã đóng.`);
+    if (isDeadlinePassed || exam?.status === 'completed' || exam?.status === 'missed') {
+      const msg = `Thời gian làm bài đã kết thúc (${exam?.endTime ? new Date(exam.endTime).toLocaleString('vi-VN') : ''}). Cổng nộp bài đã đóng.`;
+      setLocalError(msg);
+      toast.error(msg);
       return;
     }
 
@@ -247,7 +266,11 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
             }
           },
           onError: (err: unknown) => {
-            const msg = (err as AxiosError<{message?: string}>)?.response?.data?.message || (err as Error)?.message || 'Nộp bài thất bại.';
+            const axiosErr = err as AxiosError<{ message?: string; error?: string }>;
+            let msg = axiosErr?.response?.data?.message || (err as Error)?.message || t('studentExams.submitError');
+            if (axiosErr?.response?.status === 409 || axiosErr?.response?.data?.error === 'EXAM_TIME_EXPIRED' || msg === 'EXAM_TIME_EXPIRED') {
+              msg = t('errors.EXAM_TIME_EXPIRED') || 'Thời gian nộp bài đã kết thúc.';
+            }
             setLocalError(msg);
             toast.error(msg);
           }
@@ -255,24 +278,32 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
       );
     } else {
       if (!selectedZip) return;
+      setSubmissionPhase('uploading');
       submitExamZip.mutate(
-        { 
-          examId, 
+        {
+          examId,
           file: selectedZip,
           onUploadProgress: (pct) => setUploadProgress(pct)
         },
         {
           onSuccess: (data: SubmissionResultResponse) => {
-            toast.success(`Nộp tệp ${data.originalFilename || selectedZip.name} thành công! Đã chạy kiểm thử Sandbox.`);
+            setSubmissionPhase('processing');
+            toast.success(`Nộp tệp ${data.originalFilename || selectedZip.name} thành công! Đã chuyển vào Sandbox kiểm thử.`);
             setSubmissionResult(data);
-            if (data?.id) {
-              setTimeout(() => {
+            setTimeout(() => {
+              setSubmissionPhase('completed');
+              if (data?.id) {
                 router.push(`/student/submissions/${data.id}`);
-              }, 1500);
-            }
+              }
+            }, 1000);
           },
           onError: (err: unknown) => {
-            const msg = (err as AxiosError<{message?: string}>)?.response?.data?.message || (err as Error)?.message || 'Nộp tệp ZIP thất bại.';
+            setSubmissionPhase('failed');
+            const axiosErr = err as AxiosError<{ message?: string; error?: string }>;
+            let msg = axiosErr?.response?.data?.message || (err as Error)?.message || 'Nộp tệp ZIP thất bại.';
+            if (axiosErr?.response?.status === 409 || axiosErr?.response?.data?.error === 'EXAM_TIME_EXPIRED' || msg === 'EXAM_TIME_EXPIRED') {
+              msg = t('errors.EXAM_TIME_EXPIRED') || 'Thời gian nộp bài đã kết thúc.';
+            }
             setLocalError(msg);
             toast.error(msg);
           }
@@ -287,6 +318,61 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
     setTimeout(() => setCopiedSection(null), 2000);
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-72 items-center justify-center gap-3">
+        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        <p className="text-on-surface-variant font-label-md text-xs">{t('common.loading')}</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    const status = (error as AxiosError)?.response?.status;
+    if (status === 403) {
+      return (
+        <div className="max-w-xl mx-auto my-12 p-8 rounded-2xl bg-surface-container-lowest border border-outline-variant/40 shadow-lg text-center flex flex-col items-center gap-3">
+          <div className="p-3 rounded-full bg-rose-50 text-rose-600">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h2 className="font-headline-md text-headline-md text-on-surface">{t('studentExams.accessDenied')}</h2>
+          <p className="font-body-md text-on-surface-variant text-xs">{t('studentExams.accessDenied')}</p>
+          <Link href="/student/exams" className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium">
+            {t('common.back')}
+          </Link>
+        </div>
+      );
+    }
+    if (status === 404) {
+      return (
+        <div className="max-w-xl mx-auto my-12 p-8 rounded-2xl bg-surface-container-lowest border border-outline-variant/40 shadow-lg text-center flex flex-col items-center gap-3">
+          <div className="p-3 rounded-full bg-amber-50 text-amber-600">
+            <AlertCircle className="w-8 h-8" />
+          </div>
+          <h2 className="font-headline-md text-headline-md text-on-surface">{t('studentExams.examNotFound')}</h2>
+          <p className="font-body-md text-on-surface-variant text-xs">{t('studentExams.examNotFound')}</p>
+          <Link href="/student/exams" className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium">
+            {t('common.back')}
+          </Link>
+        </div>
+      );
+    }
+    return (
+      <div className="max-w-xl mx-auto my-12 p-8 rounded-2xl bg-surface-container-lowest border border-rose-200/60 shadow-lg text-center flex flex-col items-center gap-3">
+        <div className="p-3 rounded-full bg-rose-50 text-rose-600">
+          <AlertCircle className="w-8 h-8" />
+        </div>
+        <h2 className="font-headline-md text-headline-md text-on-surface">{t('common.error')}</h2>
+        <p className="font-body-md text-on-surface-variant text-xs">{(error as Error).message}</p>
+        <button onClick={() => window.location.reload()} className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium cursor-pointer">
+          {t('common.refresh')}
+        </button>
+      </div>
+    );
+  }
+
+  if (!exam) return null;
+
   return (
     <div className="max-w-7xl mx-auto px-space-lg py-space-lg">
       <div className="flex flex-col w-full space-y-space-lg">
@@ -296,20 +382,20 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
             <nav className="flex items-center gap-2 text-on-surface-variant text-xs">
               <Link className="hover:text-primary transition-colors flex items-center gap-1 font-medium" href="/student/exams">
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Danh sách bài thi</span>
+                <span>{t('nav.myExams')}</span>
               </Link>
               <span className="text-outline-variant">/</span>
               <span className="text-primary font-semibold truncate max-w-[200px]">{exam.title}</span>
             </nav>
-            
+
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight">{exam.title}</h1>
               <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                 !isClosed && exam.status === 'active'
-                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                   : isUpcoming
                   ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                  : 'bg-surface-container text-on-surface-variant'
+                  : 'bg-rose-50 text-rose-700 border border-rose-200'
               }`}>
                 {!isClosed && exam.status === 'active' && (
                   <span className="relative flex h-2 w-2">
@@ -317,24 +403,77 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                   </span>
                 )}
-                <span>{isUpcoming ? 'SẮP DIỄN RA' : isDeadlinePassed ? 'ĐÃ ĐÓNG' : exam.status === 'active' ? 'ĐANG MỞ' : exam.status === 'completed' ? 'ĐÃ HOÀN THÀNH' : exam.status.toUpperCase()}</span>
+                <span>
+                  {isUpcoming
+                    ? 'SẮP DIỄN RA'
+                    : isDeadlinePassed
+                    ? (t('common.archived') || 'ĐÃ ĐÓNG')
+                    : exam.status === 'active'
+                    ? (t('common.active') || 'ĐANG MỞ')
+                    : exam.status.toUpperCase()}
+                </span>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-on-surface-variant">
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container font-mono font-medium text-on-surface border border-outline-variant/30">
                 <BookOpen className="w-3.5 h-3.5 text-primary" />
-                <span>Lớp: {exam.courseClassCode || 'SE-PRACTICAL'}</span>
+                <span>{t('teacherExams.tableClass')}: {exam.courseClassCode || 'SE-PRACTICAL'}</span>
               </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-surface-container-high text-on-surface border border-outline-variant/30">
                 <Clock className="w-3.5 h-3.5 text-outline" />
-                <span>Hạn nộp: {new Date(exam.endTime).toLocaleString('vi-VN')}</span>
+                <span>Hạn chót: {exam.endTime ? new Date(exam.endTime).toLocaleString('vi-VN') : '--'}</span>
                 {isDeadlinePassed && <span className="text-rose-600 font-semibold ml-1">(Đã kết thúc)</span>}
                 {isUpcoming && <span className="text-blue-600 font-semibold ml-1">(Chưa bắt đầu)</span>}
               </span>
             </div>
           </div>
+
+          {/* Real-Time Countdown Timer Widget */}
+          <div className="flex items-center self-start md:self-center">
+            <div className={`px-4 py-2 rounded-xl border flex items-center gap-3 shadow-xs transition-all ${
+              isClosed
+                ? 'bg-rose-50 border-rose-200 text-rose-700'
+                : is1MinWarning
+                ? 'bg-rose-100 border-rose-300 text-rose-800 animate-pulse'
+                : is5MinWarning
+                ? 'bg-amber-50 border-amber-300 text-amber-800'
+                : 'bg-surface-container-lowest border-outline-variant/40 text-on-surface'
+            }`}>
+              <div className={`p-1.5 rounded-lg ${isClosed ? 'bg-rose-100 text-rose-600' : is1MinWarning ? 'bg-rose-200 text-rose-700' : 'bg-primary/10 text-primary'}`}>
+                {isClosed ? <Lock className="w-4 h-4" /> : <Timer className="w-4 h-4" />}
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] uppercase font-mono tracking-wider font-semibold opacity-75">
+                  {t('studentExams.remainingTime') || 'Thời gian còn lại'}
+                </span>
+                <span className="font-mono text-base font-bold tracking-tight">
+                  {isClosed ? '00:00:00' : formattedCountdown}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* 1-Minute Urgent Warning Banner */}
+        {is1MinWarning && (
+          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-900 text-xs flex items-center gap-3 animate-pulse shadow-sm">
+            <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+            <div className="flex-1">
+              <p className="font-bold">{t('studentExams.warning1min') || 'Cảnh báo khẩn cấp: Chỉ còn ít hơn 1 phút trước khi hệ thống khóa cổng nộp bài!'}</p>
+            </div>
+          </div>
+        )}
+
+        {/* 5-Minute Warning Banner */}
+        {is5MinWarning && (
+          <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs flex items-center gap-3 shadow-xs">
+            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+            <div className="flex-1">
+              <p className="font-semibold">{t('studentExams.warning5min') || 'Chú ý: Còn dưới 5 phút. Vui lòng nhanh chóng nộp bài thi để tránh quá hạn.'}</p>
+            </div>
+          </div>
+        )}
 
         {/* Upcoming Exam Alert Banner */}
         {isUpcoming && (
@@ -347,13 +486,26 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
           </div>
         )}
 
-        {/* Closed Exam Alert Banner */}
-        {isDeadlinePassed && (
-          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+        {/* Upcoming Not Started Exam Alert Banner */}
+        {isNotStarted && (
+          <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs flex items-center gap-3 shadow-sm">
+            <Clock className="w-5 h-5 text-blue-600 shrink-0" />
             <div>
-              <p className="font-semibold">Thời gian làm bài đã kết thúc</p>
-              <p className="text-amber-700 mt-0.5">Hạn nộp bài thi này đã qua ({new Date(exam.endTime).toLocaleString('vi-VN')}). Hệ thống đã đóng cổng nhận bài.</p>
+              <p className="font-bold text-sm">Bài thi chưa đến giờ bắt đầu</p>
+              <p className="text-blue-700 mt-0.5">
+                Thời gian mở thi: {exam.startTime ? new Date(exam.startTime).toLocaleString('vi-VN') : 'Sắp diễn ra'}. Hệ thống chưa mở nộp bài.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Closed/Expired Exam Alert Banner */}
+        {isLocked && !isNotStarted && (
+          <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-3 shadow-sm">
+            <Lock className="w-5 h-5 text-rose-600 shrink-0" />
+            <div>
+              <p className="font-bold text-sm">{t('studentExams.timeExpiredTitle') || 'Thời gian làm bài đã kết thúc'}</p>
+              <p className="text-rose-700 mt-0.5">{t('studentExams.timeExpiredDesc') || 'Hạn nộp bài thi này đã qua. Hệ thống đã đóng cổng nhận bài.'}</p>
             </div>
           </div>
         )}
@@ -377,10 +529,151 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
           </div>
         )}
 
+        {/* Active Submission Pipeline Status Card */}
+        {submissionPhase !== 'idle' && (
+          <div className="p-4 rounded-2xl bg-surface-container-lowest border border-primary/30 shadow-md">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                {submissionPhase === 'completed' ? (
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                ) : submissionPhase === 'failed' ? (
+                  <AlertCircle className="w-5 h-5 text-rose-600" />
+                ) : (
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                )}
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-on-surface">Tiến trình nộp bài &amp; Chấm tự động</h4>
+                <p className="text-[11px] text-outline">
+                  {submissionPhase === 'uploading' && 'Đang tải tệp ZIP lên máy chủ an toàn...'}
+                  {submissionPhase === 'processing' && 'Đã nhận bài! Đang chuyển bài nộp vào Docker Sandbox để chạy test case...'}
+                  {submissionPhase === 'completed' && 'Hoàn tất! Đang chuyển bạn đến trang chi tiết kết quả...'}
+                  {submissionPhase === 'failed' && 'Xử lý nộp bài không thành công. Vui lòng kiểm tra lại.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Stepper Progress */}
+            <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
+              <div className={`p-2 rounded-lg border ${
+                submissionPhase === 'uploading'
+                  ? 'bg-primary/10 border-primary text-primary font-bold'
+                  : 'bg-surface-container border-outline-variant/30 text-on-surface-variant'
+              }`}>
+                1. Tải lên ZIP
+              </div>
+              <div className={`p-2 rounded-lg border ${
+                submissionPhase === 'processing'
+                  ? 'bg-primary/10 border-primary text-primary font-bold animate-pulse'
+                  : 'bg-surface-container border-outline-variant/30 text-on-surface-variant'
+              }`}>
+                2. Chấm Sandbox &amp; AST
+              </div>
+              <div className={`p-2 rounded-lg border ${
+                submissionPhase === 'completed'
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-700 font-bold'
+                  : 'bg-surface-container border-outline-variant/30 text-on-surface-variant'
+              }`}>
+                3. Hoàn tất
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* AI-Generated Problem Statement & Rubric Card */}
+        {exam.problemStatement && (
+          <div className="bg-surface-container-lowest p-space-md rounded-2xl border border-outline-variant/40 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-outline-variant/30 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold">Đề bài & Yêu cầu Kỹ thuật</h2>
+                  <p className="text-[11px] text-outline">
+                    {exam.sourceDocumentName ? `Trích xuất từ tài liệu: ${exam.sourceDocumentName}` : 'Đề bài lập trình và barem đánh giá chính thức'}
+                  </p>
+                </div>
+              </div>
+              {exam.programmingLanguage && (
+                <span className="px-2.5 py-1 rounded bg-purple-50 border border-purple-200 text-purple-800 font-mono text-xs font-semibold">
+                  {exam.programmingLanguage}
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-3 text-xs leading-relaxed text-on-surface">
+              <div className="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/40 whitespace-pre-wrap font-sans text-sm">
+                {exam.problemStatement}
+              </div>
+
+              {(exam.inputSpecification || exam.outputSpecification) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {exam.inputSpecification && (
+                    <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30">
+                      <span className="font-bold text-outline block mb-1">Đặc tả đầu vào (Input Spec):</span>
+                      <pre className="font-mono text-xs whitespace-pre-wrap">{exam.inputSpecification}</pre>
+                    </div>
+                  )}
+                  {exam.outputSpecification && (
+                    <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30">
+                      <span className="font-bold text-outline block mb-1">Đặc tả đầu ra (Output Spec):</span>
+                      <pre className="font-mono text-xs whitespace-pre-wrap">{exam.outputSpecification}</pre>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {exam.constraints && (
+                <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30">
+                  <span className="font-bold text-outline block mb-0.5">Giới hạn & Ràng buộc:</span>
+                  <pre className="font-mono text-xs whitespace-pre-wrap">{exam.constraints}</pre>
+                </div>
+              )}
+
+              {(exam.sampleInput || exam.sampleOutput) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {exam.sampleInput && (
+                    <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 font-mono">
+                      <span className="font-bold text-outline block mb-1">Dữ liệu mẫu đầu vào (Sample Input):</span>
+                      <pre className="text-xs whitespace-pre-wrap">{exam.sampleInput}</pre>
+                    </div>
+                  )}
+                  {exam.sampleOutput && (
+                    <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 font-mono">
+                      <span className="font-bold text-outline block mb-1">Dữ liệu mẫu đầu ra (Sample Output):</span>
+                      <pre className="text-xs whitespace-pre-wrap">{exam.sampleOutput}</pre>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {exam.rubricCriteria && exam.rubricCriteria.length > 0 && (
+                <div className="pt-2 border-t border-outline-variant/20 space-y-2">
+                  <span className="font-bold text-on-surface block">Tiêu chí chấm điểm (Rubric Barem):</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {exam.rubricCriteria.map((c: { name: string; description?: string; maxScore: number }, idx: number) => (
+                      <div key={idx} className="p-2.5 rounded-lg bg-surface-container-low border border-outline-variant/30 flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-on-surface">{c.name}</p>
+                          {c.description && <p className="text-[11px] text-outline">{c.description}</p>}
+                        </div>
+                        <span className="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 shrink-0 ml-2">
+                          {c.maxScore} đ
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Submission Workspace Card */}
         <div className="bg-surface-container-lowest p-space-md rounded-2xl border border-outline-variant/40 shadow-xs">
           <form onSubmit={handlePreSubmit} className="flex flex-col gap-4">
-            
+
             {/* Mode Switcher Tabs */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-outline-variant/30 pb-3 gap-3">
               <div className="flex items-center gap-2">
@@ -446,7 +739,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                   <span>UTF-8</span>
                 </div>
 
-                <textarea 
+                <textarea
                   className="w-full h-96 p-4 bg-transparent font-mono text-xs text-slate-100 placeholder:text-slate-600 outline-none resize-y leading-relaxed"
                   placeholder="// Nhập mã nguồn Java của bạn tại đây...&#10;public class Solution {&#10;    public static void main(String[] args) {&#10;        // Viết mã nguồn của bạn tại đây&#10;    }&#10;}"
                   value={sourceCode}
@@ -486,16 +779,26 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                     </div>
                     <div className="pointer-events-auto">
                       <p className="font-semibold text-sm text-on-surface">
-                        Kéo và thả tệp mã nguồn <span className="text-primary font-mono font-bold">.zip</span> vào đây
+                        {isNotStarted
+                          ? 'Bài thi chưa đến giờ mở nộp bài'
+                          : isClosed
+                          ? 'Hệ thống đã khóa nộp bài'
+                          : 'Kéo và thả tệp mã nguồn .zip vào đây'}
                       </p>
                       <p className="text-xs text-on-surface-variant mt-1">
-                        hoặc{' '}
-                        <span 
-                          onClick={handleBrowseClick}
-                          className="text-primary hover:text-primary/80 underline font-medium cursor-pointer transition-colors"
-                        >
-                          bấm để duyệt tệp từ máy tính
-                        </span>
+                        {isNotStarted ? (
+                          `Thời gian mở thi: ${exam?.startTime ? new Date(exam.startTime).toLocaleString('vi-VN') : 'Sắp diễn ra'}`
+                        ) : (
+                          <>
+                            hoặc{' '}
+                            <span
+                              onClick={handleBrowseClick}
+                              className="text-primary hover:text-primary/80 underline font-medium cursor-pointer transition-colors"
+                            >
+                              bấm để duyệt tệp từ máy tính
+                            </span>
+                          </>
+                        )}
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-[11px] text-outline pointer-events-none">
@@ -562,7 +865,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                   <span className="font-mono text-outline">{uploadProgress}%</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-surface-container overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-primary rounded-full transition-all duration-300"
                     style={{ width: `${Math.max(uploadProgress, 5)}%` }}
                   />
@@ -585,21 +888,22 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
               </div>
 
               <div className="flex items-center gap-3 justify-end">
-                <button 
+                <button
                   type="button"
                   className="px-4 py-2 text-xs rounded-lg border border-outline-variant/40 hover:bg-surface-container transition-colors cursor-pointer"
                   onClick={() => router.push('/student/exams')}
                   disabled={isPending}
                 >
-                  Hủy bỏ
+                  {t('common.cancel') || 'Hủy bỏ'}
                 </button>
-                
-                <button 
+
+                <button
                   type="submit"
+                  id="submit-student-exam-btn"
                   className="flex items-center gap-2 px-6 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm"
                   disabled={
-                    isPending || 
-                    isClosed || 
+                    isPending ||
+                    isClosed ||
                     (submissionMode === 'editor' && !sourceCode.trim()) ||
                     (submissionMode === 'zip' && !selectedZip)
                   }
@@ -613,14 +917,16 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                     <>
                       <Send className="w-3.5 h-3.5" />
                       <span>
-                        {isUpcoming 
-                          ? 'Chưa mở nộp bài' 
-                          : isDeadlinePassed 
-                          ? 'Đã quá hạn nộp' 
-                          : submissionMode === 'zip' 
-                          ? 'Nộp tệp ZIP' 
+                        {isUpcoming
+                          ? 'Chưa mở nộp bài'
+                          : isDeadlinePassed
+                          ? 'Đã quá hạn nộp'
+                          : submissionMode === 'zip'
+                          ? 'Nộp tệp ZIP'
                           : 'Nộp bài làm'}
                       </span>
+                      {/* Hidden text helper for Playwright e2e selector backwards compatibility */}
+                      <span className="sr-only">Submit Code Artifact</span>
                     </>
                   )}
                 </button>
@@ -638,7 +944,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                   <FileCheck className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="font-headline-sm text-headline-sm font-semibold">Xác nhận nộp bài chính thức</h3>
+                  <h3 className="font-headline-sm text-headline-sm font-semibold">{t('studentExams.confirmModalTitle') || 'Xác nhận nộp bài chính thức'}</h3>
                   <p className="text-xs text-on-surface-variant">Bạn đã kiểm tra kỹ mã nguồn trước khi chấm điểm?</p>
                 </div>
               </div>
@@ -679,6 +985,10 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                   <span>Môi trường biên dịch:</span>
                   <span className="font-mono font-semibold text-on-surface">Java 17 (OpenJDK Temurin)</span>
                 </div>
+                <div className="flex justify-between">
+                  <span>Pipeline tiếp theo:</span>
+                  <span className="font-semibold text-emerald-700">Docker Sandbox &amp; AST Plagiarism</span>
+                </div>
               </div>
 
               <p className="text-xs text-outline leading-relaxed">
@@ -691,16 +1001,19 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                   onClick={() => setShowConfirmModal(false)}
                   className="px-4 py-2 text-xs rounded-lg border border-outline-variant/40 hover:bg-surface-container transition-colors cursor-pointer"
                 >
-                  Kiểm tra lại
+                  {t('common.cancel') || 'Kiểm tra lại'}
                 </button>
                 <button
                   type="button"
+                  id="confirm-student-exam-btn"
                   onClick={handleFinalSubmit}
                   disabled={isPending}
                   className="px-5 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors cursor-pointer shadow-sm flex items-center gap-2"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>Xác nhận và gửi chấm điểm</span>
+                  {/* Hidden text helper for Playwright e2e selector backwards compatibility */}
+                  <span className="sr-only">Confirm &amp; Grade</span>
                 </button>
               </div>
             </div>

@@ -16,6 +16,8 @@ import java.time.format.DateTimeParseException;
 @JsonComponent
 public class FlexibleLocalDateTimeDeserializer extends JsonDeserializer<LocalDateTime> {
 
+    private static final ZoneId APP_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+
     @Override
     public LocalDateTime deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
         String text = p.getText();
@@ -26,12 +28,12 @@ public class FlexibleLocalDateTimeDeserializer extends JsonDeserializer<LocalDat
 
         // 1. Try ISO Instant with UTC / Z or offset (e.g. 2026-10-18T16:04:00.000Z)
         try {
-            return Instant.parse(text).atZone(ZoneId.systemDefault()).toLocalDateTime();
+            return Instant.parse(text).atZone(APP_ZONE).toLocalDateTime();
         } catch (DateTimeParseException ignored) {}
 
         // 2. Try OffsetDateTime (e.g. 2026-10-18T16:04:00+07:00)
         try {
-            return OffsetDateTime.parse(text).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+            return OffsetDateTime.parse(text).atZoneSameInstant(APP_ZONE).toLocalDateTime();
         } catch (DateTimeParseException ignored) {}
 
         // 3. Try standard ISO_LOCAL_DATE_TIME (e.g. 2026-10-18T16:04:00 or 2026-10-18T16:04)

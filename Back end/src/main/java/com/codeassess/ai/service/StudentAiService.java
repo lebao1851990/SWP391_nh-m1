@@ -101,68 +101,26 @@ public class StudentAiService {
                         "No compiler error output was provided or detected to explain.");
             }
 
-            String systemPrompt = """
-                    You are CodeAssess Learning Assistant, a friendly and pedagogical programming tutor.
-                    Your goal is to explain compilation or build errors to students in clear, conceptual language.
-                    
-                    Guidelines:
-                    - Explain what the error message means in plain, student-friendly terms.
-                    - Identify the probable typographical, syntax, or type mistake in the student's code.
-                    - Provide incremental guidance on how the student can fix it themselves.
-                    - DO NOT rewrite the student's full solution or provide completed replacement code.
-                    - Maintain an encouraging and constructive instructional tone.
-                    - Explicitly state that your advice is advisory and for learning purposes.
-                    """;
+            String systemPrompt = com.codeassess.ai.prompt.AiPromptTemplates.STUDENT_COMPILER_ERROR_SYSTEM;
 
             String userPrompt = "Student Source Code:\n```java\n" + sourceCode + "\n```\n\n"
                     + "Compiler / Build Output:\n```\n" + compilerOutput + "\n```\n\n"
                     + "Please explain this compiler error conceptually and guide the student on how to resolve it.";
 
-            String explanation;
-            try {
-                explanation = aiClient.generateStudentFeedback(systemPrompt, userPrompt);
-            } catch (com.codeassess.ai.exception.AiIntegrationException ex) {
-                log.warn("AI service unavailable for compiler error feedback: {}", ex.getMessage());
-                explanation = "[THÔNG BÁO] Dịch vụ AI tạm thời không khả dụng: " + ex.getMessage();
-            }
+            String explanation = aiClient.generateStudentFeedback(systemPrompt, userPrompt);
             return new StudentAiResponse(StudentAiMode.COMPILER_ERROR, explanation);
 
         } else if (mode == StudentAiMode.CODE_EXPLANATION) {
-            String systemPrompt = """
-                    You are CodeAssess Learning Assistant, an educational programming tutor.
-                    Your goal is to explain what the student's submitted code does step-by-step.
-                    
-                    Guidelines:
-                    - Break down the structure, methods, logic flow, and key algorithms in an educational tone.
-                    - Highlight good programming practices used and areas where clarity could be improved.
-                    - Discuss time and space complexity conceptually if applicable.
-                    - DO NOT rewrite the code or provide a new solution.
-                    - This explanation is strictly educational and advisory.
-                    """;
+            String systemPrompt = com.codeassess.ai.prompt.AiPromptTemplates.STUDENT_CODE_EXPLANATION_SYSTEM;
 
             String userPrompt = "Student Source Code:\n```java\n" + sourceCode + "\n```\n\n"
                     + "Please explain the structure, execution flow, and behavior of this code.";
 
-            String explanation;
-            try {
-                explanation = aiClient.generateStudentFeedback(systemPrompt, userPrompt);
-            } catch (com.codeassess.ai.exception.AiIntegrationException ex) {
-                log.warn("AI service unavailable for code explanation: {}", ex.getMessage());
-                explanation = "[THÔNG BÁO] Dịch vụ AI tạm thời không khả dụng: " + ex.getMessage();
-            }
+            String explanation = aiClient.generateStudentFeedback(systemPrompt, userPrompt);
             return new StudentAiResponse(StudentAiMode.CODE_EXPLANATION, explanation);
 
         } else if (mode == StudentAiMode.DEBUG_HINTS) {
-            String systemPrompt = """
-                    You are CodeAssess Learning Assistant, an interactive Socratic debugging coach.
-                    Your goal is to give incremental debugging hints to help the student find and fix bugs on their own.
-                    
-                    Guidelines:
-                    - Give 2-3 progressive, targeted clues or guiding questions (e.g., edge cases, boundary conditions, null checks, loop conditions).
-                    - DO NOT give away the complete bug fix or write out the corrected code.
-                    - Encourage critical thinking and diagnostic reasoning.
-                    - Remind the student that debugging guidance is advisory.
-                    """;
+            String systemPrompt = com.codeassess.ai.prompt.AiPromptTemplates.STUDENT_DEBUG_HINTS_SYSTEM;
 
             StringBuilder userPrompt = new StringBuilder();
             userPrompt.append("Student Source Code:\n```java\n").append(sourceCode).append("\n```\n\n");
@@ -171,13 +129,7 @@ public class StudentAiService {
             }
             userPrompt.append("Please provide 2-3 incremental debugging clues without giving away the complete solution.");
 
-            String explanation;
-            try {
-                explanation = aiClient.generateStudentFeedback(systemPrompt, userPrompt.toString());
-            } catch (com.codeassess.ai.exception.AiIntegrationException ex) {
-                log.warn("AI service unavailable for debug hints: {}", ex.getMessage());
-                explanation = "[THÔNG BÁO] Dịch vụ AI tạm thời không khả dụng: " + ex.getMessage();
-            }
+            String explanation = aiClient.generateStudentFeedback(systemPrompt, userPrompt.toString());
             return new StudentAiResponse(StudentAiMode.DEBUG_HINTS, explanation);
         }
 
