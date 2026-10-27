@@ -14,14 +14,47 @@ Write-Host "==========================================================" -Foregro
 Write-Host " STARTING E2E VERIFICATION FOR TC01 - TC08 (BRANCH vinh)" -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 
-# 0. Setup: Reset exam to Draft status in DB
-docker exec codeassess-mysql mysql -uroot -p123456 plagiarism_system -e "UPDATE exams SET status = 'draft', exam_date = '2026-10-27 15:28:00', duration = 90 WHERE id = '$examId';"
-Write-Host "Reset exam $examId to 'draft' in MySQL." -ForegroundColor Gray
+# ----------------------------------------------------
+# 1. Environment Variable Validation & Credential Guard
+# ----------------------------------------------------
+$missingVars = @()
+if ([string]::IsNullOrWhiteSpace($env:TEST_TEACHER_EMAIL))    { $missingVars += "TEST_TEACHER_EMAIL" }
+if ([string]::IsNullOrWhiteSpace($env:TEST_TEACHER_PASSWORD)) { $missingVars += "TEST_TEACHER_PASSWORD" }
+if ([string]::IsNullOrWhiteSpace($env:TEST_STUDENT_EMAIL))    { $missingVars += "TEST_STUDENT_EMAIL" }
+if ([string]::IsNullOrWhiteSpace($env:TEST_STUDENT_PASSWORD)) { $missingVars += "TEST_STUDENT_PASSWORD" }
+if ([string]::IsNullOrWhiteSpace($env:TEST_OTHER_STUDENT_EMAIL))    { $missingVars += "TEST_OTHER_STUDENT_EMAIL" }
+if ([string]::IsNullOrWhiteSpace($env:TEST_OTHER_STUDENT_PASSWORD)) { $missingVars += "TEST_OTHER_STUDENT_PASSWORD" }
 
-# Login Accounts
-$teacherCreds = @{ email = "quangvinh1142055@gmail.com"; password = "Password1234!" }
-$studentCreds = @{ email = "student.test@codeassess.edu"; password = "Password1234!" }
-$otherStudentCreds = @{ email = "student2.test@codeassess.edu"; password = "Password1234!" }
+if ($missingVars.Count -gt 0) {
+    Write-Host "`n[SKIP] Kịch bản E2E kiểm thử AI Exam Visibility bị bỏ qua." -ForegroundColor Yellow
+    Write-Host "Lý do: Thiếu các biến môi trường xác thực bắt buộc:" -ForegroundColor Yellow
+    foreach ($v in $missingVars) {
+        Write-Host "  - $v" -ForegroundColor Yellow
+    }
+    Write-Host "Hướng dẫn: Vui lòng thiết lập đầy đủ các biến môi trường trên trước khi thực thi kịch bản." -ForegroundColor Gray
+    Write-Host "Không có kiểm thử nào được ghi nhận PASS khi thiếu cấu hình." -ForegroundColor Gray
+    Write-Host "==========================================================" -ForegroundColor Cyan
+    exit 0
+}
+
+# ----------------------------------------------------
+# 2. Database Pre-check Guard (Optional DB operations)
+# ----------------------------------------------------
+$dbUser = if ($env:DB_USER) { $env:DB_USER } else { "root" }
+$dbName = if ($env:DB_NAME) { $env:DB_NAME } else { "codeassess" }
+
+if ($env:DB_PASSWORD) {
+    # Truyền mật khẩu qua biến môi trường container MYSQL_PWD để tránh lộ mật khẩu trong tham số dòng lệnh (-p)
+    docker exec -e MYSQL_PWD=$env:DB_PASSWORD codeassess-mysql mysql -u$dbUser $dbName -e "UPDATE exams SET status = 'draft', exam_date = '2026-10-27 15:28:00', duration = 90 WHERE id = '$examId';"
+    Write-Host "Reset exam $examId to 'draft' in MySQL." -ForegroundColor Gray
+} else {
+    Write-Host "[INFO] Bỏ qua thao tác reset trạng thái MySQL trực tiếp (DB_PASSWORD chưa được thiết lập)." -ForegroundColor Gray
+}
+
+# Login Accounts (Retrieved strictly from validated environment variables, zero hardcoded passwords)
+$teacherCreds = @{ email = $env:TEST_TEACHER_EMAIL; password = $env:TEST_TEACHER_PASSWORD }
+$studentCreds = @{ email = $env:TEST_STUDENT_EMAIL; password = $env:TEST_STUDENT_PASSWORD }
+$otherStudentCreds = @{ email = $env:TEST_OTHER_STUDENT_EMAIL; password = $env:TEST_OTHER_STUDENT_PASSWORD }
 
 $teacherLogin = Send-Utf8Json -Uri "$baseUrl/auth/login" -Method Post -Headers @{} -Obj $teacherCreds
 $studentLogin = Send-Utf8Json -Uri "$baseUrl/auth/login" -Method Post -Headers @{} -Obj $studentCreds
@@ -169,8 +202,12 @@ foreach ($r in $detailRes.rubricCriteria) {
     $rubricTotal += [double]$r.maxScore
 }
 
-$dbTc = docker exec codeassess-mysql mysql -uroot -p123456 plagiarism_system -e "SELECT name, points, is_hidden FROM test_cases WHERE exam_id = '$examId';"
-Write-Host "Test cases in DB:`n$dbTc"
+if ($env:DB_PASSWORD) {
+    $dbTc = docker exec -e MYSQL_PWD=$env:DB_PASSWORD codeassess-mysql mysql -u$dbUser $dbName -e "SELECT name, points, is_hidden FROM test_cases WHERE exam_id = '$examId';"
+    Write-Host "Test cases in DB:`n$dbTc"
+} else {
+    Write-Host "[INFO] Bỏ qua truy vấn đối soát test_cases trong MySQL (DB_PASSWORD chưa được thiết lập)." -ForegroundColor Gray
+}
 
 if ($hasProblem -and $rubricCount -eq 3 -and $rubricTotal -eq 10.0) {
     Write-Host "[TC06 PASS] Full problem statement preserved with 3 rubric criteria totaling 10.00 points!" -ForegroundColor Green
