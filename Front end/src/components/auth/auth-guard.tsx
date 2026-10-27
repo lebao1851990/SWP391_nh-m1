@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useSessionStore, UserRole, UserSession } from '@/stores/session.store';
 import { authApi } from '@/features/auth/api/auth.api';
-import { AlertTriangle, ArrowRight, LogIn, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, ArrowRight, LogIn } from 'lucide-react';
 
 interface AuthGuardProps {
   allowedRoles: UserRole[];
@@ -68,6 +68,7 @@ export function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
 
   useEffect(() => {
     // 1. Initial verification on mount
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Asynchronous session verification via HttpOnly cookie; state updates occur after network response, not synchronously.
     verifyActiveSession();
 
     // 2. Multi-tab awareness: Re-verify when tab regains focus or visibility
