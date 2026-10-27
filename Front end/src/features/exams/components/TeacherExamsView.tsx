@@ -19,9 +19,13 @@ import {
   Loader2,
   Users,
   FolderPlus,
-  Trash2
+  Trash2,
+  Sparkles,
+  Send
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { AiExamGeneratorModal } from './AiExamGeneratorModal';
+import { usePublishExam } from '../hooks/use-teacher-exams';
 
 export function TeacherExamsView() {
   const { t } = useTranslation();
@@ -30,6 +34,7 @@ export function TeacherExamsView() {
   const createExam = useCreateExam();
   const createTeacherClass = useCreateTeacherClass();
   const deleteExamMutation = useDeleteExam();
+  const publishMutation = usePublishExam();
 
   const [examToDelete, setExamToDelete] = useState<ExamResponse | null>(null);
   const [deleteError, setDeleteError] = useState('');
@@ -43,6 +48,7 @@ export function TeacherExamsView() {
   const [classFilter, setClassFilter] = useState('all');
 
   // Modal State
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(() => {
     if (typeof window !== 'undefined') {
       return new URLSearchParams(window.location.search).get('action') === 'create';
@@ -205,6 +211,18 @@ export function TeacherExamsView() {
     );
   };
 
+  const handlePublish = (id: string, title: string) => {
+    publishMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success(`Đã phát hành bài thi "${title}" thành công! Sinh viên thuộc lớp đã có thể xem và làm bài.`);
+      },
+      onError: (err: unknown) => {
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Không thể phát hành bài thi.';
+        toast.error(msg);
+      },
+    });
+  };
+
   const handleOpenDeleteModal = (exam: ExamResponse) => {
     setExamToDelete(exam);
     setDeleteError('');
@@ -278,14 +296,24 @@ export function TeacherExamsView() {
               Tạo, cấu hình và giám sát các bài thi lập trình và phiên quét đạo văn cây AST của bạn.
             </p>
           </div>
-          <button
-            onClick={handleOpenCreateModal}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-lg font-label-md text-xs hover:bg-primary/90 transition-colors shadow-sm self-start md:self-auto cursor-pointer font-medium"
-            id="btn-create-exam"
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>+ Tạo bài thi mới</span>
-          </button>
+          <div className="flex items-center gap-2 self-start md:self-auto">
+            <button
+              onClick={() => setIsAiModalOpen(true)}
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-purple-600 text-white rounded-lg font-label-md text-xs hover:bg-purple-700 transition-colors shadow-sm cursor-pointer font-medium"
+              id="btn-ai-generate-exam"
+            >
+              <Sparkles className="w-4 h-4 animate-pulse" />
+              <span>Sinh đề bằng AI</span>
+            </button>
+            <button
+              onClick={handleOpenCreateModal}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-lg font-label-md text-xs hover:bg-primary/90 transition-colors shadow-sm cursor-pointer font-medium"
+              id="btn-create-exam"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>+ Tạo thủ công</span>
+            </button>
+          </div>
         </div>
 
         {/* Filter & Search Bar */}
@@ -390,6 +418,19 @@ export function TeacherExamsView() {
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {exam.status === 'draft' && (
+                            <button
+                              type="button"
+                              onClick={() => handlePublish(exam.id, exam.title)}
+                              disabled={publishMutation.isPending}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-medium transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                              title="Phát hành bài thi cho sinh viên làm bài"
+                              id={`btn-publish-${exam.id}`}
+                            >
+                              <Send className="w-3 h-3" />
+                              <span>Phát hành</span>
+                            </button>
+                          )}
                           <Link 
                             href={`/teacher/exams/${exam.id}`} 
                             className="inline-flex items-center gap-1 px-3 py-1 bg-surface-container hover:bg-surface-container-high text-primary rounded-lg font-medium transition-colors"
@@ -717,6 +758,17 @@ export function TeacherExamsView() {
             </div>
           </div>
         )}
+
+        {/* AI Exam Generator Modal */}
+        <AiExamGeneratorModal
+          isOpen={isAiModalOpen}
+          onClose={() => setIsAiModalOpen(false)}
+          classes={classes || []}
+          onExamCreated={() => {
+            refetchClasses();
+            toast.success('Đã lưu bài thi sinh bởi AI thành công ở trạng thái bản nháp!');
+          }}
+        />
       </div>
     </div>
   );

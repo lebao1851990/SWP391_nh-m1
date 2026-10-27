@@ -27,7 +27,10 @@ import {
   Terminal,
   Copy,
   Check,
-  ExternalLink
+  ExternalLink,
+  X,
+  Cpu,
+  FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -51,6 +54,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [submissionResult, setSubmissionResult] = useState<SubmissionResultResponse | null>(null);
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
+  const [submissionPhase, setSubmissionPhase] = useState<'idle' | 'uploading' | 'processing' | 'completed' | 'failed'>('idle');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -82,12 +86,34 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
     return () => clearInterval(interval);
   }, [exam]);
 
+  // Check if exam is scheduled for future
+  const [secondsUntilStart, setSecondsUntilStart] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!exam?.startTime) return;
+    const serverTimestamp = exam.serverTime ? new Date(exam.serverTime).getTime() : Date.now();
+    const clientOffset = serverTimestamp - Date.now();
+    const startTimestamp = new Date(exam.startTime).getTime();
+
+    const updateStartTimer = () => {
+      const currentServerTime = Date.now() + clientOffset;
+      const diffSec = Math.floor((startTimestamp - currentServerTime) / 1000);
+      setSecondsUntilStart(diffSec);
+    };
+
+    updateStartTimer();
+    const interval = setInterval(updateStartTimer, 1000);
+    return () => clearInterval(interval);
+  }, [exam?.startTime, exam?.serverTime]);
+
+  const isNotStarted = (secondsUntilStart !== null && secondsUntilStart > 0) || exam?.status === 'upcoming';
   const isExpiredByTimer = remainingSeconds !== null && remainingSeconds <= 0;
   const isDeadlinePassed = Boolean(exam?.isExpired) || isExpiredByTimer;
-  const isClosed = exam?.status === 'completed' || exam?.status === 'missed' || isDeadlinePassed || isUpcoming;
+  const isClosed = exam?.status === 'completed' || exam?.status === 'missed' || isDeadlinePassed || isNotStarted;
+  const isLocked = isClosed;
 
-  const is5MinWarning = !isClosed && remainingSeconds !== null && remainingSeconds <= 300 && remainingSeconds > 60;
-  const is1MinWarning = !isClosed && remainingSeconds !== null && remainingSeconds <= 60 && remainingSeconds > 0;
+  const is5MinWarning = !isClosed && !isNotStarted && remainingSeconds !== null && remainingSeconds <= 300 && remainingSeconds > 60;
+  const is1MinWarning = !isClosed && !isNotStarted && remainingSeconds !== null && remainingSeconds <= 60 && remainingSeconds > 0;
 
   const formattedCountdown = useMemo(() => {
     if (remainingSeconds === null) return '--:--:--';
@@ -252,6 +278,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
       );
     } else {
       if (!selectedZip) return;
+      setSubmissionPhase('uploading');
       submitExamZip.mutate(
         {
           examId,
@@ -260,15 +287,18 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
         },
         {
           onSuccess: (data: SubmissionResultResponse) => {
+            setSubmissionPhase('processing');
             toast.success(`Nộp tệp ${data.originalFilename || selectedZip.name} thành công! Đã chuyển vào Sandbox kiểm thử.`);
             setSubmissionResult(data);
-            if (data?.id) {
-              setTimeout(() => {
+            setTimeout(() => {
+              setSubmissionPhase('completed');
+              if (data?.id) {
                 router.push(`/student/submissions/${data.id}`);
-              }, 1500);
-            }
+              }
+            }, 1000);
           },
           onError: (err: unknown) => {
+            setSubmissionPhase('failed');
             const axiosErr = err as AxiosError<{ message?: string; error?: string }>;
             let msg = axiosErr?.response?.data?.message || (err as Error)?.message || 'Nộp tệp ZIP thất bại.';
             if (axiosErr?.response?.status === 409 || axiosErr?.response?.data?.error === 'EXAM_TIME_EXPIRED' || msg === 'EXAM_TIME_EXPIRED') {
@@ -456,8 +486,21 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
           </div>
         )}
 
+        {/* Upcoming Not Started Exam Alert Banner */}
+        {isNotStarted && (
+          <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs flex items-center gap-3 shadow-sm">
+            <Clock className="w-5 h-5 text-blue-600 shrink-0" />
+            <div>
+              <p className="font-bold text-sm">Bài thi chưa đến giờ bắt đầu</p>
+              <p className="text-blue-700 mt-0.5">
+                Thời gian mở thi: {exam.startTime ? new Date(exam.startTime).toLocaleString('vi-VN') : 'Sắp diễn ra'}. Hệ thống chưa mở nộp bài.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Closed/Expired Exam Alert Banner */}
-        {isDeadlinePassed && !isUpcoming && (
+        {isLocked && !isNotStarted && (
           <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-3 shadow-sm">
             <Lock className="w-5 h-5 text-rose-600 shrink-0" />
             <div>
@@ -483,6 +526,147 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
           <div className="p-space-md rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs">
             <h3 className="font-label-sm font-semibold text-outline uppercase tracking-wider mb-1">Đề bài &amp; Yêu cầu kỹ thuật</h3>
             <p className="text-xs text-on-surface leading-relaxed whitespace-pre-wrap">{exam.description}</p>
+          </div>
+        )}
+
+        {/* Active Submission Pipeline Status Card */}
+        {submissionPhase !== 'idle' && (
+          <div className="p-4 rounded-2xl bg-surface-container-lowest border border-primary/30 shadow-md">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                {submissionPhase === 'completed' ? (
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                ) : submissionPhase === 'failed' ? (
+                  <AlertCircle className="w-5 h-5 text-rose-600" />
+                ) : (
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                )}
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-on-surface">Tiến trình nộp bài &amp; Chấm tự động</h4>
+                <p className="text-[11px] text-outline">
+                  {submissionPhase === 'uploading' && 'Đang tải tệp ZIP lên máy chủ an toàn...'}
+                  {submissionPhase === 'processing' && 'Đã nhận bài! Đang chuyển bài nộp vào Docker Sandbox để chạy test case...'}
+                  {submissionPhase === 'completed' && 'Hoàn tất! Đang chuyển bạn đến trang chi tiết kết quả...'}
+                  {submissionPhase === 'failed' && 'Xử lý nộp bài không thành công. Vui lòng kiểm tra lại.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Stepper Progress */}
+            <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
+              <div className={`p-2 rounded-lg border ${
+                submissionPhase === 'uploading'
+                  ? 'bg-primary/10 border-primary text-primary font-bold'
+                  : 'bg-surface-container border-outline-variant/30 text-on-surface-variant'
+              }`}>
+                1. Tải lên ZIP
+              </div>
+              <div className={`p-2 rounded-lg border ${
+                submissionPhase === 'processing'
+                  ? 'bg-primary/10 border-primary text-primary font-bold animate-pulse'
+                  : 'bg-surface-container border-outline-variant/30 text-on-surface-variant'
+              }`}>
+                2. Chấm Sandbox &amp; AST
+              </div>
+              <div className={`p-2 rounded-lg border ${
+                submissionPhase === 'completed'
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-700 font-bold'
+                  : 'bg-surface-container border-outline-variant/30 text-on-surface-variant'
+              }`}>
+                3. Hoàn tất
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* AI-Generated Problem Statement & Rubric Card */}
+        {exam.problemStatement && (
+          <div className="bg-surface-container-lowest p-space-md rounded-2xl border border-outline-variant/40 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-outline-variant/30 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold">Đề bài & Yêu cầu Kỹ thuật</h2>
+                  <p className="text-[11px] text-outline">
+                    {exam.sourceDocumentName ? `Trích xuất từ tài liệu: ${exam.sourceDocumentName}` : 'Đề bài lập trình và barem đánh giá chính thức'}
+                  </p>
+                </div>
+              </div>
+              {exam.programmingLanguage && (
+                <span className="px-2.5 py-1 rounded bg-purple-50 border border-purple-200 text-purple-800 font-mono text-xs font-semibold">
+                  {exam.programmingLanguage}
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-3 text-xs leading-relaxed text-on-surface">
+              <div className="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/40 whitespace-pre-wrap font-sans text-sm">
+                {exam.problemStatement}
+              </div>
+
+              {(exam.inputSpecification || exam.outputSpecification) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {exam.inputSpecification && (
+                    <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30">
+                      <span className="font-bold text-outline block mb-1">Đặc tả đầu vào (Input Spec):</span>
+                      <pre className="font-mono text-xs whitespace-pre-wrap">{exam.inputSpecification}</pre>
+                    </div>
+                  )}
+                  {exam.outputSpecification && (
+                    <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30">
+                      <span className="font-bold text-outline block mb-1">Đặc tả đầu ra (Output Spec):</span>
+                      <pre className="font-mono text-xs whitespace-pre-wrap">{exam.outputSpecification}</pre>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {exam.constraints && (
+                <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30">
+                  <span className="font-bold text-outline block mb-0.5">Giới hạn & Ràng buộc:</span>
+                  <pre className="font-mono text-xs whitespace-pre-wrap">{exam.constraints}</pre>
+                </div>
+              )}
+
+              {(exam.sampleInput || exam.sampleOutput) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {exam.sampleInput && (
+                    <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 font-mono">
+                      <span className="font-bold text-outline block mb-1">Dữ liệu mẫu đầu vào (Sample Input):</span>
+                      <pre className="text-xs whitespace-pre-wrap">{exam.sampleInput}</pre>
+                    </div>
+                  )}
+                  {exam.sampleOutput && (
+                    <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 font-mono">
+                      <span className="font-bold text-outline block mb-1">Dữ liệu mẫu đầu ra (Sample Output):</span>
+                      <pre className="text-xs whitespace-pre-wrap">{exam.sampleOutput}</pre>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {exam.rubricCriteria && exam.rubricCriteria.length > 0 && (
+                <div className="pt-2 border-t border-outline-variant/20 space-y-2">
+                  <span className="font-bold text-on-surface block">Tiêu chí chấm điểm (Rubric Barem):</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {exam.rubricCriteria.map((c: { name: string; description?: string; maxScore: number }, idx: number) => (
+                      <div key={idx} className="p-2.5 rounded-lg bg-surface-container-low border border-outline-variant/30 flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-on-surface">{c.name}</p>
+                          {c.description && <p className="text-[11px] text-outline">{c.description}</p>}
+                        </div>
+                        <span className="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 shrink-0 ml-2">
+                          {c.maxScore} đ
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -595,16 +779,26 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                     </div>
                     <div className="pointer-events-auto">
                       <p className="font-semibold text-sm text-on-surface">
-                        Kéo và thả tệp mã nguồn <span className="text-primary font-mono font-bold">.zip</span> vào đây
+                        {isNotStarted
+                          ? 'Bài thi chưa đến giờ mở nộp bài'
+                          : isClosed
+                          ? 'Hệ thống đã khóa nộp bài'
+                          : 'Kéo và thả tệp mã nguồn .zip vào đây'}
                       </p>
                       <p className="text-xs text-on-surface-variant mt-1">
-                        hoặc{' '}
-                        <span
-                          onClick={handleBrowseClick}
-                          className="text-primary hover:text-primary/80 underline font-medium cursor-pointer transition-colors"
-                        >
-                          bấm để duyệt tệp từ máy tính
-                        </span>
+                        {isNotStarted ? (
+                          `Thời gian mở thi: ${exam?.startTime ? new Date(exam.startTime).toLocaleString('vi-VN') : 'Sắp diễn ra'}`
+                        ) : (
+                          <>
+                            hoặc{' '}
+                            <span
+                              onClick={handleBrowseClick}
+                              className="text-primary hover:text-primary/80 underline font-medium cursor-pointer transition-colors"
+                            >
+                              bấm để duyệt tệp từ máy tính
+                            </span>
+                          </>
+                        )}
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-[11px] text-outline pointer-events-none">

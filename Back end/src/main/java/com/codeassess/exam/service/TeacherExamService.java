@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -33,6 +34,9 @@ public class TeacherExamService {
 
     @Autowired(required = false)
     private com.codeassess.plagiarism.repository.SimilarityPairRepository similarityPairRepository;
+
+    @Autowired(required = false)
+    private com.codeassess.scoring.repository.ExamRubricCriteriaRepository examRubricCriteriaRepository;
 
     public TeacherExamService(
             ExamRepository examRepository,
@@ -85,7 +89,14 @@ public class TeacherExamService {
     public ExamResponse getTeacherExamById(String id, String teacherId) {
         Exam exam = examRepository.findByIdAndCourseClass_Teacher_Id(id, teacherId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found or access denied"));
-        return populateCounts(examMapper.toResponse(exam));
+        ExamResponse response = populateCounts(examMapper.toResponse(exam));
+        if (examRubricCriteriaRepository != null && response != null) {
+            var criteria = examRubricCriteriaRepository.findByExam_IdOrderByDisplayOrderAsc(id).stream()
+                    .map(c -> new com.codeassess.ai.dto.AiRubricItemDto(c.getName(), c.getDescription(), c.getMaxScore()))
+                    .collect(Collectors.toList());
+            response.setRubricCriteria(criteria);
+        }
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -231,7 +242,19 @@ public class TeacherExamService {
         if (dto.getTitle() != null) exam.setTitle(dto.getTitle());
         if (dto.getDate() != null) exam.setExamDate(dto.getDate());
         if (dto.getDurationMinutes() != null) exam.setDuration(dto.getDurationMinutes());
-        if (dto.getStatus() != null) exam.setStatus(dto.getStatus().toLowerCase());
+        if (dto.getStatus() != null) {
+            String newStatus = dto.getStatus().toLowerCase();
+            if ("published".equals(newStatus)) {
+                LocalDateTime now = LocalDateTime.now();
+                if (exam.getExamDate() != null && exam.getExamDate().isAfter(now)) {
+                    exam.setStatus("upcoming");
+                } else {
+                    exam.setStatus("active");
+                }
+            } else {
+                exam.setStatus(newStatus);
+            }
+        }
 
         if (dto.getClassIds() != null || dto.getClassId() != null) {
             List<String> targetIds = new ArrayList<>();
@@ -264,6 +287,21 @@ public class TeacherExamService {
 
             exam.setCourseClass(classes.get(0));
             exam.setClasses(new HashSet<>(classes));
+        }
+
+        return populateCounts(examMapper.toResponse(examRepository.save(exam)));
+    }
+
+    @Transactional
+    public ExamResponse publishExam(String id, String teacherId) {
+        Exam exam = examRepository.findByIdAndCourseClass_Teacher_Id(id, teacherId)
+                .orElseThrow(() -> new ResourceNotFoundException("Exam not found or access denied"));
+
+        LocalDateTime now = LocalDateTime.now();
+        if (exam.getExamDate() != null && exam.getExamDate().isAfter(now)) {
+            exam.setStatus("upcoming");
+        } else {
+            exam.setStatus("active");
         }
 
         return populateCounts(examMapper.toResponse(examRepository.save(exam)));

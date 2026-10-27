@@ -20,6 +20,13 @@ export interface Appeal {
   reviewerName?: string;
   reviewerEmail?: string;
   submissionStatus?: string;
+  originalFilename?: string;
+  submissionType?: string;
+  fileSize?: number;
+  hasArchive?: boolean;
+  executionStatus?: string;
+  compileOutput?: string;
+  submittedAt?: string;
   createdAt: string;
   resolvedAt?: string;
 }

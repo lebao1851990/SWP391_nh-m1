@@ -273,7 +273,7 @@ export function StudentDashboardView() {
                           <span className="font-mono bg-surface-container px-2 py-0.5 rounded font-bold text-on-surface">
                             {sub.totalScore ?? '--'}
                           </span>
-                          <span className="text-outline text-[11px] ml-0.5">/100</span>
+                          <span className="text-outline text-[11px] ml-0.5">/10</span>
                         </td>
                         <td className="py-3 px-4">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { AppLink as Link } from '@/components/ui/app-link';
 import { useAdminAppeal, useResolveAdminAppeal } from '../hooks';
+import { downloadAdminAppealArchive } from '../api';
 import { GradeAuditHistory } from '@/features/scoring/components';
 import { 
   ArrowLeft, 
@@ -21,9 +22,20 @@ import {
   Award,
   Code2,
   FileCode2,
-  UserCheck
+  UserCheck,
+  Download,
+  Archive,
+  HardDrive
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+function formatFileSize(bytes?: number): string {
+  if (bytes == null || bytes <= 0) return 'Chưa có thông tin';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
 
 export function AdminAppealDetailView({ appealId }: { appealId: string }) {
   const { data: appeal, isLoading, isError, refetch } = useAdminAppeal(appealId);
@@ -34,6 +46,31 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownloadArchive = async () => {
+    if (!appeal) return;
+    setIsDownloading(true);
+    try {
+      const { blob, filename } = await downloadAdminAppealArchive(appeal.id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success(`Đã tải xuống file bài nộp: ${filename}`);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message 
+        || (err as { message?: string })?.message 
+        || 'Không thể tải xuống file ZIP bài nộp';
+      toast.error(msg);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -76,8 +113,8 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
 
     if (decision === 'APPROVED' && adjustedScore.trim() !== '') {
       const num = Number(adjustedScore);
-      if (isNaN(num) || num < 0 || num > 100) {
-        setErrorMessage('Điểm điều chỉnh phải là số hợp lệ từ 0 đến 100.');
+      if (isNaN(num) || num < 0 || num > 10) {
+        setErrorMessage('Điểm điều chỉnh phải là số hợp lệ từ 0 đến 10.');
         return;
       }
     }
@@ -249,8 +286,91 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
           </div>
         </aside>
 
-        {/* Right Column: Explanation, Source Code, Audit History and Decision Panel */}
+        {/* Right Column: Submission Archive, Explanation, Source Code, Audit History and Decision Panel */}
         <main className="lg:col-span-8 space-y-space-lg">
+          {/* Section: Mã nguồn bài nộp của sinh viên */}
+          <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 shadow-xs p-space-lg space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-outline-variant/20 gap-2">
+              <div className="flex items-center gap-2">
+                <Archive className="w-4 h-4 text-primary" />
+                <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold">
+                  Mã nguồn bài nộp của sinh viên
+                </h2>
+              </div>
+              <div>
+                {appeal.hasArchive ? (
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium inline-flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Có thể tải xuống (Archive ZIP gốc)</span>
+                  </span>
+                ) : appeal.sourceCode ? (
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-medium inline-flex items-center gap-1">
+                    <FileCode2 className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Bài nộp editor (ZIP tạo lại từ mã nguồn)</span>
+                  </span>
+                ) : (
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-medium inline-flex items-center gap-1">
+                    <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                    <span>Không tìm thấy file lưu trữ</span>
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 bg-surface-container-low p-3.5 rounded-xl border border-outline-variant/20 text-xs">
+              <div>
+                <span className="text-outline uppercase text-[10px] block font-medium">Tên file ZIP</span>
+                <span className="font-mono font-semibold text-on-surface truncate block" title={appeal.originalFilename || `${appeal.submissionId}.zip`}>
+                  {appeal.originalFilename || `${appeal.submissionId}.zip`}
+                </span>
+              </div>
+              <div>
+                <span className="text-outline uppercase text-[10px] block font-medium">Mã bài nộp</span>
+                <span className="font-mono text-on-surface">#{appeal.submissionId?.substring(0, 10)}</span>
+              </div>
+              <div>
+                <span className="text-outline uppercase text-[10px] block font-medium">Thời gian nộp bài</span>
+                <span className="text-on-surface">
+                  {appeal.submittedAt ? new Date(appeal.submittedAt).toLocaleString() : new Date(appeal.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+              <div>
+                <span className="text-outline uppercase text-[10px] block font-medium">Dung lượng file</span>
+                <span className="font-mono text-on-surface font-medium">{formatFileSize(appeal.fileSize)}</span>
+              </div>
+            </div>
+
+            {!appeal.hasArchive && appeal.sourceCode && (
+              <p className="text-[11px] text-blue-800 bg-blue-50/70 p-2.5 rounded-lg border border-blue-200/80">
+                <strong>Ghi chú:</strong> Bài nộp này không có archive ZIP gốc vật lý trên server (nộp trực tiếp qua trình soạn thảo). Hệ thống sẽ tự động đóng gói mã nguồn đã nộp thành file ZIP để Admin kiểm tra.
+              </p>
+            )}
+
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[11px] text-on-surface-variant">
+                Tải về để giải nén và thẩm định mã nguồn độc lập trước khi quyết định khiếu nại.
+              </span>
+              <button
+                type="button"
+                onClick={handleDownloadArchive}
+                disabled={isDownloading || (!appeal.hasArchive && !appeal.sourceCode)}
+                className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-on-primary text-xs font-semibold inline-flex items-center gap-1.5 shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {isDownloading ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Đang tải file...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Tải file ZIP</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
           {/* Student Explanation */}
           <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 shadow-xs p-space-lg space-y-2">
             <div className="flex items-center gap-2 pb-2 border-b border-outline-variant/20">
@@ -314,7 +434,7 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
                     )}
                     {appeal.updatedScore != null && (
                       <span className="text-emerald-700 font-medium block mt-0.5">
-                        Điểm số chính thức đã ghi đè: <strong>{appeal.updatedScore}</strong> / 100
+                        Điểm số chính thức đã ghi đè: <strong>{appeal.updatedScore}</strong> / 10
                       </span>
                     )}
                   </div>
@@ -376,25 +496,25 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
                         2. Cập nhật điểm chính thức mới (Tùy chọn):
                       </label>
                       <span className="text-[11px] text-emerald-800">
-                        Điểm hiện tại: <strong className="font-mono">{appeal.currentScore ?? appeal.originalScore ?? '—'}</strong> / 100
+                        Điểm hiện tại: <strong className="font-mono">{appeal.currentScore ?? appeal.originalScore ?? '—'}</strong> / 10
                       </span>
                     </div>
                     <p className="text-[11px] text-emerald-800">
-                      Nếu đồng ý nâng/hạ điểm sau phúc khảo, nhập điểm mới bên dưới (0 - 100). Nếu chấp thuận giải trình nhưng giữ nguyên điểm số, để trống ô này.
+                      Nếu đồng ý nâng/hạ điểm sau phúc khảo, nhập điểm mới bên dưới (thang 0 - 10). Nếu chấp thuận giải trình nhưng giữ nguyên điểm số, để trống ô này.
                     </p>
                     <div className="flex items-center gap-2 max-w-xs mt-1">
                       <input
                         type="number"
                         step="0.1"
                         min="0"
-                        max="100"
-                        placeholder="VD: 90.0"
+                        max="10"
+                        placeholder="VD: 9.0"
                         value={adjustedScore}
                         onChange={(e) => setAdjustedScore(e.target.value)}
                         className="w-full px-3 py-1.5 rounded-lg border border-emerald-300 bg-surface-container-lowest text-on-surface text-xs font-mono focus:outline-none focus:ring-1 focus:ring-emerald-500"
                         disabled={resolveMutation.isPending}
                       />
-                      <span className="text-xs text-emerald-900 font-semibold font-mono">/ 100</span>
+                      <span className="text-xs text-emerald-900 font-semibold font-mono">/ 10</span>
                     </div>
                   </div>
                 )}
@@ -464,7 +584,7 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
               {decision === 'APPROVED' && adjustedScore.trim() !== '' && (
                 <div className="flex justify-between">
                   <span className="text-outline">Điểm số mới:</span>
-                  <strong className="font-mono text-emerald-700">{adjustedScore} / 100</strong>
+                  <strong className="font-mono text-emerald-700">{adjustedScore} / 10</strong>
                 </div>
               )}
               <div className="pt-2 border-t border-outline-variant/20">

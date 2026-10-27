@@ -76,7 +76,7 @@ public class StudentScoringService {
                 .filter(java.util.Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         if (maxTotalScore.compareTo(BigDecimal.ZERO) == 0) {
-            maxTotalScore = BigDecimal.valueOf(100);
+            maxTotalScore = BigDecimal.valueOf(10);
         }
 
         boolean isDone = "COMPLETED".equalsIgnoreCase(submission.getStatus())

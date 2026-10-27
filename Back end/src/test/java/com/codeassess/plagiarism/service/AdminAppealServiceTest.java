@@ -39,6 +39,9 @@ public class AdminAppealServiceTest {
     @Mock
     private GradeAuditLogRepository gradeAuditLogRepository;
 
+    @Mock
+    private com.codeassess.submission.service.SubmissionStorageService submissionStorageService;
+
     @InjectMocks
     private AdminAppealService adminAppealService;
 
@@ -63,7 +66,7 @@ public class AdminAppealServiceTest {
                 .exam(exam)
                 .student(student)
                 .status("GRADED")
-                .totalScore(BigDecimal.valueOf(60.0))
+                .totalScore(BigDecimal.valueOf(6.0))
                 .overrideScore(null)
                 .build();
 
@@ -108,7 +111,7 @@ public class AdminAppealServiceTest {
         AppealResolveRequestDto dto = AppealResolveRequestDto.builder()
                 .decision("APPROVED")
                 .reviewerNotes("Admin approved after code inspection")
-                .adjustedScore(BigDecimal.valueOf(90.0))
+                .adjustedScore(BigDecimal.valueOf(9.0))
                 .build();
 
         String opaqueId = OpaqueIdEncoder.encode(12345L);
@@ -117,7 +120,7 @@ public class AdminAppealServiceTest {
 
         assertNotNull(result);
         assertEquals("APPROVED", result.getStatus());
-        assertEquals(BigDecimal.valueOf(90.0), submission.getOverrideScore());
+        assertEquals(BigDecimal.valueOf(9.0), submission.getOverrideScore());
         assertEquals("Admin approved after code inspection", result.getReviewerNotes());
 
         verify(submissionRepository, times(1)).save(submission);
@@ -170,7 +173,7 @@ public class AdminAppealServiceTest {
         AppealResolveRequestDto dto = AppealResolveRequestDto.builder()
                 .decision("APPROVED")
                 .reviewerNotes("Invalid score")
-                .adjustedScore(BigDecimal.valueOf(150.0))
+                .adjustedScore(BigDecimal.valueOf(15.0))
                 .build();
 
         String opaqueId = OpaqueIdEncoder.encode(12345L);
@@ -190,5 +193,35 @@ public class AdminAppealServiceTest {
         String opaqueId = OpaqueIdEncoder.encode(99999L);
 
         assertThrows(ResourceNotFoundException.class, () -> adminAppealService.resolveAppeal(opaqueId, dto, admin));
+    }
+
+    @Test
+    public void getAppealSubmissionArchive_Success() {
+        when(appealRepository.findById(12345L)).thenReturn(Optional.of(appeal));
+        byte[] expectedBytes = new byte[]{1, 2, 3};
+        when(submissionStorageService.hasZip("sub-1")).thenReturn(true);
+        when(submissionStorageService.getZipBytes("sub-1")).thenReturn(expectedBytes);
+
+        String opaqueId = OpaqueIdEncoder.encode(12345L);
+        byte[] result = adminAppealService.getAppealSubmissionArchive(opaqueId, admin);
+
+        assertNotNull(result);
+        assertArrayEquals(expectedBytes, result);
+        verify(gradeAuditLogRepository, times(1)).save(any());
+    }
+
+    @Test
+    public void getAppealSubmissionArchive_FallbackToSourceCode() {
+        submission.setSourceCode("public class Test {}");
+        when(appealRepository.findById(12345L)).thenReturn(Optional.of(appeal));
+        when(submissionStorageService.hasZip("sub-1")).thenReturn(false);
+        byte[] generatedZip = new byte[]{4, 5, 6};
+        when(submissionStorageService.createZipFromSourceCode(any(), eq("public class Test {}"))).thenReturn(generatedZip);
+
+        String opaqueId = OpaqueIdEncoder.encode(12345L);
+        byte[] result = adminAppealService.getAppealSubmissionArchive(opaqueId, admin);
+
+        assertNotNull(result);
+        assertArrayEquals(generatedZip, result);
     }
 }

@@ -220,7 +220,7 @@ export function TeacherAppealDetailView({ appealId }: { appealId: string }) {
                     )}
                     {appeal.updatedScore != null && (
                       <span className="text-emerald-700 font-medium block mt-0.5">
-                        Điểm số sau điều chỉnh: <strong>{appeal.updatedScore}</strong> / 100
+                        Điểm số sau điều chỉnh: <strong>{appeal.updatedScore}</strong> / 10
                       </span>
                     )}
                   </div>

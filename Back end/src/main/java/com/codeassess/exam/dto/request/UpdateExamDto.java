@@ -28,6 +28,6 @@ public class UpdateExamDto {
     @com.fasterxml.jackson.annotation.JsonAlias({"duration", "durationMinutes", "timeLimit"})
     private Integer durationMinutes;
     
-    @Pattern(regexp = "^(?i)(upcoming|active|completed)$", message = "Status must be upcoming, active, or completed")
+    @Pattern(regexp = "^(?i)(draft|upcoming|active|completed|published)$", message = "Status must be draft, upcoming, active, completed, or published")
     private String status;
 }

@@ -153,7 +153,7 @@ export function StudentAppealCreateView() {
           <div className="flex items-center gap-3 bg-surface-container-low px-4 py-2.5 rounded-xl border border-outline-variant/30 self-start sm:self-auto">
             <span className="text-on-surface-variant text-xs font-medium">Điểm hiện tại:</span>
             <span className="text-xl font-bold text-primary font-mono">
-              {displayScore} <span className="text-xs text-outline font-normal">/ 100</span>
+              {displayScore} <span className="text-xs text-outline font-normal">/ 10</span>
             </span>
           </div>
         </div>

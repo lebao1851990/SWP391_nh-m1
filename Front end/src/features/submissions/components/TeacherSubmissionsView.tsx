@@ -145,7 +145,7 @@ export function TeacherSubmissionsView() {
             <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">Điểm trung bình</span>
             <div className="mt-2 flex items-baseline gap-1">
               <span className="font-display-lg font-bold text-primary">{stats.avgScore}</span>
-              <span className="text-xs text-outline font-normal">/ 100</span>
+              <span className="text-xs text-outline font-normal">/ 10</span>
             </div>
           </div>
         </div>
@@ -249,10 +249,10 @@ export function TeacherSubmissionsView() {
                           ) : isGraded ? (
                             <span className="font-mono bg-surface-container px-2 py-0.5 rounded font-bold text-on-surface">
                               {sub.totalScore != null ? sub.totalScore : (sub.autoScore != null ? sub.autoScore : 0)}
-                              <span className="text-outline text-[10px] ml-0.5">/100</span>
+                              <span className="text-outline text-[10px] ml-0.5">/10</span>
                             </span>
                           ) : isFailed ? (
-                            <span className="text-rose-600 font-medium text-[11px]">0/100 (Lỗi)</span>
+                            <span className="text-rose-600 font-medium text-[11px]">0/10 (Lỗi)</span>
                           ) : (
                             <span className="text-outline italic">Chưa có điểm</span>
                           )}

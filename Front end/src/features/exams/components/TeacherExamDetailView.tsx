@@ -11,7 +11,8 @@ import {
   useTeacherExamTestCases,
   useCreateTestCase,
   useUpdateTestCase,
-  useDeleteTestCase
+  useDeleteTestCase,
+  usePublishExam
 } from '../hooks/use-teacher-exams';
 import { TestCaseResponse } from '../api/teacher-exams.api';
 import { AxiosError } from 'axios';
@@ -43,7 +44,8 @@ import {
   AlertTriangle,
   FileText,
   Download,
-  MessageSquare
+  MessageSquare,
+  Send
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -59,6 +61,7 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
   const { data: classes } = useTeacherClasses();
   const updateExam = useUpdateExam();
   const deleteExamMutation = useDeleteExam();
+  const publishMutation = usePublishExam();
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteError, setDeleteError] = useState('');
@@ -77,6 +80,19 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
     }
   };
 
+  const handlePublishExam = () => {
+    if (!exam) return;
+    publishMutation.mutate(exam.id, {
+      onSuccess: () => {
+        toast.success(`Đã phát hành bài thi "${exam.title}" thành công! Sinh viên thuộc lớp đã có thể xem và làm bài.`);
+      },
+      onError: (err: unknown) => {
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Không thể phát hành bài thi.';
+        toast.error(msg);
+      },
+    });
+  };
+
   // Test Case Queries & Mutations
   const { data: testCases, isLoading: isLoadingTestCases } = useTeacherExamTestCases(examId || '');
   const createTestCaseMutation = useCreateTestCase();
@@ -84,7 +100,7 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
   const deleteTestCaseMutation = useDeleteTestCase();
 
   // Main Tab State
-  const [mainTab, setMainTab] = useState<'submissions' | 'testcases'>('submissions');
+  const [mainTab, setMainTab] = useState<'submissions' | 'problem' | 'testcases'>('submissions');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -421,6 +437,23 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 self-start md:self-center">
+            {exam.status === 'draft' && (
+              <button
+                onClick={handlePublishExam}
+                disabled={publishMutation.isPending}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                type="button"
+                id="btn-publish-exam"
+                title="Phát hành đề thi cho sinh viên trong lớp làm bài"
+              >
+                {publishMutation.isPending ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
+                <span>Phát hành bài thi</span>
+              </button>
+            )}
             <button
               onClick={handleOpenEditModal}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-medium transition-all border border-outline-variant/40 shadow-xs cursor-pointer"
@@ -458,6 +491,18 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
           >
             <Users className="w-4 h-4" />
             <span>Danh sách bài nộp ({submissions?.length ?? 0})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMainTab('problem')}
+            className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-2 ${
+              mainTab === 'problem'
+                ? 'bg-primary text-on-primary shadow-xs'
+                : 'bg-surface-container text-on-surface-variant hover:text-on-surface'
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>Đề bài &amp; Rubric</span>
           </button>
           <button
             type="button"
@@ -667,13 +712,13 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
                                   <span className="font-mono bg-surface-container px-2 py-0.5 rounded font-bold text-on-surface">
                                     {sub.totalScore ?? sub.autoScore ?? 0}
                                   </span>
-                                  <span className="text-outline text-[10px] ml-0.5">/100</span>
+                                  <span className="text-outline text-[10px] ml-0.5">/10</span>
                                   {sub.autoScore !== undefined && sub.autoScore !== sub.totalScore && (
                                     <p className="text-[10px] text-outline font-mono mt-0.5">Auto: {sub.autoScore}</p>
                                   )}
                                 </div>
                               ) : isFailed ? (
-                                <span className="text-[11px] text-rose-600 font-medium">0/100 (Lỗi)</span>
+                                <span className="text-[11px] text-rose-600 font-medium">0/10 (Lỗi)</span>
                               ) : (
                                 <span className="text-[11px] text-outline">Chưa có điểm</span>
                               )}
@@ -730,6 +775,149 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
               </div>
             </div>
           </>
+        )}
+
+        {/* Tab: Problem Statement & Rubric */}
+        {mainTab === 'problem' && (
+          <div className="flex flex-col gap-5">
+            {/* Metadata bar */}
+            <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold text-on-surface">Ngôn ngữ:</span>
+                <span className="px-2.5 py-1 rounded bg-primary/10 text-primary font-mono font-medium border border-primary/20">
+                  {exam.programmingLanguage || 'Java'}
+                </span>
+                {exam.sourceDocumentName && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container text-on-surface font-medium border border-outline-variant/30">
+                    <FileText className="w-3.5 h-3.5 text-primary" />
+                    <span>Tài liệu: {exam.sourceDocumentName}</span>
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-on-surface-variant">Tổng tiêu chí rubric:</span>
+                <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-mono font-bold text-xs border border-emerald-200">
+                  {exam.rubricCriteria?.length ?? 0} tiêu chí
+                </span>
+              </div>
+            </div>
+
+            {/* Problem Statement Card */}
+            <div className="p-5 rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col gap-3">
+              <h2 className="font-headline-sm text-sm font-bold text-on-surface flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-primary" />
+                <span>Mô tả đề bài chi tiết</span>
+              </h2>
+              <div className="text-xs text-on-surface leading-relaxed whitespace-pre-wrap bg-surface-container-low/40 p-4 rounded-lg border border-outline-variant/20 font-sans">
+                {exam.problemStatement || 'Chưa có nội dung đề bài chi tiết.'}
+              </div>
+            </div>
+
+            {/* Input & Output Specifications */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col gap-2">
+                <h3 className="text-xs font-bold text-on-surface uppercase tracking-wide flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                  Quy chuẩn Đầu vào (Input Specification)
+                </h3>
+                <p className="text-xs text-on-surface-variant leading-relaxed whitespace-pre-wrap">
+                  {exam.inputSpecification || 'Tiêu chuẩn theo stdin.'}
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col gap-2">
+                <h3 className="text-xs font-bold text-on-surface uppercase tracking-wide flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  Quy chuẩn Đầu ra (Output Specification)
+                </h3>
+                <p className="text-xs text-on-surface-variant leading-relaxed whitespace-pre-wrap">
+                  {exam.outputSpecification || 'Tiêu chuẩn theo stdout.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Constraints */}
+            {exam.constraints && (
+              <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col gap-2">
+                <h3 className="text-xs font-bold text-on-surface uppercase tracking-wide flex items-center gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+                  Ràng buộc kỹ thuật (Constraints)
+                </h3>
+                <div className="text-xs text-on-surface-variant leading-relaxed whitespace-pre-wrap font-mono bg-surface-container-low/50 p-3 rounded-lg border border-outline-variant/20">
+                  {exam.constraints}
+                </div>
+              </div>
+            )}
+
+            {/* Samples */}
+            {(exam.sampleInput || exam.sampleOutput) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col gap-2">
+                  <h3 className="text-xs font-bold text-on-surface">Sample Input</h3>
+                  <pre className="font-mono text-xs bg-surface-container-low p-3 rounded-lg border border-outline-variant/20 overflow-x-auto whitespace-pre-wrap">
+                    {exam.sampleInput || '(trống)'}
+                  </pre>
+                </div>
+                <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col gap-2">
+                  <h3 className="text-xs font-bold text-on-surface">Sample Output</h3>
+                  <pre className="font-mono text-xs bg-surface-container-low p-3 rounded-lg border border-outline-variant/20 overflow-x-auto whitespace-pre-wrap">
+                    {exam.sampleOutput || '(trống)'}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* Rubric Criteria Table */}
+            <div className="rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs overflow-hidden flex flex-col">
+              <div className="p-3.5 bg-surface-container-low/60 border-b border-outline-variant/30 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileCheck className="w-4 h-4 text-primary" />
+                  <h3 className="text-xs font-bold text-on-surface uppercase tracking-wide">
+                    Tiêu chí chấm điểm Rubric (Thang điểm 10)
+                  </h3>
+                </div>
+                <span className="font-mono font-bold text-xs text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                  Tổng:{' '}
+                  {exam.rubricCriteria?.reduce((acc, c) => acc + (c.maxScore || 0), 0).toFixed(2) ?? '10.00'}{' '}
+                  / 10.00 đ
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-surface-container-low text-on-surface-variant font-label-xs uppercase tracking-wider border-b border-outline-variant/30">
+                      <th className="py-2.5 px-4 font-semibold w-12">#</th>
+                      <th className="py-2.5 px-4 font-semibold">Tên tiêu chí</th>
+                      <th className="py-2.5 px-4 font-semibold">Mô tả chi tiết / Hướng dẫn chấm</th>
+                      <th className="py-2.5 px-4 font-semibold text-right w-28">Điểm tối đa</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-outline-variant/20 text-on-surface">
+                    {!exam.rubricCriteria || exam.rubricCriteria.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="py-8 text-center text-outline">
+                          Chưa có bảng tiêu chí rubric riêng cho đề thi này. Điểm số sẽ tính theo trọng số test cases.
+                        </td>
+                      </tr>
+                    ) : (
+                      exam.rubricCriteria.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-surface-container-low/60 transition-colors">
+                          <td className="py-3 px-4 font-mono font-semibold text-outline">{idx + 1}</td>
+                          <td className="py-3 px-4 font-semibold text-on-surface">{item.name}</td>
+                          <td className="py-3 px-4 text-on-surface-variant text-[11px] leading-relaxed">
+                            {item.description || '-'}
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono font-bold text-primary">
+                            {Number(item.maxScore).toFixed(2)} đ
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Tab 2: Test Cases Management */}
@@ -1021,6 +1209,7 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
                     onChange={(e) => setEditStatus(e.target.value)}
                     className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant/40 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary transition-colors cursor-pointer"
                   >
+                    <option value="draft">Bản nháp (Chưa phát hành cho sinh viên)</option>
                     <option value="active">Đang mở thi (Cho phép sinh viên nộp bài)</option>
                     <option value="upcoming">Sắp diễn ra (Đã lên lịch)</option>
                     <option value="completed">Đã kết thúc (Đóng nhận bài nộp)</option>

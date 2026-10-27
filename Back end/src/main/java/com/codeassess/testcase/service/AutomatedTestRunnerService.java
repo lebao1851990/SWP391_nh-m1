@@ -329,26 +329,26 @@ public class AutomatedTestRunnerService {
             resultsToSave.add(result);
         }
 
-        // Section F1: autoScore = maxScore * passedWeight / totalWeight
+        // Section F1: autoScore = maxScore * passedWeight / totalWeight (10-point scale)
         int totalTests = testCases.size();
         BigDecimal autoScore;
         if (totalWeight.compareTo(BigDecimal.ZERO) > 0) {
-            autoScore = BigDecimal.valueOf(100.0)
+            autoScore = BigDecimal.valueOf(10.0)
                     .multiply(passedWeight)
                     .divide(totalWeight, 2, RoundingMode.HALF_UP);
         } else if (totalTests > 0) {
-            autoScore = BigDecimal.valueOf(100.0)
+            autoScore = BigDecimal.valueOf(10.0)
                     .multiply(BigDecimal.valueOf(passedTests))
                     .divide(BigDecimal.valueOf(totalTests), 2, RoundingMode.HALF_UP);
         } else {
             autoScore = BigDecimal.ZERO;
         }
 
-        // Clamp autoScore between 0.00 and 100.00
+        // Clamp autoScore between 0.00 and 10.00
         if (autoScore.compareTo(BigDecimal.ZERO) < 0) {
             autoScore = BigDecimal.ZERO;
-        } else if (autoScore.compareTo(BigDecimal.valueOf(100.0)) > 0) {
-            autoScore = BigDecimal.valueOf(100.0);
+        } else if (autoScore.compareTo(BigDecimal.valueOf(10.0)) > 0) {
+            autoScore = BigDecimal.valueOf(10.0);
         }
 
         submission.setAutoScore(autoScore);

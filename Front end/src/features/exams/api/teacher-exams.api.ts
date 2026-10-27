@@ -24,6 +24,21 @@ export interface ExamResponse {
   courseCode: string;
   enrolledCount: number;
   submittedCount: number;
+
+  // AI Problem Specifications
+  problemStatement?: string;
+  inputSpecification?: string;
+  outputSpecification?: string;
+  constraints?: string;
+  sampleInput?: string;
+  sampleOutput?: string;
+  programmingLanguage?: string;
+  sourceDocumentName?: string;
+  rubricCriteria?: Array<{
+    name: string;
+    description?: string;
+    maxScore: number;
+  }>;
 }
 
 export interface TeacherSubmissionListResponse {
@@ -128,6 +143,11 @@ export const teacherExamsApi = {
 
   updateExam: async (id: string, payload: UpdateExamPayload): Promise<ExamResponse> => {
     const response = await apiClient.put(`/teacher/exams/${id}`, payload);
+    return response.data;
+  },
+
+  publishExam: async (id: string): Promise<ExamResponse> => {
+    const response = await apiClient.post(`/teacher/exams/${id}/publish`);
     return response.data;
   },
 

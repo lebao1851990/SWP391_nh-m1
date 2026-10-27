@@ -8,6 +8,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -79,8 +82,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleMessageNotReadableException(org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        log.warn("Failed to parse request JSON: {}", ex.getMessage());
+        String msg = (ex.getRootCause() != null && ex.getRootCause().getMessage() != null)
+                ? ex.getRootCause().getMessage()
+                : "Invalid request body";
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(400, "BAD_REQUEST", "Invalid request body"));
+                .body(new ErrorResponse(400, "BAD_REQUEST", msg));
     }
 
     @ExceptionHandler(com.codeassess.ai.exception.AiIntegrationException.class)

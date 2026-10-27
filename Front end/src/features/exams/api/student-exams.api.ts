@@ -19,6 +19,15 @@ export interface ExamResponse {
   classCodes?: string[];
   status: 'upcoming' | 'active' | 'completed' | 'missed';
   score?: number;
+  problemStatement?: string;
+  inputSpecification?: string;
+  outputSpecification?: string;
+  constraints?: string;
+  sampleInput?: string;
+  sampleOutput?: string;
+  programmingLanguage?: string;
+  sourceDocumentName?: string;
+  rubricCriteria?: { name: string; description?: string; maxScore: number }[];
 }
 
 function normalizeExam(data: Record<string, unknown>): ExamResponse {
@@ -73,6 +82,15 @@ function normalizeExam(data: Record<string, unknown>): ExamResponse {
     classCodes: Array.isArray(data.classCodes) ? (data.classCodes as string[]) : [],
     status: validStatus,
     score: data.score !== undefined ? Number(data.score) : undefined,
+    problemStatement: (data.problemStatement as string) || undefined,
+    inputSpecification: (data.inputSpecification as string) || undefined,
+    outputSpecification: (data.outputSpecification as string) || undefined,
+    constraints: (data.constraints as string) || undefined,
+    sampleInput: (data.sampleInput as string) || undefined,
+    sampleOutput: (data.sampleOutput as string) || undefined,
+    programmingLanguage: (data.programmingLanguage as string) || undefined,
+    sourceDocumentName: (data.sourceDocumentName as string) || undefined,
+    rubricCriteria: Array.isArray(data.rubricCriteria) ? (data.rubricCriteria as { name: string; description?: string; maxScore: number }[]) : undefined,
   };
 }
 

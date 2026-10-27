@@ -25,6 +25,6 @@ public class AppealResolveRequestDto {
     private String reviewerNotes;
 
     @DecimalMin(value = "0.0", message = "Điểm điều chỉnh không được nhỏ hơn 0")
-    @DecimalMax(value = "100.0", message = "Điểm điều chỉnh không được vượt quá 100")
+    @DecimalMax(value = "10.0", message = "Điểm điều chỉnh không được vượt quá 10")
     private BigDecimal adjustedScore;
 }

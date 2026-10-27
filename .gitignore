@@ -9,3 +9,7 @@ Back end/classpath.txt
 .env
 .env.local
 *.env
+
+# Runtime data & uploads
+Back end/data/
+/Back end/data/

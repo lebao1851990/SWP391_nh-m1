@@ -59,6 +59,12 @@ public class TeacherExamController {
     }
 
     @PreAuthorize("hasRole('TEACHER')")
+    @PostMapping("/{id}/publish")
+    public ExamResponse publishExam(@PathVariable String id, @AuthenticationPrincipal User currentUser) {
+        return teacherExamService.publishExam(id, currentUser.getId());
+    }
+
+    @PreAuthorize("hasRole('TEACHER')")
     @org.springframework.web.bind.annotation.DeleteMapping("/{id}")
     @org.springframework.web.bind.annotation.ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
     public void deleteExam(@PathVariable String id, @AuthenticationPrincipal User currentUser) {
