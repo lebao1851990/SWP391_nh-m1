@@ -52,7 +52,7 @@ public class StudentAiService {
                 .orElseThrow(() -> new ResourceNotFoundException("Submission not found or access denied"));
 
         // Enforce active exam rule: feedback is only allowed after exam has concluded
-        if (submission.getExam() != null && "active".equalsIgnoreCase(submission.getExam().getStatus())) {
+        if (submission.getExam() != null && !submission.getExam().isConcluded()) {
             log.warn("Student {} attempted to access AI assistant during active exam {}", studentId, submission.getExam().getId());
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "AI Learning Assistant is not permitted during an active examination. Please wait until the assessment has concluded.");

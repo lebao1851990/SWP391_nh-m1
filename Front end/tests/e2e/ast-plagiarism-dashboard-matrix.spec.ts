@@ -1,6 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { login } from './helpers';
 
+const TEACHER_EMAIL = process.env.E2E_TEACHER_EMAIL || 'teachera@fpt.edu.vn';
+const STUDENT_EMAIL = process.env.E2E_STUDENT_EMAIL || 'studenta@fpt.edu.vn';
+
 test.describe('AST Plagiarism Dashboard, Similarity Matrix & Comparison E2E', () => {
 
   const mockPairs = [
@@ -49,7 +52,7 @@ test.describe('AST Plagiarism Dashboard, Similarity Matrix & Comparison E2E', ()
   ];
 
   test('1. Dashboard renders 4 telemetry cards, neutral notice, and pairwise table', async ({ page }) => {
-    await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+    await login(page, TEACHER_EMAIL, { role: 'TEACHER' });
 
     await page.route('**/api/teacher/plagiarism', async (route) => {
       await route.fulfill({
@@ -80,7 +83,7 @@ test.describe('AST Plagiarism Dashboard, Similarity Matrix & Comparison E2E', ()
   });
 
   test('2. Toggles to Similarity Matrix Heatmap view and allows cell inspection', async ({ page }) => {
-    await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+    await login(page, TEACHER_EMAIL, { role: 'TEACHER' });
 
     await page.route('**/api/teacher/plagiarism', async (route) => {
       await route.fulfill({
@@ -111,7 +114,7 @@ test.describe('AST Plagiarism Dashboard, Similarity Matrix & Comparison E2E', ()
   });
 
   test('3. Filters by Assessment (Exam) and Cohort (Class)', async ({ page }) => {
-    await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+    await login(page, TEACHER_EMAIL, { role: 'TEACHER' });
 
     await page.route('**/api/teacher/plagiarism', async (route) => {
       await route.fulfill({
@@ -133,7 +136,7 @@ test.describe('AST Plagiarism Dashboard, Similarity Matrix & Comparison E2E', ()
   });
 
   test('4. Pair Comparison View displays side-by-side code diff, matches, and faculty adjudication', async ({ page }) => {
-    await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+    await login(page, TEACHER_EMAIL, { role: 'TEACHER' });
 
     const pairId = 'pair-101';
     await page.route(`**/api/teacher/plagiarism/${pairId}/compare`, async (route) => {
@@ -216,7 +219,7 @@ test.describe('AST Plagiarism Dashboard, Similarity Matrix & Comparison E2E', ()
   });
 
   test('5. Student Academic Integrity Audit preserves peer confidentiality and shows neutral notice', async ({ page }) => {
-    await login(page, 'studenta@fpt.edu.vn', 'testpass123');
+    await login(page, STUDENT_EMAIL, { role: 'STUDENT' });
 
     const subId = 'sub-test-001';
     await page.route(`**/api/student/plagiarism/${subId}`, async (route) => {
@@ -259,7 +262,7 @@ test.describe('AST Plagiarism Dashboard, Similarity Matrix & Comparison E2E', ()
   });
 
   test('6. Adjudication API failure retains user input and does not display fake recorded state', async ({ page }) => {
-    await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+    await login(page, TEACHER_EMAIL, { role: 'TEACHER' });
 
     const pairId = 'pair-101';
     await page.route(`**/api/teacher/plagiarism/${pairId}/compare`, async (route) => {

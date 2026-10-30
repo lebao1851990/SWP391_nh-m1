@@ -6,6 +6,8 @@ import {
 } from '../../src/features/plagiarism/api';
 import { login } from './helpers';
 
+const TEACHER_EMAIL = process.env.E2E_TEACHER_EMAIL || 'teacher.test@codeassess.edu.vn';
+
 test.describe('Plagiarism API Normalizer Unit Tests', () => {
 
   test('1. Preserves legitimate similarity values, including 0 and decimals', () => {
@@ -171,7 +173,7 @@ test.describe('Plagiarism API Normalizer Unit Tests', () => {
   });
 
   test('8. UI Consumer: Displays explicit error notice (no empty disguise, no crash) when API returns malformed response', async ({ page }) => {
-    await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+    await login(page, TEACHER_EMAIL);
 
     // Intercept subsequent request with malformed non-array object
     await page.route('**/api/teacher/plagiarism', route => {
@@ -185,16 +187,16 @@ test.describe('Plagiarism API Normalizer Unit Tests', () => {
     await page.goto('/teacher/plagiarism');
 
     // Asserts explicit error state UI rendered
-    await expect(page.locator('h2:has-text("Integration Notice")')).toBeVisible({ timeout: 8000 });
+    await expect(page.locator('h2:has-text("Thông báo tích hợp"), h2:has-text("Integration Notice")')).toBeVisible({ timeout: 8000 });
     await expect(page.locator('text=Malformed API response')).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('button:has-text("Retry Connection")')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('button:has-text("Thử lại kết nối"), button:has-text("Retry Connection")')).toBeVisible({ timeout: 5000 });
 
     // Asserts it did NOT silently show empty table
-    await expect(page.locator('text=No plagiarism records detected')).not.toBeVisible();
+    await expect(page.locator('text=Không phát hiện bản ghi tương đồng nào, text=No plagiarism records detected')).not.toBeVisible();
   });
 
   test('9. UI Consumer: Distinguishes legitimate empty array from error state', async ({ page }) => {
-    await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+    await login(page, TEACHER_EMAIL);
 
     // Intercept subsequent request with valid empty array
     await page.route('**/api/teacher/plagiarism', route => {
@@ -208,9 +210,9 @@ test.describe('Plagiarism API Normalizer Unit Tests', () => {
     await page.goto('/teacher/plagiarism');
 
     // Asserts legitimate empty state rendered
-    await expect(page.locator('text=No plagiarism records detected for your active exams')).toBeVisible({ timeout: 8000 });
+    await expect(page.getByText(/Không phát hiện bản ghi tương đồng nào|No plagiarism records detected/)).toBeVisible({ timeout: 8000 });
 
     // Asserts error notice is NOT rendered
-    await expect(page.locator('h2:has-text("Integration Notice")')).not.toBeVisible();
+    await expect(page.locator('h2:has-text("Thông báo tích hợp"), h2:has-text("Integration Notice")')).not.toBeVisible();
   });
 });

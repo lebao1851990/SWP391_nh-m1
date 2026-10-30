@@ -62,12 +62,12 @@ public class StudentAppealControllerTest {
         AppealCreateRequestDto req = new AppealCreateRequestDto();
         req.setSubmissionId("sub1");
         req.setBasis("Valid basis");
-        req.setExplanation("Exp");
+        req.setExplanation("Valid explanation text with sufficient length");
         
         AppealResponseDto res = AppealResponseDto.builder()
                 .id("apl_123")
                 .status("PENDING")
-                .explanation("Exp")
+                .explanation("Valid explanation text with sufficient length")
                 .build();
                 
         when(studentAppealService.createAppeal(any(AppealCreateRequestDto.class), eq(student)))
@@ -89,7 +89,7 @@ public class StudentAppealControllerTest {
         AppealCreateRequestDto req = new AppealCreateRequestDto();
         req.setSubmissionId("sub1");
         req.setBasis("Valid basis");
-        req.setExplanation("Exp");
+        req.setExplanation("Valid explanation text with sufficient length");
         
         when(studentAppealService.createAppeal(any(), any()))
                 .thenThrow(new ConflictException("Already exists"));
@@ -98,5 +98,60 @@ public class StudentAppealControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    @WithMockUser(username = "student@test.com", roles = "STUDENT")
+    public void createAppeal_ExplanationTooShort_Returns400() throws Exception {
+        when(userRepository.findByEmail("student@test.com")).thenReturn(Optional.of(student));
+
+        AppealCreateRequestDto req = new AppealCreateRequestDto();
+        req.setSubmissionId("sub1");
+        req.setBasis("Valid basis");
+        req.setExplanation("Too short"); // 9 chars < 20
+
+        mockMvc.perform(post("/api/student/appeals").with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("20")));
+    }
+
+    @Test
+    @WithMockUser(username = "student@test.com", roles = "STUDENT")
+    public void createAppeal_ExplanationTooLong_Returns400() throws Exception {
+        when(userRepository.findByEmail("student@test.com")).thenReturn(Optional.of(student));
+
+        AppealCreateRequestDto req = new AppealCreateRequestDto();
+        req.setSubmissionId("sub1");
+        req.setBasis("Valid basis");
+        req.setExplanation("a".repeat(1001)); // 1001 chars > 1000
+
+        mockMvc.perform(post("/api/student/appeals").with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("1000")));
+    }
+
+    @Test
+    @WithMockUser(username = "student@test.com", roles = "STUDENT")
+    public void createAppeal_SubmissionNotFoundOrNotOwned_Returns404() throws Exception {
+        when(userRepository.findByEmail("student@test.com")).thenReturn(Optional.of(student));
+
+        AppealCreateRequestDto req = new AppealCreateRequestDto();
+        req.setSubmissionId("sub-other");
+        req.setBasis("Valid basis");
+        req.setExplanation("Valid explanation text with sufficient length");
+
+        when(studentAppealService.createAppeal(any(), any()))
+                .thenThrow(new ResourceNotFoundException("Submission not found or access denied"));
+
+        mockMvc.perform(post("/api/student/appeals").with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isNotFound());
     }
 }

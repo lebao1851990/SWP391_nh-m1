@@ -23,8 +23,12 @@ public class Main {
 }
   `;
 
+const TEACHER_EMAIL = process.env.E2E_TEACHER_EMAIL || 'teachera@fpt.edu.vn';
+const STUDENT_A_EMAIL = process.env.E2E_STUDENT_EMAIL || 'studenta@fpt.edu.vn';
+const STUDENT_B_EMAIL = process.env.E2E_STUDENT_B_EMAIL || 'studentb@fpt.edu.vn';
+
   test('Flow 1 — Student A Submission', async ({ page }) => {
-    await login(page, 'studenta@fpt.edu.vn', 'testpass123');
+    await login(page, STUDENT_A_EMAIL, { role: 'STUDENT' });
     await expect(page).toHaveURL(/\/student\/dashboard/);
 
     await page.locator('nav a[href="/student/exams"], a[href="/student/exams"]').first().click();
@@ -59,7 +63,7 @@ public class Main {
   });
 
   test('Flow 2 — Student B Submission (Plagiarism Pipeline)', async ({ page }) => {
-    await login(page, 'studentb@fpt.edu.vn', 'testpass123');
+    await login(page, STUDENT_B_EMAIL, { role: 'STUDENT' });
     await expect(page).toHaveURL(/\/student\/dashboard/);
 
     await page.locator('nav a[href="/student/exams"], a[href="/student/exams"]').first().click();
@@ -96,7 +100,7 @@ public class Main {
     expect(currentSubAId).toBeTruthy();
     expect(currentSubBId).toBeTruthy();
 
-    await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+    await login(page, TEACHER_EMAIL, { role: 'TEACHER' });
     await expect(page).toHaveURL(/\/teacher\/dashboard/);
 
     // Navigate to plagiarism dashboard and await initial list fetch
@@ -168,7 +172,7 @@ public class Main {
   });
 
   test('Flow 5 — Teacher Manual Scoring', async ({ page }) => {
-    await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+    await login(page, TEACHER_EMAIL, { role: 'TEACHER' });
     await expect(page).toHaveURL(/\/teacher\/dashboard/);
 
     await page.locator('nav a[href="/teacher/exams"], a[href="/teacher/exams"]').first().click();
@@ -213,7 +217,7 @@ public class Main {
   });
 
   test('Flow 4 & 6 — Student Result & Appeals', async ({ page }) => {
-    await login(page, 'studenta@fpt.edu.vn', 'testpass123');
+    await login(page, STUDENT_A_EMAIL, { role: 'STUDENT' });
     await expect(page).toHaveURL(/\/student\/dashboard/);
 
     // Check appeals list

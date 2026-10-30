@@ -278,7 +278,27 @@ public class TeacherScoringService {
         Submission submission = submissionRepository.findByIdAndExam_CourseClass_Teacher_Id(submissionId, teacherId)
                 .orElseThrow(() -> new ResourceNotFoundException("Submission not found or access denied"));
 
-        return gradeAuditLogRepository.findBySubmission_IdOrderByCreatedAtDesc(submissionId).stream()
+        return mapAuditLogs(submission);
+    }
+
+    @Transactional(readOnly = true)
+    public List<GradeAuditLogDto> getAuditLogsForAdmin(String submissionId) {
+        Submission submission = submissionRepository.findById(submissionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Submission not found: " + submissionId));
+
+        return mapAuditLogs(submission);
+    }
+
+    @Transactional(readOnly = true)
+    public List<GradeAuditLogDto> getAuditLogs(String submissionId, User currentUser) {
+        if (currentUser != null && currentUser.getRole() == com.codeassess.user.entity.Role.ADMIN) {
+            return getAuditLogsForAdmin(submissionId);
+        }
+        return getAuditLogs(submissionId, currentUser != null ? currentUser.getId() : null);
+    }
+
+    private List<GradeAuditLogDto> mapAuditLogs(Submission submission) {
+        return gradeAuditLogRepository.findBySubmission_IdOrderByCreatedAtDesc(submission.getId()).stream()
                 .map(log -> GradeAuditLogDto.builder()
                         .id(log.getId())
                         .submissionId(submission.getId())

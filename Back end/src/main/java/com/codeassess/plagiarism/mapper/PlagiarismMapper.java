@@ -9,6 +9,7 @@ import com.codeassess.plagiarism.entity.PlagiarismEvidence;
 import com.codeassess.plagiarism.entity.SimilarityPair;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -58,22 +59,22 @@ public class PlagiarismMapper {
     }
 
     public CodeComparisonDataDto toComparisonDto(SimilarityPair pair, List<PlagiarismEvidence> evidences) {
-        List<CodeComparisonDataDto.MatchDto> matches = evidences.stream().map(e ->
+        List<CodeComparisonDataDto.MatchDto> matches = (evidences != null ? evidences : Collections.<PlagiarismEvidence>emptyList()).stream().map(e ->
                 CodeComparisonDataDto.MatchDto.builder()
-                        .startLineA(e.getStartLineA())
-                        .endLineA(e.getEndLineA())
-                        .startLineB(e.getStartLineB())
-                        .endLineB(e.getEndLineB())
-                        .type(e.getEvidenceType())
+                        .startLineA(e.getStartLineA() != null ? e.getStartLineA() : 1)
+                        .endLineA(e.getEndLineA() != null ? e.getEndLineA() : 1)
+                        .startLineB(e.getStartLineB() != null ? e.getStartLineB() : 1)
+                        .endLineB(e.getEndLineB() != null ? e.getEndLineB() : 1)
+                        .type(e.getEvidenceType() != null ? e.getEvidenceType() : "MATCH")
                         .build()
         ).collect(Collectors.toList());
 
         return CodeComparisonDataDto.builder()
-                .pairId(String.valueOf(pair.getId()))
+                .pairId(pair != null && pair.getId() != null ? String.valueOf(pair.getId()) : "")
                 .fileA("StudentA.java")
                 .fileB("StudentB.java")
-                .sourceCodeA(pair.getSubmissionA().getSourceCode())
-                .sourceCodeB(pair.getSubmissionB().getSourceCode())
+                .sourceCodeA(pair != null && pair.getSubmissionA() != null ? pair.getSubmissionA().getSourceCode() : "")
+                .sourceCodeB(pair != null && pair.getSubmissionB() != null ? pair.getSubmissionB().getSourceCode() : "")
                 .matches(matches)
                 .adjudicationStatus(pair.getAdjudicationStatus() != null ? pair.getAdjudicationStatus() : "PENDING")
                 .adjudicationNotes(pair.getAdjudicationNotes())
@@ -83,13 +84,28 @@ public class PlagiarismMapper {
                 .build();
     }
 
-    public StudentPlagiarismDetailDto toStudentDetailDto(SimilarityPair pair, List<PlagiarismEvidence> evidences) {
+    public StudentPlagiarismDetailDto toStudentDetailDto(SimilarityPair pair, List<PlagiarismEvidence> evidences, String studentId) {
+        String ownSubmissionId = null;
+        if (studentId != null && pair != null) {
+            if (pair.getSubmissionA() != null && pair.getSubmissionA().getStudent() != null
+                    && studentId.equals(pair.getSubmissionA().getStudent().getId())) {
+                ownSubmissionId = pair.getSubmissionA().getId();
+            } else if (pair.getSubmissionB() != null && pair.getSubmissionB().getStudent() != null
+                    && studentId.equals(pair.getSubmissionB().getStudent().getId())) {
+                ownSubmissionId = pair.getSubmissionB().getId();
+            }
+        }
         return StudentPlagiarismDetailDto.builder()
-                .recordId(String.valueOf(pair.getId()))
-                .examName(pair.getExam().getTitle())
-                .similarityRate(pair.getSimilarityRate())
-                .isFlagged(pair.getIsFlagged())
-                .evidence(evidences.stream().map(this::toEvidenceDto).collect(Collectors.toList()))
+                .recordId(pair != null ? String.valueOf(pair.getId()) : null)
+                .submissionId(ownSubmissionId)
+                .examName(pair != null && pair.getExam() != null ? pair.getExam().getTitle() : null)
+                .similarityRate(pair != null ? pair.getSimilarityRate() : null)
+                .isFlagged(pair != null && pair.getIsFlagged() != null ? pair.getIsFlagged() : false)
+                .evidence(evidences != null ? evidences.stream().map(this::toEvidenceDto).collect(Collectors.toList()) : java.util.Collections.emptyList())
                 .build();
+    }
+
+    public StudentPlagiarismDetailDto toStudentDetailDto(SimilarityPair pair, List<PlagiarismEvidence> evidences) {
+        return toStudentDetailDto(pair, evidences, null);
     }
 }

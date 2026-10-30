@@ -83,6 +83,115 @@ class SemanticReviewServiceTest {
     }
 
     @Test
+    @DisplayName("Concluded exam allows student Semantic Review even if status is active")
+    void testConcludedExam_AllowsStudentReview() {
+        exam.setStatus("active");
+        exam.setExamDate(java.time.LocalDateTime.now(Exam.APP_ZONE).minusHours(2));
+        exam.setDuration(60); // Expired 1 hour ago
+        when(submissionRepository.findByIdAndStudent_Id("sub-1", "student-1"))
+                .thenReturn(Optional.of(submission));
+
+        SemanticReviewResponse mockAiResponse = SemanticReviewResponse.builder()
+                .summary("Clean implementation")
+                .cleanCodeScore(BigDecimal.valueOf(9.0))
+                .issues(List.of())
+                .build();
+
+        when(aiClient.generateStructuredOutput(anyString(), anyString(), eq(SemanticReviewResponse.class)))
+                .thenReturn(mockAiResponse);
+
+        SemanticReviewResponse response = semanticReviewService.reviewForStudent("sub-1", "student-1");
+        assertThat(response).isNotNull();
+        assertThat(response.getSummary()).isEqualTo("Clean implementation");
+    }
+
+    @Test
+    @DisplayName("Ongoing exam within duration blocks student review with 403")
+    void testOngoingExam_BlocksStudentReview() {
+        exam.setStatus("active");
+        exam.setExamDate(java.time.LocalDateTime.now(Exam.APP_ZONE).minusMinutes(10));
+        exam.setDuration(60); // 50 min left
+        when(submissionRepository.findByIdAndStudent_Id("sub-1", "student-1"))
+                .thenReturn(Optional.of(submission));
+
+        assertThatThrownBy(() -> semanticReviewService.reviewForStudent("sub-1", "student-1"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Semantic Code Review is not permitted during an active examination");
+    }
+
+    @Test
+    @DisplayName("Upcoming exam blocks student review with 403")
+    void testUpcomingExam_BlocksStudentReview() {
+        exam.setStatus("active");
+        exam.setExamDate(java.time.LocalDateTime.now(Exam.APP_ZONE).plusMinutes(30));
+        exam.setDuration(60);
+        when(submissionRepository.findByIdAndStudent_Id("sub-1", "student-1"))
+                .thenReturn(Optional.of(submission));
+
+        assertThatThrownBy(() -> semanticReviewService.reviewForStudent("sub-1", "student-1"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Semantic Code Review is not permitted during an active examination");
+    }
+
+    @Test
+    @DisplayName("Scheduled exam blocks student review with 403")
+    void testScheduledExam_BlocksStudentReview() {
+        exam.setStatus("scheduled");
+        when(submissionRepository.findByIdAndStudent_Id("sub-1", "student-1"))
+                .thenReturn(Optional.of(submission));
+
+        assertThatThrownBy(() -> semanticReviewService.reviewForStudent("sub-1", "student-1"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Semantic Code Review is not permitted during an active examination");
+    }
+
+    @Test
+    @DisplayName("Active exam missing time data blocks student review with 403")
+    void testActiveExamMissingTimeData_BlocksStudentReview() {
+        exam.setStatus("active");
+        exam.setExamDate(null);
+        when(submissionRepository.findByIdAndStudent_Id("sub-1", "student-1"))
+                .thenReturn(Optional.of(submission));
+
+        assertThatThrownBy(() -> semanticReviewService.reviewForStudent("sub-1", "student-1"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Semantic Code Review is not permitted during an active examination");
+    }
+
+    @Test
+    @DisplayName("Unknown status blocks student review with 403")
+    void testUnknownStatus_BlocksStudentReview() {
+        exam.setStatus("UNKNOWN_STATUS");
+        when(submissionRepository.findByIdAndStudent_Id("sub-1", "student-1"))
+                .thenReturn(Optional.of(submission));
+
+        assertThatThrownBy(() -> semanticReviewService.reviewForStudent("sub-1", "student-1"))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Semantic Code Review is not permitted during an active examination");
+    }
+
+    @Test
+    @DisplayName("Cancelled exam allows student review")
+    void testCancelledExam_AllowsStudentReview() {
+        exam.setStatus("cancelled");
+        when(submissionRepository.findByIdAndStudent_Id("sub-1", "student-1"))
+                .thenReturn(Optional.of(submission));
+
+        SemanticReviewResponse mockAiResponse = SemanticReviewResponse.builder()
+                .summary("Code for cancelled exam")
+                .cleanCodeScore(BigDecimal.valueOf(8.5))
+                .issues(List.of())
+                .build();
+
+        when(aiClient.generateStructuredOutput(anyString(), anyString(), eq(SemanticReviewResponse.class)))
+                .thenReturn(mockAiResponse);
+
+        SemanticReviewResponse response = semanticReviewService.reviewForStudent("sub-1", "student-1");
+        assertThat(response).isNotNull();
+        assertThat(response.getSummary()).isEqualTo("Code for cancelled exam");
+    }
+
+    @Test
     @DisplayName("Submission not found throws ResourceNotFoundException")
     void testSubmissionNotFound_ThrowsException() {
         when(submissionRepository.findByIdAndStudent_Id("invalid-sub", "student-1"))

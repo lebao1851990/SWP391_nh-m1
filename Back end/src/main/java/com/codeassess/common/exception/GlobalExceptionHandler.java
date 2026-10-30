@@ -76,8 +76,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(org.springframework.web.bind.MethodArgumentNotValidException ex) {
+        String msg = "Validation error";
+        if (ex.getBindingResult() != null && ex.getBindingResult().getFieldError() != null) {
+            String defaultMessage = ex.getBindingResult().getFieldError().getDefaultMessage();
+            if (defaultMessage != null && !defaultMessage.isBlank()) {
+                msg = defaultMessage;
+            }
+        }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(400, "BAD_REQUEST", "Validation error"));
+                .body(new ErrorResponse(400, "BAD_REQUEST", msg));
     }
 
     @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)

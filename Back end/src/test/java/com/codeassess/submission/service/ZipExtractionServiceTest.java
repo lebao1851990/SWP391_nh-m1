@@ -11,7 +11,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -399,5 +401,158 @@ class ZipExtractionServiceTest {
         assertThatThrownBy(() -> service.extract(zip))
                 .isInstanceOf(ZipValidationException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EXCEEDS_COMPRESSION_RATIO);
+    }
+
+    private EntryBuilder directory(String name) {
+        return zaos -> {
+            String dirName = name.endsWith("/") ? name : name + "/";
+            ZipArchiveEntry entry = new ZipArchiveEntry(dirName);
+            zaos.putArchiveEntry(entry);
+            zaos.closeArchiveEntry();
+        };
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Targeted Phase 2B Group 4 Test Extensions
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("Extracts valid archive from InputStream successfully")
+    void extractFromInputStream_validArchive_succeeds() throws IOException {
+        byte[] zip = createZip(
+                file("src/Main.java", "public class Main { public static void main(String[] args) {} }")
+        );
+        try (ExtractedWorkspace workspace = service.extract(new ByteArrayInputStream(zip))) {
+            assertThat(workspace.files()).hasSize(1);
+            assertThat(workspace.files().get(0).relativePath()).isEqualTo("src/Main.java");
+        }
+    }
+
+    @Test
+    @DisplayName("Rejects null InputStream with EMPTY_ARCHIVE")
+    void extractFromInputStream_nullStream_throwsEmptyArchive() {
+        assertThatThrownBy(() -> service.extract((InputStream) null))
+                .isInstanceOf(ZipValidationException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMPTY_ARCHIVE);
+    }
+
+    @Test
+    @DisplayName("Rejects empty InputStream with EMPTY_ARCHIVE")
+    void extractFromInputStream_emptyStream_throwsEmptyArchive() {
+        assertThatThrownBy(() -> service.extract(new ByteArrayInputStream(new byte[0])))
+                .isInstanceOf(ZipValidationException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMPTY_ARCHIVE);
+    }
+
+    @Test
+    @DisplayName("Rejects InputStream exceeding maxCompressedBytes")
+    void extractFromInputStream_exceedsMaxCompressedBytes_throwsException() {
+        properties.setMaxCompressedBytes(50);
+        byte[] data = new byte[100];
+        assertThatThrownBy(() -> service.extract(new ByteArrayInputStream(data)))
+                .isInstanceOf(ZipValidationException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EXCEEDS_MAX_COMPRESSED_SIZE);
+    }
+
+    @Test
+    @DisplayName("Fails with EXTRACTION_FAILED when InputStream throws IOException")
+    void extractFromInputStream_ioException_throwsExtractionFailed() {
+        InputStream failingStream = new InputStream() {
+            @Override
+            public int read() throws IOException {
+                throw new IOException("Simulated network stream break");
+            }
+        };
+        assertThatThrownBy(() -> service.extract(failingStream))
+                .isInstanceOf(ZipValidationException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EXTRACTION_FAILED);
+    }
+
+    @Test
+    @DisplayName("Rejects byte array exceeding maxCompressedBytes")
+    void extractByteArray_exceedsMaxCompressedBytes_throwsException() {
+        properties.setMaxCompressedBytes(50);
+        byte[] data = new byte[100];
+        assertThatThrownBy(() -> service.extract(data))
+                .isInstanceOf(ZipValidationException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EXCEEDS_MAX_COMPRESSED_SIZE);
+    }
+
+    @Test
+    @DisplayName("Rejects empty or whitespace-only entry name")
+    void rejectsEmptyOrWhitespaceEntryName_throwsZipSlip() throws IOException {
+        byte[] zip = createZip(
+                file("   ", "content")
+        );
+        assertThatThrownBy(() -> service.extract(zip))
+                .isInstanceOf(ZipValidationException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ZIP_SLIP_ATTEMPT);
+    }
+
+    @Test
+    @DisplayName("Rejects Windows backslash absolute path")
+    void rejectsWindowsBackslashAbsolutePath_throwsAbsolutePath() throws IOException {
+        byte[] zip = createZip(
+                file("\\\\server\\share\\Main.java", "class Main {}")
+        );
+        assertThatThrownBy(() -> service.extract(zip))
+                .isInstanceOf(ZipValidationException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ABSOLUTE_PATH_DISALLOWED);
+    }
+
+    @Test
+    @DisplayName("Rejects file entry without extension")
+    void rejectsFileWithoutExtension_throwsForbiddenFileType() throws IOException {
+        byte[] zip = createZip(
+                file("LICENSE", "MIT License"),
+                file("src/Main.java", "public class Main {}")
+        );
+        assertThatThrownBy(() -> service.extract(zip))
+                .isInstanceOf(ZipValidationException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN_FILE_TYPE);
+    }
+
+    @Test
+    @DisplayName("Rejects zip archive containing no entries with EMPTY_ARCHIVE")
+    void emptyZipArchiveNoEntries_throwsEmptyArchive() throws IOException {
+        byte[] zip = createZip();
+        assertThatThrownBy(() -> service.extract(zip))
+                .isInstanceOf(ZipValidationException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMPTY_ARCHIVE);
+    }
+
+    @Test
+    @DisplayName("Filters OS and editor metadata without failing on unpermitted extensions")
+    void filtersOsMetadata_andExtractsValidJava() throws IOException {
+        byte[] zip = createZip(
+                file("__MACOSX/._Main.java", "mac metadata"),
+                file("sub/__MACOSX/._Sub.java", "sub mac metadata"),
+                file(".DS_Store", "ds store"),
+                file("sub/.DS_Store", "sub ds store"),
+                file("Thumbs.db", "thumbs"),
+                file("sub/Thumbs.db", "sub thumbs"),
+                file("src/Main.java", "public class Main { public static void main(String[] args) {} }")
+        );
+
+        try (ExtractedWorkspace workspace = service.extract(zip)) {
+            assertThat(workspace.files()).hasSize(1);
+            assertThat(workspace.files().get(0).relativePath()).isEqualTo("src/Main.java");
+        }
+    }
+
+    @Test
+    @DisplayName("Safely creates explicit directory entries and extracts files inside")
+    void extractsWithExplicitDirectoryEntries_succeeds() throws IOException {
+        byte[] zip = createZip(
+                directory("src"),
+                directory("src/nested/"),
+                file("src/nested/Main.java", "package nested; public class Main {}")
+        );
+
+        try (ExtractedWorkspace workspace = service.extract(zip)) {
+            assertThat(workspace.files()).hasSize(1);
+            assertThat(workspace.files().get(0).relativePath()).isEqualTo("src/nested/Main.java");
+            assertThat(Files.isDirectory(workspace.workspaceDir().resolve("src/nested"))).isTrue();
+        }
     }
 }

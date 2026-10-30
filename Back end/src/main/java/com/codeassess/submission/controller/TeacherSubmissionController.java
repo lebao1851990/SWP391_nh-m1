@@ -34,10 +34,10 @@ public class TeacherSubmissionController {
         return teacherSubmissionService.getTeacherSubmissionById(id, currentUser.getId());
     }
 
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
     @GetMapping("/{id}/audit-logs")
     public List<com.codeassess.scoring.dto.response.GradeAuditLogDto> getAuditLogs(@PathVariable String id, @AuthenticationPrincipal User currentUser) {
-        return teacherScoringService.getAuditLogs(id, currentUser.getId());
+        return teacherScoringService.getAuditLogs(id, currentUser);
     }
 
     @PreAuthorize("hasRole('TEACHER')")

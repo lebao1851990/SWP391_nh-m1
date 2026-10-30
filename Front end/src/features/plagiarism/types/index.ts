@@ -67,9 +67,48 @@ export interface AdjudicationResponse {
 
 export interface StudentPlagiarismDetail {
   recordId: string;
+  submissionId?: string;
   examName: string;
   similarityRate: number;
   isFlagged: boolean;
   evidence: PlagiarismEvidence[];
   // Student view MUST NOT contain another student's source code, ID, or raw hash.
 }
+
+export type AstMatchStatus = 'MATCHED_REGION' | 'CONTEXT' | 'UNMATCHED';
+
+export interface AstTreeNode {
+  nodeId: string;
+  nodeType: string;
+  label: string;
+  startLine: number;
+  endLine: number;
+  matchStatus: AstMatchStatus;
+  matchedNodeId?: string | null;
+  evidenceId?: string | null;
+  hasHiddenChildren?: boolean;
+  children: AstTreeNode[];
+}
+
+export interface AstTreeComparison {
+  pairId: string;
+  submissionAId: string;
+  submissionBId: string;
+  studentAName?: string;
+  studentBName?: string;
+  treeA?: AstTreeNode | null;
+  treeB?: AstTreeNode | null;
+  displayedNodesA: number;
+  displayedNodesB: number;
+  totalCountedNodesA: number;
+  totalCountedNodesB: number;
+  countCompletedA: boolean;
+  countCompletedB: boolean;
+  matchedRegionNodesCount: number;
+  isTruncated: boolean;
+  truncationReason?: string | null;
+  truncationNotice?: string | null;
+  parseStatus: 'SUCCESS' | 'SYNTAX_ERROR_A' | 'SYNTAX_ERROR_B' | 'SYNTAX_ERROR_BOTH' | 'EMPTY_SOURCE' | 'FILE_TOO_LARGE';
+  parseErrorMessage?: string | null;
+}
+

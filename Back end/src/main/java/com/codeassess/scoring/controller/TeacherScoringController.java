@@ -28,9 +28,9 @@ public class TeacherScoringController {
         return teacherScoringService.updateScoring(id, currentUser.getId(), payload);
     }
 
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasAnyRole('TEACHER', 'ADMIN')")
     @GetMapping("/audit-logs")
     public java.util.List<com.codeassess.scoring.dto.response.GradeAuditLogDto> getAuditLogs(@PathVariable String id, @AuthenticationPrincipal User currentUser) {
-        return teacherScoringService.getAuditLogs(id, currentUser.getId());
+        return teacherScoringService.getAuditLogs(id, currentUser);
     }
 }

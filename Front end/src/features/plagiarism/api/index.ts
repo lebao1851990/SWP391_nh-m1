@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/api-client';
-import { PlagiarismRecord, CodeComparisonData, StudentPlagiarismDetail } from '../types';
+import { PlagiarismRecord, CodeComparisonData, StudentPlagiarismDetail, AstTreeComparison } from '../types';
 
 /**
  * Strictly parses a boolean value from documented boolean representations.
@@ -210,3 +210,12 @@ export async function getStudentPlagiarismDetail(submissionId: string): Promise<
   const response = await apiClient.get<StudentPlagiarismDetail>(`/student/plagiarism/${submissionId}`);
   return response.data;
 }
+
+/**
+ * Fetch hierarchical AST tree comparison data (Authorized for Teacher)
+ */
+export async function getPlagiarismAstTree(recordId: string): Promise<AstTreeComparison> {
+  const response = await apiClient.get<AstTreeComparison>(`/teacher/plagiarism/${recordId}/ast-tree`);
+  return response.data;
+}
+

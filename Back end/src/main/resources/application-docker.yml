@@ -10,7 +10,7 @@
 spring:
   datasource:
     # 'mysql' is the service hostname declared in docker-compose.yml
-    url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:plagiarism_system}?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+    url: ${DB_URL:jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:codeassess}?useSSL=${DB_USE_SSL:false}&sslMode=${DB_SSL_MODE:PREFERRED}&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=${DB_ALLOW_PUBLIC_KEY_RETRIEVAL:true}&createDatabaseIfNotExist=true}
     username: ${DB_USERNAME:appuser}
     password: ${DB_PASSWORD:apppassword}
 

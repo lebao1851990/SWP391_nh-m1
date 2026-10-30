@@ -2,6 +2,9 @@ import { test, expect } from '@playwright/test';
 import { login } from './helpers';
 import { useUiStore } from '../../src/stores/ui.store';
 
+const TEACHER_EMAIL = process.env.E2E_TEACHER_EMAIL || 'teachera@fpt.edu.vn';
+const STUDENT_EMAIL = process.env.E2E_STUDENT_EMAIL || 'studenta@fpt.edu.vn';
+
 test.describe.serial('Responsive Layout & Sidebar Regression Verification', () => {
 
   test('1. Zustand UI Store Initialization & Data Isolation', async () => {
@@ -49,7 +52,7 @@ test.describe.serial('Responsive Layout & Sidebar Regression Verification', () =
       test.use({ viewport: { width: vp.width, height: vp.height } });
 
       test(`Student Portal Routes & Overflow Check (${vp.name})`, async ({ page }) => {
-        await login(page, 'studenta@fpt.edu.vn', 'testpass123');
+        await login(page, STUDENT_EMAIL, { role: 'STUDENT' });
         await expect(page).toHaveURL(/\/student\/dashboard/);
 
         for (const route of studentRoutes) {
@@ -101,7 +104,7 @@ test.describe.serial('Responsive Layout & Sidebar Regression Verification', () =
       });
 
       test(`Teacher Portal Routes & Overflow Check (${vp.name})`, async ({ page }) => {
-        await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+        await login(page, TEACHER_EMAIL, { role: 'TEACHER' });
         await expect(page).toHaveURL(/\/teacher\/dashboard/);
 
         for (const route of teacherRoutes) {
@@ -154,7 +157,7 @@ test.describe.serial('Responsive Layout & Sidebar Regression Verification', () =
 
       if (vp.isMobile) {
         test(`Mobile Drawer Interactions (${vp.name})`, async ({ page }) => {
-          await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+          await login(page, TEACHER_EMAIL, { role: 'TEACHER' });
           await page.goto('http://localhost:3000/teacher/dashboard');
           await page.waitForLoadState('networkidle');
 
@@ -192,7 +195,7 @@ test.describe.serial('Responsive Layout & Sidebar Regression Verification', () =
         });
       } else {
         test(`Desktop Sidebar Persistence (${vp.name})`, async ({ page }) => {
-          await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+          await login(page, TEACHER_EMAIL, { role: 'TEACHER' });
           await page.goto('http://localhost:3000/teacher/dashboard');
           await page.waitForLoadState('networkidle');
 

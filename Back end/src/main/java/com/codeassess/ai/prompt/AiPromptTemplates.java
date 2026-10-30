@@ -73,7 +73,22 @@ public final class AiPromptTemplates {
             - DO NOT hallucinate line numbers. If an issue is general or line number is uncertain, set line to null.
             - DO NOT hallucinate compiler errors. Only refer to compiler errors if actual compiler output is provided.
             - DO NOT write full rewrite replacements; provide concise, actionable suggestions.
-            - Output MUST be valid JSON adhering strictly to the schema provided.
+            - Output MUST be a SINGLE raw JSON object adhering strictly to this schema:
+            {
+              "summary": "High-level summary of code quality and structure",
+              "cleanCodeScore": 8.5,
+              "issues": [
+                {
+                  "line": 12,
+                  "severity": "WARNING",
+                  "category": "READABILITY_AND_NAMING",
+                  "message": "Clear explanation of the issue",
+                  "suggestion": "Actionable suggestion on how to improve"
+                }
+              ]
+            }
+            Valid severity values: "INFO", "WARNING", "CRITICAL".
+            Valid category values: "READABILITY_AND_NAMING", "CODE_DUPLICATION", "COMPLEXITY_AND_MAINTAINABILITY", "CLEAN_CODE_SMELLS", "COMPILER_OR_RUNTIME".
             """;
 
     public static final String EXAM_GENERATION_SYSTEM = """

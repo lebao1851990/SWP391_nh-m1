@@ -11,6 +11,8 @@ import com.codeassess.plagiarism.repository.PlagiarismEvidenceRepository;
 import com.codeassess.plagiarism.repository.SimilarityPairRepository;
 import com.codeassess.user.entity.User;
 import com.codeassess.user.repository.UserRepository;
+import com.codeassess.plagiarism.dto.AstTreeComparisonDto;
+import com.codeassess.plagiarism.service.AstTreeBuilderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -43,6 +45,7 @@ public class TeacherPlagiarismController {
     private final PlagiarismEvidenceRepository evidenceRepository;
     private final PlagiarismMapper mapper;
     private final UserRepository userRepository;
+    private final AstTreeBuilderService astTreeBuilderService;
 
     private User getAuthenticatedTeacher() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -85,6 +88,17 @@ public class TeacherPlagiarismController {
         
         List<PlagiarismEvidence> evidences = evidenceRepository.findBySimilarityPair_Id(id);
         return ResponseEntity.ok(mapper.toComparisonDto(pair, evidences));
+    }
+
+    @GetMapping("/{id}/ast-tree")
+    public ResponseEntity<AstTreeComparisonDto> getAstTreeComparison(@PathVariable Long id) {
+        SimilarityPair pair = similarityPairRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Plagiarism record not found"));
+
+        verifyOwnership(pair, getAuthenticatedTeacher());
+
+        List<PlagiarismEvidence> evidences = evidenceRepository.findBySimilarityPair_Id(id);
+        return ResponseEntity.ok(astTreeBuilderService.buildComparisonTree(pair, evidences));
     }
 
     @PostMapping("/{id}/adjudicate")

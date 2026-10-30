@@ -23,8 +23,29 @@ echo JAVA_HOME: %JAVA_HOME%
 "%JAVA_HOME%\bin\java.exe" -version
 echo ========================================================
 
+REM --------------------------------------------------------
+REM Load environment variables from .env file if present
+REM --------------------------------------------------------
+if exist "%~dp0.env" (
+    echo [INFO] Loading configuration from %~dp0.env...
+    for /f "usebackq eol=# tokens=1* delims==" %%A in ("%~dp0.env") do (
+        if not "%%A"=="" (
+            set "%%A=%%B"
+        )
+    )
+)
+
+if "%DB_HOST%"=="" set "DB_HOST=127.0.0.1"
 if "%DB_PORT%"=="" set "DB_PORT=3306"
+if "%DB_NAME%"=="" set "DB_NAME=codeassess"
 if "%PORT%"=="" set "PORT=8081"
+
+echo ========================================================
+echo [CONFIG] Target DB : %DB_HOST%:%DB_PORT%/%DB_NAME%
+echo [CONFIG] SSL / TLS : %DB_USE_SSL% (Mode: %DB_SSL_MODE%)
+echo [CONFIG] Server Port: %PORT%
+echo ========================================================
+
 call mvnw.cmd spring-boot:run
 pause
 endlocal

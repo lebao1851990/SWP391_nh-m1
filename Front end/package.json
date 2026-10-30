@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:e2e": "playwright test",
+    "test:e2e:mocked": "playwright test --project=mocked",
+    "test:e2e:live": "playwright test --project=live --project=hybrid"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

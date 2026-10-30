@@ -1,10 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { login } from './helpers';
 
+const TEACHER_EMAIL = process.env.E2E_TEACHER_EMAIL || 'teachera@fpt.edu.vn';
+const STUDENT_EMAIL = process.env.E2E_STUDENT_EMAIL || 'studenta@fpt.edu.vn';
+
 test.describe('Class-aware Exams E2E Verification', () => {
 
   test('Teacher assigns an exam to multiple classes and verifies assignments in list and detail', async ({ page }) => {
-    await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+    await login(page, TEACHER_EMAIL, { role: 'TEACHER' });
     await expect(page).toHaveURL(/\/teacher\/dashboard/);
 
     // Navigate to teacher exams view
@@ -67,7 +70,7 @@ test.describe('Class-aware Exams E2E Verification', () => {
   });
 
   test('Teacher can edit assigned classes on an existing exam', async ({ page }) => {
-    await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+    await login(page, TEACHER_EMAIL, { role: 'TEACHER' });
     await expect(page).toHaveURL(/\/teacher\/dashboard/);
 
     // Go to exams list to find an existing exam
@@ -97,7 +100,7 @@ test.describe('Class-aware Exams E2E Verification', () => {
   });
 
   test('Student views only exams for their enrolled classes', async ({ page }) => {
-    await login(page, 'studenta@fpt.edu.vn', 'testpass123');
+    await login(page, STUDENT_EMAIL, { role: 'STUDENT' });
     await expect(page).toHaveURL(/\/student\/dashboard/);
 
     // Navigate to student exams view
@@ -113,7 +116,7 @@ test.describe('Class-aware Exams E2E Verification', () => {
   });
 
   test('Student is blocked from accessing unauthorized exams by direct ID', async ({ page }) => {
-    await login(page, 'studenta@fpt.edu.vn', 'testpass123');
+    await login(page, STUDENT_EMAIL, { role: 'STUDENT' });
     await expect(page).toHaveURL(/\/student\/dashboard/);
 
     // Directly navigate to a non-enrolled or non-existent exam ID
@@ -126,7 +129,7 @@ test.describe('Class-aware Exams E2E Verification', () => {
   });
 
   test('Unauthorized exam submission is rejected with 404', async ({ page }) => {
-    await login(page, 'studenta@fpt.edu.vn', 'testpass123');
+    await login(page, STUDENT_EMAIL, { role: 'STUDENT' });
 
     // Send direct POST to submission endpoint for unauthorized exam
     const unauthorizedExamId = '99999999-0000-0000-0000-999999999999';

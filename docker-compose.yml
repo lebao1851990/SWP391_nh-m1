@@ -7,15 +7,15 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-123456}
-      MYSQL_DATABASE: ${DB_NAME:-plagiarism_system}
+      MYSQL_DATABASE: ${DB_NAME:-codeassess}
     ports:
-      - "${DB_PORT:-3306}:3306"
+      - "${MYSQL_HOST_PORT:-3307}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
       - codeassess-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -31,7 +31,7 @@ services:
     networks:
       - codeassess-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -48,22 +48,34 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_NAME: ${DB_NAME:-plagiarism_system}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-codeassess}
       DB_USERNAME: ${DB_USERNAME:-root}
       DB_PASSWORD: ${DB_PASSWORD:-123456}
+      DB_USE_SSL: ${DB_USE_SSL:-false}
+      DB_SSL_MODE: ${DB_SSL_MODE:-PREFERRED}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       BULLMQ_PRODUCER_URL: http://bullmq-service:3001
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-codeassess-internal-secret-2026}
       PORT: 8081
+      AI_PROVIDER: ${AI_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-${AI_API_KEY:-}}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
     ports:
       - "${PORT:-8081}:8081"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - submission_data:/app/data/submissions
     networks:
       - codeassess-network
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8081/api/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
 
   bullmq-service:
     build:
@@ -73,6 +85,8 @@ services:
     restart: unless-stopped
     depends_on:
       redis:
+        condition: service_healthy
+      backend:
         condition: service_healthy
     environment:
       REDIS_HOST: redis
@@ -85,6 +99,37 @@ services:
       - "3001:3001"
     networks:
       - codeassess-network
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:3001/api/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ./Front end
+      dockerfile: Dockerfile
+    container_name: codeassess-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      BACKEND_URL: http://backend:8081
+      NEXT_PUBLIC_API_URL: /api
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    networks:
+      - codeassess-network
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:3000/login" ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
 networks:
   codeassess-network:
@@ -93,3 +138,4 @@ networks:
 volumes:
   mysql_data:
   redis_data:
+  submission_data:

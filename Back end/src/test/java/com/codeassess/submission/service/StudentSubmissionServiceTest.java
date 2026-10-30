@@ -1,5 +1,6 @@
 package com.codeassess.submission.service;
 
+import com.codeassess.common.exception.ExamTimeExpiredException;
 import com.codeassess.common.exception.ResourceNotFoundException;
 import com.codeassess.exam.entity.Exam;
 import com.codeassess.exam.repository.ExamRepository;
@@ -16,6 +17,8 @@ import com.codeassess.submission.dto.ExtractedFile;
 import com.codeassess.submission.dto.ExtractedWorkspace;
 import com.codeassess.submission.dto.request.SubmissionCreateRequest;
 import com.codeassess.submission.dto.response.SubmissionDetailResponse;
+import com.codeassess.submission.dto.response.SubmissionFileDto;
+import com.codeassess.submission.dto.response.SubmissionListResponse;
 import com.codeassess.submission.entity.Submission;
 import com.codeassess.submission.event.SubmissionCreatedEvent;
 import com.codeassess.submission.exception.ZipValidationException;
@@ -29,11 +32,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -524,5 +529,240 @@ class StudentSubmissionServiceTest {
         assertThat(evidence.getLocationA()).isEqualTo("src/com/example/OrderService.java:12-28");
         assertThat(evidence.getLocationB()).isEqualTo("com/billing/PaymentService.java:15-31");
         assertThat(evidence.getDescription()).contains("src/com/example/OrderService.java:12-28");
+    }
+
+    @Test
+    @DisplayName("validateExamAvailability: Deleted exam throws ResourceNotFoundException")
+    void validateExamAvailability_deletedExam_throwsResourceNotFound() {
+        testExam.setDeletedAt(LocalDateTime.now());
+        SubmissionCreateRequest request = new SubmissionCreateRequest("public class Main {}");
+
+        assertThatThrownBy(() -> service.submitCode("exam-100", "student-100", request))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Exam not found or access denied");
+    }
+
+    @Test
+    @DisplayName("validateExamAvailability: Null status throws IllegalStateException")
+    void validateExamAvailability_nullStatus_throwsIllegalState() {
+        testExam.setStatus(null);
+        SubmissionCreateRequest request = new SubmissionCreateRequest("public class Main {}");
+
+        assertThatThrownBy(() -> service.submitCode("exam-100", "student-100", request))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Exam is not currently active");
+    }
+
+    @Test
+    @DisplayName("validateExamAvailability: Exam in the future throws IllegalStateException")
+    void validateExamAvailability_futureExamDate_throwsIllegalState() {
+        testExam.setExamDate(LocalDateTime.now().plusHours(1));
+        SubmissionCreateRequest request = new SubmissionCreateRequest("public class Main {}");
+
+        assertThatThrownBy(() -> service.submitCode("exam-100", "student-100", request))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Exam has not started yet");
+    }
+
+    @Test
+    @DisplayName("validateExamAvailability: Expired exam window throws ExamTimeExpiredException")
+    void validateExamAvailability_expiredExamWindow_throwsExamTimeExpiredException() {
+        testExam.setExamDate(LocalDateTime.now().minusHours(2));
+        testExam.setDuration(60);
+        SubmissionCreateRequest request = new SubmissionCreateRequest("public class Main {}");
+
+        assertThatThrownBy(() -> service.submitCode("exam-100", "student-100", request))
+                .isInstanceOf(ExamTimeExpiredException.class)
+                .hasMessageContaining("Exam submission window has expired");
+    }
+
+    @Test
+    @DisplayName("submitCode: Student not enrolled in class throws ResourceNotFoundException")
+    void submitCode_notEnrolled_throwsResourceNotFound() {
+        when(examRepository.findByIdAndStudentId("exam-100", "not-enrolled")).thenReturn(Optional.empty());
+        SubmissionCreateRequest request = new SubmissionCreateRequest("public class Main {}");
+
+        assertThatThrownBy(() -> service.submitCode("exam-100", "not-enrolled", request))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Exam not found or you are not enrolled");
+    }
+
+    @Test
+    @DisplayName("submitCode: Student record not found throws ResourceNotFoundException")
+    void submitCode_studentNotFound_throwsResourceNotFound() {
+        when(userRepository.findById("student-100")).thenReturn(Optional.empty());
+        SubmissionCreateRequest request = new SubmissionCreateRequest("public class Main {}");
+
+        assertThatThrownBy(() -> service.submitCode("exam-100", "student-100", request))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Student not found");
+    }
+
+    @Test
+    @DisplayName("getStudentSubmissions: Returns list of student submissions")
+    void getStudentSubmissions_returnsList() {
+        Submission sub = Submission.builder().id("sub-1").exam(testExam).student(testStudent).status("GRADED").build();
+        when(submissionRepository.findByStudent_Id("student-100")).thenReturn(List.of(sub));
+
+        List<SubmissionListResponse> list = service.getStudentSubmissions("student-100");
+
+        assertThat(list).hasSize(1);
+        assertThat(list.get(0).getId()).isEqualTo("sub-1");
+    }
+
+    @Test
+    @DisplayName("getStudentSubmissionById: Returns detail when found, throws ResourceNotFound when not found")
+    void getStudentSubmissionById_foundAndNotFound() {
+        Submission sub = Submission.builder().id("sub-1").exam(testExam).student(testStudent).status("GRADED").build();
+        when(submissionRepository.findByIdAndStudent_Id("sub-1", "student-100")).thenReturn(Optional.of(sub));
+        when(submissionRepository.findByIdAndStudent_Id("sub-none", "student-100")).thenReturn(Optional.empty());
+
+        SubmissionDetailResponse detail = service.getStudentSubmissionById("sub-1", "student-100");
+        assertThat(detail).isNotNull();
+        assertThat(detail.getId()).isEqualTo("sub-1");
+
+        assertThatThrownBy(() -> service.getStudentSubmissionById("sub-none", "student-100"))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Submission not found or access denied");
+    }
+
+    @Test
+    @DisplayName("getSubmissionZip: Returns bytes when storage available, throws when missing or not found")
+    void getSubmissionZip_allBranches() {
+        Submission sub = Submission.builder().id("sub-1").exam(testExam).student(testStudent).build();
+        when(submissionRepository.findByIdAndStudent_Id("sub-1", "student-100")).thenReturn(Optional.of(sub));
+        when(submissionRepository.findByIdAndStudent_Id("sub-none", "student-100")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getSubmissionZip("sub-none", "student-100"))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        assertThatThrownBy(() -> service.getSubmissionZip("sub-1", "student-100"))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Storage service not available");
+
+        SubmissionStorageService storage = mock(SubmissionStorageService.class);
+        byte[] expected = "zip-data".getBytes();
+        when(storage.getZipBytes("sub-1")).thenReturn(expected);
+        ReflectionTestUtils.setField(service, "submissionStorageService", storage);
+
+        byte[] actual = service.getSubmissionZip("sub-1", "student-100");
+        assertThat(actual).isEqualTo(expected);
+
+        ReflectionTestUtils.setField(service, "submissionStorageService", null);
+    }
+
+    @Test
+    @DisplayName("getSubmissionFiles: Returns file list or empty when storage service null")
+    void getSubmissionFiles_allBranches() {
+        Submission sub = Submission.builder().id("sub-1").exam(testExam).student(testStudent).build();
+        when(submissionRepository.findByIdAndStudent_Id("sub-1", "student-100")).thenReturn(Optional.of(sub));
+        when(submissionRepository.findByIdAndStudent_Id("sub-none", "student-100")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getSubmissionFiles("sub-none", "student-100"))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        List<SubmissionFileDto> empty = service.getSubmissionFiles("sub-1", "student-100");
+        assertThat(empty).isEmpty();
+
+        SubmissionStorageService storage = mock(SubmissionStorageService.class);
+        SubmissionFileDto fileDto = SubmissionFileDto.builder()
+                .filename("Main.java")
+                .relativePath("src/Main.java")
+                .sizeBytes(100L)
+                .content("class Main {}")
+                .build();
+        when(storage.getSubmissionFiles("sub-1")).thenReturn(List.of(fileDto));
+        ReflectionTestUtils.setField(service, "submissionStorageService", storage);
+
+        List<SubmissionFileDto> files = service.getSubmissionFiles("sub-1", "student-100");
+        assertThat(files).hasSize(1);
+        assertThat(files.get(0).getFilename()).isEqualTo("Main.java");
+
+        ReflectionTestUtils.setField(service, "submissionStorageService", null);
+    }
+
+    @Test
+    @DisplayName("submitZip: Student not found throws ResourceNotFoundException")
+    void submitZip_studentNotFound_throwsResourceNotFound() {
+        when(userRepository.findById("student-100")).thenReturn(Optional.empty());
+        MockMultipartFile file = new MockMultipartFile("file", "solution.zip", "application/zip", "bytes".getBytes());
+
+        assertThatThrownBy(() -> service.submitZip("exam-100", "student-100", file))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Student not found");
+    }
+
+    @Test
+    @DisplayName("submitZip: With automatedTestRunnerService, storage, similarity matrix, and queue dispatcher")
+    void submitZip_withFullServices_runsPipelineAndSavesZip() throws Exception {
+        Path tempDir = Files.createTempDirectory("test-ws-full-");
+        ExtractedWorkspace workspace = spy(createMockWorkspace(tempDir));
+
+        byte[] zipBytes = "zip-content".getBytes();
+        MockMultipartFile file = new MockMultipartFile("file", "solution.zip", "application/zip", zipBytes);
+
+        when(sourceHasherService.calculateArchiveSha256(zipBytes)).thenReturn("arch-hash");
+        when(zipExtractionService.extract(zipBytes)).thenReturn(workspace);
+        when(sourceHasherService.calculateSourceTreeSha256(workspace.files())).thenReturn("tree-hash");
+        when(entryPointDiscoveryService.discoverEntryPoint(workspace))
+                .thenReturn(EntryPointResult.found("Main", List.of("Main")));
+
+        com.codeassess.testcase.service.AutomatedTestRunnerService testRunner = mock(com.codeassess.testcase.service.AutomatedTestRunnerService.class);
+        SubmissionStorageService storage = mock(SubmissionStorageService.class);
+        com.codeassess.plagiarism.service.SimilarityMatrixService matrixService = mock(com.codeassess.plagiarism.service.SimilarityMatrixService.class);
+        com.codeassess.queue.service.BullMqJobDispatcher queueDispatcher = mock(com.codeassess.queue.service.BullMqJobDispatcher.class);
+
+        when(storage.saveZip(anyString(), eq(zipBytes))).thenReturn("/path/to/sub.zip");
+
+        StudentSubmissionService fullService = new StudentSubmissionService(
+                submissionRepository, submissionMapper, examRepository, userRepository, eventPublisher,
+                zipExtractionService, sourceHasherService, entryPointDiscoveryService, dockerSandboxService,
+                astPlagiarismService, zipProperties, submissionPersistenceService,
+                null, testRunner, queueDispatcher
+        );
+        ReflectionTestUtils.setField(fullService, "submissionStorageService", storage);
+        ReflectionTestUtils.setField(fullService, "similarityMatrixService", matrixService);
+
+        SubmissionDetailResponse response = fullService.submitZip("exam-100", "student-100", file);
+
+        assertThat(response).isNotNull();
+        verify(testRunner, times(1)).runAndGrade(any(Submission.class));
+        verify(storage, times(1)).saveZip(anyString(), eq(zipBytes));
+        verify(matrixService, times(1)).requestRefresh("exam-100");
+        verify(matrixService, times(1)).generateMatrixForExam("exam-100");
+        verify(queueDispatcher, times(1)).dispatchGradingJob(anyString(), eq("exam-100"), eq("ZIP"));
+        verify(workspace).close();
+    }
+
+    @Test
+    @DisplayName("submitZip: AutomatedTestRunner exception is handled gracefully without losing submission")
+    void submitZip_automatedTestRunnerThrows_handledGracefully() throws Exception {
+        Path tempDir = Files.createTempDirectory("test-ws-runner-err-");
+        ExtractedWorkspace workspace = spy(createMockWorkspace(tempDir));
+
+        byte[] zipBytes = "zip-content".getBytes();
+        MockMultipartFile file = new MockMultipartFile("file", "solution.zip", "application/zip", zipBytes);
+
+        when(sourceHasherService.calculateArchiveSha256(zipBytes)).thenReturn("arch-hash");
+        when(zipExtractionService.extract(zipBytes)).thenReturn(workspace);
+        when(sourceHasherService.calculateSourceTreeSha256(workspace.files())).thenReturn("tree-hash");
+        when(entryPointDiscoveryService.discoverEntryPoint(workspace))
+                .thenReturn(EntryPointResult.found("Main", List.of("Main")));
+
+        com.codeassess.testcase.service.AutomatedTestRunnerService testRunner = mock(com.codeassess.testcase.service.AutomatedTestRunnerService.class);
+        doThrow(new RuntimeException("Test runner worker timeout")).when(testRunner).runAndGrade(any());
+
+        StudentSubmissionService runnerService = new StudentSubmissionService(
+                submissionRepository, submissionMapper, examRepository, userRepository, eventPublisher,
+                zipExtractionService, sourceHasherService, entryPointDiscoveryService, dockerSandboxService,
+                astPlagiarismService, zipProperties, submissionPersistenceService,
+                null, testRunner, null
+        );
+
+        SubmissionDetailResponse response = runnerService.submitZip("exam-100", "student-100", file);
+
+        assertThat(response).isNotNull();
+        verify(testRunner).runAndGrade(any());
+        verify(workspace).close();
     }
 }

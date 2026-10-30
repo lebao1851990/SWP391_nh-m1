@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getPlagiarismRecords, getPlagiarismRecordDetail, getPlagiarismComparison, getStudentPlagiarismDetail, adjudicatePlagiarismPair } from '../api';
+import { getPlagiarismRecords, getPlagiarismRecordDetail, getPlagiarismComparison, getStudentPlagiarismDetail, adjudicatePlagiarismPair, getPlagiarismAstTree } from '../api';
 import { AdjudicationRequest } from '../types';
 
 export const PLAGIARISM_QUERY_KEYS = {
   list: () => ['plagiarism', 'list'] as const,
   detail: (id: string) => ['plagiarism', 'detail', id] as const,
   compare: (id: string) => ['plagiarism', 'compare', id] as const,
+  astTree: (id: string) => ['plagiarism', 'astTree', id] as const,
   student: (id: string) => ['plagiarism', 'student', id] as const,
 };
 
@@ -29,6 +30,14 @@ export function usePlagiarismComparison(recordId: string) {
   return useQuery({
     queryKey: PLAGIARISM_QUERY_KEYS.compare(recordId),
     queryFn: () => getPlagiarismComparison(recordId),
+    retry: false,
+  });
+}
+
+export function usePlagiarismAstTree(recordId: string) {
+  return useQuery({
+    queryKey: PLAGIARISM_QUERY_KEYS.astTree(recordId),
+    queryFn: () => getPlagiarismAstTree(recordId),
     retry: false,
   });
 }

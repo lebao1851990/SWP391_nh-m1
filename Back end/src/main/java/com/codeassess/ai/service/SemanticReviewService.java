@@ -43,7 +43,7 @@ public class SemanticReviewService {
         Submission submission = submissionRepository.findByIdAndStudent_Id(submissionId, studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Submission not found or access denied"));
 
-        if (submission.getExam() != null && "active".equalsIgnoreCase(submission.getExam().getStatus())) {
+        if (submission.getExam() != null && !submission.getExam().isConcluded()) {
             log.warn("Student {} attempted to trigger Semantic Review during active exam {}", studentId, submission.getExam().getId());
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "Semantic Code Review is not permitted during an active examination. Please wait until the assessment has concluded.");

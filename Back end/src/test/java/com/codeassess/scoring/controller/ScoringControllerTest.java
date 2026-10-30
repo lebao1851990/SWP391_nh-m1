@@ -123,7 +123,7 @@ class ScoringControllerTest {
                 .preEffectiveScore(BigDecimal.valueOf(8))
                 .postEffectiveScore(BigDecimal.valueOf(7))
                 .build();
-        Mockito.when(teacherScoringService.getAuditLogs("sub-1", "teacher-1")).thenReturn(java.util.List.of(logDto));
+        Mockito.when(teacherScoringService.getAuditLogs(eq("sub-1"), any(User.class))).thenReturn(java.util.List.of(logDto));
 
         mockMvc.perform(get("/api/teacher/submissions/sub-1/scoring/audit-logs").with(user(teacherUser)))
                 .andExpect(status().isOk())
@@ -132,5 +132,25 @@ class ScoringControllerTest {
                 .andExpect(jsonPath("$[0].actorName").value("Teacher One"))
                 .andExpect(jsonPath("$[0].preEffectiveScore").value(8))
                 .andExpect(jsonPath("$[0].postEffectiveScore").value(7));
+    }
+
+    @Test
+    void adminCanAccessAuditLogs() throws Exception {
+        User adminUser = User.builder().id("admin-1").email("admin@test.com").role(Role.ADMIN).build();
+        com.codeassess.scoring.dto.response.GradeAuditLogDto logDto = com.codeassess.scoring.dto.response.GradeAuditLogDto.builder()
+                .id("log-admin-1")
+                .submissionId("sub-1")
+                .actionType("ARBITRATION_UPDATE")
+                .actorName("System Admin")
+                .preEffectiveScore(BigDecimal.valueOf(6))
+                .postEffectiveScore(BigDecimal.valueOf(9))
+                .build();
+        Mockito.when(teacherScoringService.getAuditLogs(eq("sub-1"), any(User.class))).thenReturn(java.util.List.of(logDto));
+
+        mockMvc.perform(get("/api/teacher/submissions/sub-1/scoring/audit-logs").with(user(adminUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value("log-admin-1"))
+                .andExpect(jsonPath("$[0].actionType").value("ARBITRATION_UPDATE"))
+                .andExpect(jsonPath("$[0].actorName").value("System Admin"));
     }
 }
