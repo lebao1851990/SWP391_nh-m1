@@ -3,6 +3,8 @@ package com.codeassess.plagiarism.repository;
 import com.codeassess.classes.entity.CourseClass;
 import com.codeassess.classes.repository.CourseClassRepository;
 import com.codeassess.exam.entity.Exam;
+import com.codeassess.exam.entity.ExamQuestion;
+import com.codeassess.exam.repository.ExamQuestionRepository;
 import com.codeassess.exam.repository.ExamRepository;
 import com.codeassess.plagiarism.entity.SimilarityPair;
 import com.codeassess.submission.entity.Submission;
@@ -38,6 +40,9 @@ public class SimilarityPairRepositoryDataJpaTest {
 
     @Autowired
     private ExamRepository examRepository;
+
+    @Autowired
+    private ExamQuestionRepository examQuestionRepository;
 
     @Autowired
     private SubmissionRepository submissionRepository;
@@ -119,10 +124,14 @@ public class SimilarityPairRepositoryDataJpaTest {
                 .status("ACTIVE")
                 .build());
 
+        ExamQuestion qA = examQuestionRepository.save(ExamQuestion.builder().exam(examA).title("Question A").maxScore(BigDecimal.valueOf(10.00)).displayOrder(0).status("PUBLISHED").build());
+        ExamQuestion qB = examQuestionRepository.save(ExamQuestion.builder().exam(examB).title("Question B").maxScore(BigDecimal.valueOf(10.00)).displayOrder(0).status("PUBLISHED").build());
+
         // Submissions for Exam A
         Submission subA1 = submissionRepository.save(Submission.builder()
                 .id(UUID.randomUUID().toString())
                 .exam(examA)
+                .question(qA)
                 .student(studentA1)
                 .sourceCode("codeA1")
                 .status("GRADED")
@@ -130,6 +139,7 @@ public class SimilarityPairRepositoryDataJpaTest {
         Submission subA2 = submissionRepository.save(Submission.builder()
                 .id(UUID.randomUUID().toString())
                 .exam(examA)
+                .question(qA)
                 .student(studentA2)
                 .sourceCode("codeA2")
                 .status("GRADED")
@@ -139,6 +149,7 @@ public class SimilarityPairRepositoryDataJpaTest {
         Submission subB1 = submissionRepository.save(Submission.builder()
                 .id(UUID.randomUUID().toString())
                 .exam(examB)
+                .question(qB)
                 .student(studentB1)
                 .sourceCode("codeB1")
                 .status("GRADED")
@@ -146,6 +157,7 @@ public class SimilarityPairRepositoryDataJpaTest {
         Submission subB2 = submissionRepository.save(Submission.builder()
                 .id(UUID.randomUUID().toString())
                 .exam(examB)
+                .question(qB)
                 .student(studentB2)
                 .sourceCode("codeB2")
                 .status("GRADED")
@@ -154,6 +166,7 @@ public class SimilarityPairRepositoryDataJpaTest {
         // SimilarityPair for Teacher A
         SimilarityPair pairA = similarityPairRepository.save(SimilarityPair.builder()
                 .exam(examA)
+                .question(qA)
                 .submissionA(subA1)
                 .submissionB(subA2)
                 .similarityRate(new BigDecimal("82.50"))
@@ -164,6 +177,7 @@ public class SimilarityPairRepositoryDataJpaTest {
         // SimilarityPair for Teacher B
         SimilarityPair pairB = similarityPairRepository.save(SimilarityPair.builder()
                 .exam(examB)
+                .question(qB)
                 .submissionA(subB1)
                 .submissionB(subB2)
                 .similarityRate(new BigDecimal("91.00"))

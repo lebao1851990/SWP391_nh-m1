@@ -3,6 +3,8 @@ package com.codeassess.plagiarism.service;
 import com.codeassess.classes.entity.CourseClass;
 import com.codeassess.classes.repository.CourseClassRepository;
 import com.codeassess.exam.entity.Exam;
+import com.codeassess.exam.entity.ExamQuestion;
+import com.codeassess.exam.repository.ExamQuestionRepository;
 import com.codeassess.exam.repository.ExamRepository;
 import com.codeassess.plagiarism.entity.AstFingerprint;
 import com.codeassess.plagiarism.entity.ExamMatrixCoordination;
@@ -65,6 +67,9 @@ public class MatrixReconciliationIntegrationTest {
     private ExamRepository examRepository;
 
     @Autowired
+    private ExamQuestionRepository examQuestionRepository;
+
+    @Autowired
     private SubmissionRepository submissionRepository;
 
     @Autowired
@@ -107,8 +112,16 @@ public class MatrixReconciliationIntegrationTest {
         User stuA = userRepository.save(User.builder().email("sa_" + suffix + "@test.com").fullName("Student A").passwordHash("pwd").role(Role.STUDENT).build());
         User stuB = userRepository.save(User.builder().email("sb_" + suffix + "@test.com").fullName("Student B").passwordHash("pwd").role(Role.STUDENT).build());
 
-        Submission sub1 = submissionRepository.save(Submission.builder().exam(exam).student(stuA).status("EVALUATED").sourceCode("code A").build());
-        Submission sub2 = submissionRepository.save(Submission.builder().exam(exam).student(stuB).status("EVALUATED").sourceCode("code B").build());
+        ExamQuestion q1 = examQuestionRepository.save(ExamQuestion.builder()
+                .exam(exam)
+                .title("Question 1")
+                .maxScore(BigDecimal.valueOf(10.00))
+                .displayOrder(0)
+                .status("PUBLISHED")
+                .build());
+
+        Submission sub1 = submissionRepository.save(Submission.builder().exam(exam).question(q1).student(stuA).status("EVALUATED").sourceCode("code A").build());
+        Submission sub2 = submissionRepository.save(Submission.builder().exam(exam).question(q1).student(stuB).status("EVALUATED").sourceCode("code B").build());
 
         Submission subA = sub1.getId().compareTo(sub2.getId()) < 0 ? sub1 : sub2;
         Submission subB = sub1.getId().compareTo(sub2.getId()) < 0 ? sub2 : sub1;
@@ -240,7 +253,7 @@ public class MatrixReconciliationIntegrationTest {
         coord.setLockedGeneration(1L);
         coord.setRequestedGeneration(2L);
         coord.setLeaseToken("abandoned-token");
-        coord.setLeaseExpiresAt(LocalDateTime.now().minusSeconds(10)); // expired!
+        coord.setLeaseExpiresAt(LocalDateTime.now().minusHours(8)); // expired across all timezones
         coordinationRepository.save(coord);
 
         // Verify recovery query finds this exam
@@ -270,7 +283,8 @@ public class MatrixReconciliationIntegrationTest {
 
         // Only 1 submission
         User stu = userRepository.save(User.builder().email("s_single_" + suffix + "@test.com").fullName("S").passwordHash("p").role(Role.STUDENT).build());
-        submissionRepository.save(Submission.builder().exam(exam).student(stu).status("EVALUATED").sourceCode("single code").build());
+        ExamQuestion q1 = examQuestionRepository.save(ExamQuestion.builder().exam(exam).title("Question 1").maxScore(BigDecimal.valueOf(10.00)).displayOrder(0).status("PUBLISHED").build());
+        submissionRepository.save(Submission.builder().exam(exam).question(q1).student(stu).status("EVALUATED").sourceCode("single code").build());
 
         // Refresh matrix for exam with only 1 submission
         similarityMatrixService.generateMatrixForExam(exam.getId());

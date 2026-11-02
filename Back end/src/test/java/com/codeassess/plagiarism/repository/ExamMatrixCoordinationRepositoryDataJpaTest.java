@@ -3,6 +3,8 @@ package com.codeassess.plagiarism.repository;
 import com.codeassess.classes.entity.CourseClass;
 import com.codeassess.classes.repository.CourseClassRepository;
 import com.codeassess.exam.entity.Exam;
+import com.codeassess.exam.entity.ExamQuestion;
+import com.codeassess.exam.repository.ExamQuestionRepository;
 import com.codeassess.exam.repository.ExamRepository;
 import com.codeassess.plagiarism.entity.ExamMatrixCoordination;
 import com.codeassess.plagiarism.entity.SimilarityPair;
@@ -47,6 +49,9 @@ public class ExamMatrixCoordinationRepositoryDataJpaTest {
 
     @Autowired
     private ExamRepository examRepository;
+
+    @Autowired
+    private ExamQuestionRepository examQuestionRepository;
 
     @Autowired
     private SubmissionRepository submissionRepository;
@@ -138,8 +143,10 @@ public class ExamMatrixCoordinationRepositoryDataJpaTest {
         User stuA = userRepository.save(User.builder().email("sa_" + suffix + "@test.com").fullName("SA").passwordHash("pwd").role(Role.STUDENT).build());
         User stuB = userRepository.save(User.builder().email("sb_" + suffix + "@test.com").fullName("SB").passwordHash("pwd").role(Role.STUDENT).build());
 
-        Submission sub1 = submissionRepository.save(Submission.builder().exam(exam).student(stuA).status("EVALUATED").sourceCode("code 1").build());
-        Submission sub2 = submissionRepository.save(Submission.builder().exam(exam).student(stuB).status("EVALUATED").sourceCode("code 2").build());
+        ExamQuestion q1 = examQuestionRepository.save(ExamQuestion.builder().exam(exam).title("Question 1").maxScore(BigDecimal.valueOf(10.00)).displayOrder(0).status("PUBLISHED").build());
+
+        Submission sub1 = submissionRepository.save(Submission.builder().exam(exam).question(q1).student(stuA).status("EVALUATED").sourceCode("code 1").build());
+        Submission sub2 = submissionRepository.save(Submission.builder().exam(exam).question(q1).student(stuB).status("EVALUATED").sourceCode("code 2").build());
 
         Submission subA = sub1.getId().compareTo(sub2.getId()) < 0 ? sub1 : sub2;
         Submission subB = sub1.getId().compareTo(sub2.getId()) < 0 ? sub2 : sub1;
@@ -147,6 +154,7 @@ public class ExamMatrixCoordinationRepositoryDataJpaTest {
         // Save pair with adjudication
         SimilarityPair pair = similarityPairRepository.save(SimilarityPair.builder()
                 .exam(exam)
+                .question(q1)
                 .submissionA(subA)
                 .submissionB(subB)
                 .similarityRate(new BigDecimal("75.00"))

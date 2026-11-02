@@ -1,11 +1,15 @@
 package com.codeassess.e2e;
 
+import java.math.BigDecimal;
+
 import com.codeassess.auth.dto.request.LoginRequest;
 import com.codeassess.classes.entity.ClassStudent;
 import com.codeassess.classes.entity.CourseClass;
 import com.codeassess.classes.repository.ClassStudentRepository;
 import com.codeassess.classes.repository.CourseClassRepository;
 import com.codeassess.exam.entity.Exam;
+import com.codeassess.exam.entity.ExamQuestion;
+import com.codeassess.exam.repository.ExamQuestionRepository;
 import com.codeassess.exam.repository.ExamRepository;
 import com.codeassess.plagiarism.repository.PlagiarismEvidenceRepository;
 import com.codeassess.plagiarism.repository.SimilarityPairRepository;
@@ -56,6 +60,9 @@ public class CodeAssessE2ERuntimeQATest {
     private ExamRepository examRepository;
 
     @Autowired
+    private ExamQuestionRepository examQuestionRepository;
+
+    @Autowired
     private SubmissionRepository submissionRepository;
 
     @Autowired
@@ -88,6 +95,7 @@ public class CodeAssessE2ERuntimeQATest {
         similarityPairRepository.deleteAll();
         astFingerprintRepository.deleteAll();
         submissionRepository.deleteAll();
+        examQuestionRepository.deleteAll();
         examRepository.deleteAll();
         classStudentRepository.deleteAll();
         courseClassRepository.deleteAll();
@@ -142,9 +150,16 @@ public class CodeAssessE2ERuntimeQATest {
         exam = examRepository.save(Exam.builder()
                 .title("E2E Practical Exam")
                 .courseClass(courseClass)
-                .examDate(LocalDateTime.now().plusDays(1))
+                .examDate(LocalDateTime.now().minusMinutes(10))
                 .duration(90)
                 .status("ACTIVE")
+                .build());
+        examQuestionRepository.save(ExamQuestion.builder()
+                .exam(exam)
+                .title("Problem 1")
+                .maxScore(BigDecimal.valueOf(10.00))
+                .displayOrder(0)
+                .status("PUBLISHED")
                 .build());
     }
 

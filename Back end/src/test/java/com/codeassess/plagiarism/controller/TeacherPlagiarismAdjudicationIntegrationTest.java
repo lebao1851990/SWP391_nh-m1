@@ -3,6 +3,8 @@ package com.codeassess.plagiarism.controller;
 import com.codeassess.classes.entity.CourseClass;
 import com.codeassess.classes.repository.CourseClassRepository;
 import com.codeassess.exam.entity.Exam;
+import com.codeassess.exam.entity.ExamQuestion;
+import com.codeassess.exam.repository.ExamQuestionRepository;
 import com.codeassess.exam.repository.ExamRepository;
 import com.codeassess.plagiarism.entity.SimilarityPair;
 import com.codeassess.plagiarism.repository.SimilarityPairRepository;
@@ -52,6 +54,9 @@ public class TeacherPlagiarismAdjudicationIntegrationTest {
 
     @Autowired
     private ExamRepository examRepository;
+
+    @Autowired
+    private ExamQuestionRepository examQuestionRepository;
 
     @Autowired
     private SubmissionRepository submissionRepository;
@@ -110,8 +115,11 @@ public class TeacherPlagiarismAdjudicationIntegrationTest {
                 .courseClass(courseClass)
                 .build());
 
+        ExamQuestion question = examQuestionRepository.save(ExamQuestion.builder().exam(exam).title("Question 1").maxScore(BigDecimal.valueOf(10.00)).displayOrder(0).status("PUBLISHED").build());
+
         Submission sub1 = submissionRepository.save(Submission.builder()
                 .exam(exam)
+                .question(question)
                 .student(student1)
                 .status("SUBMITTED")
                 .sourceCode("public class A { void foo() {} }")
@@ -119,6 +127,7 @@ public class TeacherPlagiarismAdjudicationIntegrationTest {
 
         Submission sub2 = submissionRepository.save(Submission.builder()
                 .exam(exam)
+                .question(question)
                 .student(student2)
                 .status("SUBMITTED")
                 .sourceCode("public class B { void foo() {} }")
@@ -126,6 +135,7 @@ public class TeacherPlagiarismAdjudicationIntegrationTest {
 
         pair = similarityPairRepository.save(SimilarityPair.builder()
                 .exam(exam)
+                .question(question)
                 .submissionA(sub1)
                 .submissionB(sub2)
                 .similarityRate(new BigDecimal("84.50"))

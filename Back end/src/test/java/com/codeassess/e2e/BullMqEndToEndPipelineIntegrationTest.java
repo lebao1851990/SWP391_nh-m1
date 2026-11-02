@@ -1,11 +1,15 @@
 package com.codeassess.e2e;
 
+import java.math.BigDecimal;
+
 import com.codeassess.auth.dto.request.LoginRequest;
 import com.codeassess.classes.entity.ClassStudent;
 import com.codeassess.classes.entity.CourseClass;
 import com.codeassess.classes.repository.ClassStudentRepository;
 import com.codeassess.classes.repository.CourseClassRepository;
 import com.codeassess.exam.entity.Exam;
+import com.codeassess.exam.entity.ExamQuestion;
+import com.codeassess.exam.repository.ExamQuestionRepository;
 import com.codeassess.exam.repository.ExamRepository;
 import com.codeassess.plagiarism.repository.AppealRepository;
 import com.codeassess.plagiarism.repository.AstFingerprintRepository;
@@ -57,7 +61,8 @@ import static org.awaitility.Awaitility.await;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT, properties = {
         "server.port=8089",
-        "queue.bullmq.producer-url=http://localhost:3001"
+        "queue.bullmq.producer-url=http://localhost:3001",
+        "app.internal.api-secret=e2e-test-secure-internal-secret-token-32chars"
 })
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class BullMqEndToEndPipelineIntegrationTest {
@@ -83,6 +88,11 @@ public class BullMqEndToEndPipelineIntegrationTest {
 
     @Autowired
     private SubmissionRepository submissionRepository;
+
+    @Autowired
+    private ExamQuestionRepository examQuestionRepository;
+
+    private ExamQuestion examQuestion;
 
     @Autowired
     private AstFingerprintRepository astFingerprintRepository;
@@ -126,7 +136,7 @@ public class BullMqEndToEndPipelineIntegrationTest {
         env.put("BACKEND_URL", "http://localhost:8089");
         env.put("REDIS_HOST", "localhost");
         env.put("REDIS_PORT", "6379");
-        env.put("INTERNAL_API_SECRET", "codeassess-internal-secret-2026");
+        env.put("INTERNAL_API_SECRET", "e2e-test-secure-internal-secret-token-32chars");
         env.put("BULLMQ_CONCURRENCY", "2");
 
         nodeWorkerProcess = pb.start();
@@ -147,6 +157,7 @@ public class BullMqEndToEndPipelineIntegrationTest {
     static void stopBullMqService() {
         if (nodeWorkerProcess != null && nodeWorkerProcess.isAlive()) {
             nodeWorkerProcess.destroyForcibly();
+            try { nodeWorkerProcess.waitFor(3, java.util.concurrent.TimeUnit.SECONDS); Thread.sleep(500); } catch (Exception ignored) {}
         }
     }
 
@@ -159,6 +170,7 @@ public class BullMqEndToEndPipelineIntegrationTest {
         similarityPairRepository.deleteAll();
         astFingerprintRepository.deleteAll();
         submissionRepository.deleteAll();
+        examQuestionRepository.deleteAll();
         examMatrixCoordinationRepository.deleteAll();
         examRepository.deleteAll();
         classStudentRepository.deleteAll();
@@ -195,9 +207,18 @@ public class BullMqEndToEndPipelineIntegrationTest {
         exam = examRepository.save(Exam.builder()
                 .title("BullMQ Practical Exam")
                 .courseClass(courseClass)
-                .examDate(LocalDateTime.now().plusDays(1))
+                .examDate(LocalDateTime.now().minusMinutes(10))
                 .duration(90)
                 .status("ACTIVE")
+                .build());
+
+        examQuestion = examQuestionRepository.save(ExamQuestion.builder()
+                .exam(exam)
+                .title("Problem 1")
+                .description("Write Hello World")
+                .maxScore(BigDecimal.valueOf(10.00))
+                .displayOrder(0)
+                .status("PUBLISHED")
                 .build());
     }
 
@@ -361,6 +382,7 @@ public class BullMqEndToEndPipelineIntegrationTest {
     void testInternalApi_SecurityRejection() throws Exception {
         Submission sub = submissionRepository.save(Submission.builder()
                 .exam(exam)
+                .question(examQuestion)
                 .student(student1)
                 .status("PENDING")
                 .sourceCode("public class Test {}")
@@ -457,6 +479,7 @@ public class BullMqEndToEndPipelineIntegrationTest {
     void testIdempotency_DuplicateJobExecutionSafe() {
         Submission completedSub = submissionRepository.save(Submission.builder()
                 .exam(exam)
+                .question(examQuestion)
                 .student(student1)
                 .status("COMPLETED")
                 .executionStatus("SUCCESS")
@@ -466,7 +489,7 @@ public class BullMqEndToEndPipelineIntegrationTest {
                 .build());
 
         HttpHeaders internalHeaders = new HttpHeaders();
-        internalHeaders.set("X-Internal-Token", "codeassess-internal-secret-2026");
+        internalHeaders.set("X-Internal-Token", "e2e-test-secure-internal-secret-token-32chars");
 
         // Call internal grading API directly on completed submission
         ResponseEntity<Map> res = restTemplate.postForEntity(
@@ -486,6 +509,7 @@ public class BullMqEndToEndPipelineIntegrationTest {
         // stale (>60s)
         Submission stuckSub = submissionRepository.save(Submission.builder()
                 .exam(exam)
+                .question(examQuestion)
                 .student(student1)
                 .status("PENDING")
                 .sourceCode(

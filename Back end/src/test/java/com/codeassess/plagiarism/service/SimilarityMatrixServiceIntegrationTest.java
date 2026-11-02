@@ -1,6 +1,8 @@
 package com.codeassess.plagiarism.service;
 
 import com.codeassess.exam.entity.Exam;
+import com.codeassess.exam.entity.ExamQuestion;
+import com.codeassess.exam.repository.ExamQuestionRepository;
 import com.codeassess.exam.repository.ExamRepository;
 import com.codeassess.plagiarism.entity.SimilarityPair;
 import com.codeassess.plagiarism.repository.AstFingerprintRepository;
@@ -47,6 +49,9 @@ public class SimilarityMatrixServiceIntegrationTest {
     private ExamRepository examRepository;
 
     @Autowired
+    private ExamQuestionRepository examQuestionRepository;
+
+    @Autowired
     private SubmissionRepository submissionRepository;
 
     @Autowired
@@ -67,23 +72,24 @@ public class SimilarityMatrixServiceIntegrationTest {
         // Setup Class & Exam
         CourseClass courseClass = courseClassRepository.save(CourseClass.builder().name("Class 1").code("C1").semester("FA24").teacher(teacher).build());
         Exam exam = examRepository.save(Exam.builder().title("Exam 1").status("ACTIVE").courseClass(courseClass).build());
+        ExamQuestion question = examQuestionRepository.save(ExamQuestion.builder().exam(exam).title("Question 1").maxScore(BigDecimal.valueOf(10.00)).displayOrder(0).status("PUBLISHED").build());
 
         // Setup 3 Submissions
-        Submission subA = submissionRepository.save(Submission.builder().exam(exam).student(stuA).status("PENDING").sourceCode("code A").build());
-        Submission subB = submissionRepository.save(Submission.builder().exam(exam).student(stuB).status("PENDING").sourceCode("code B").build());
-        Submission subC = submissionRepository.save(Submission.builder().exam(exam).student(stuC).status("PENDING").sourceCode("code C").build());
+        Submission subA = submissionRepository.save(Submission.builder().exam(exam).question(question).student(stuA).status("PENDING").sourceCode("code A").build());
+        Submission subB = submissionRepository.save(Submission.builder().exam(exam).question(question).student(stuB).status("PENDING").sourceCode("code B").build());
+        Submission subC = submissionRepository.save(Submission.builder().exam(exam).question(question).student(stuC).status("PENDING").sourceCode("code C").build());
 
         Submission sub1 = subA.getId().compareTo(subB.getId()) < 0 ? subA : subB;
         Submission sub2 = subA.getId().compareTo(subB.getId()) < 0 ? subB : subA;
-        SimilarityPair pair1 = similarityPairRepository.save(SimilarityPair.builder().exam(exam).submissionA(sub1).submissionB(sub2).similarityRate(BigDecimal.TEN).isFlagged(false).sharedHashesCount(10).build());
+        SimilarityPair pair1 = similarityPairRepository.save(SimilarityPair.builder().exam(exam).question(question).submissionA(sub1).submissionB(sub2).similarityRate(BigDecimal.TEN).isFlagged(false).sharedHashesCount(10).build());
 
         Submission sub3 = subA.getId().compareTo(subC.getId()) < 0 ? subA : subC;
         Submission sub4 = subA.getId().compareTo(subC.getId()) < 0 ? subC : subA;
-        SimilarityPair pair2 = similarityPairRepository.save(SimilarityPair.builder().exam(exam).submissionA(sub3).submissionB(sub4).similarityRate(BigDecimal.TEN).isFlagged(false).sharedHashesCount(10).build());
+        SimilarityPair pair2 = similarityPairRepository.save(SimilarityPair.builder().exam(exam).question(question).submissionA(sub3).submissionB(sub4).similarityRate(BigDecimal.TEN).isFlagged(false).sharedHashesCount(10).build());
 
         Submission sub5 = subB.getId().compareTo(subC.getId()) < 0 ? subB : subC;
         Submission sub6 = subB.getId().compareTo(subC.getId()) < 0 ? subC : subB;
-        SimilarityPair pair3 = similarityPairRepository.save(SimilarityPair.builder().exam(exam).submissionA(sub5).submissionB(sub6).similarityRate(BigDecimal.TEN).isFlagged(false).sharedHashesCount(10).build());
+        SimilarityPair pair3 = similarityPairRepository.save(SimilarityPair.builder().exam(exam).question(question).submissionA(sub5).submissionB(sub6).similarityRate(BigDecimal.TEN).isFlagged(false).sharedHashesCount(10).build());
 
         assertEquals(3, similarityPairRepository.findByExam_Id(exam.getId()).size(), "Initial pairs should be 3");
 

@@ -198,6 +198,8 @@ public class ExamLifecycleAndDeadlineTest {
     @DisplayName("Auto-lock: Submitting code before deadline succeeds")
     void testSubmitCode_BeforeDeadline_Succeeds() {
         // activeExam started 30 mins ago, duration 60 mins -> deadline in 30 mins
+        when(examRepository.findByIdForShare("exam-uuid-1"))
+                .thenReturn(Optional.of(activeExam));
         when(examRepository.findByIdAndStudentId("exam-uuid-1", "student-uuid-1"))
                 .thenReturn(Optional.of(activeExam));
         when(userRepository.findById("student-uuid-1"))
@@ -234,6 +236,8 @@ public class ExamLifecycleAndDeadlineTest {
                 .duration(60)
                 .build();
 
+        when(examRepository.findByIdForShare("exam-expired-1"))
+                .thenReturn(Optional.of(expiredExam));
         when(examRepository.findByIdAndStudentId("exam-expired-1", "student-uuid-1"))
                 .thenReturn(Optional.of(expiredExam));
 
@@ -263,6 +267,8 @@ public class ExamLifecycleAndDeadlineTest {
                 .duration(60)
                 .build();
 
+        when(examRepository.findByIdForShare("exam-deleted-1"))
+                .thenReturn(Optional.of(softDeletedExam));
         when(examRepository.findByIdAndStudentId("exam-deleted-1", "student-uuid-1"))
                 .thenReturn(Optional.of(softDeletedExam));
 

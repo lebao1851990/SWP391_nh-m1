@@ -273,6 +273,9 @@ public class TeacherClassAwareExamServiceTest {
     @Test
     @DisplayName("Student cannot submit to an unauthorized exam")
     void testStudentCannotSubmitToUnauthorizedExam() {
+        Exam unauthorizedExam = Exam.builder().id("unauthorized-exam").courseClass(classB1).status("ACTIVE").build();
+        when(examRepository.findByIdForShare("unauthorized-exam"))
+                .thenReturn(Optional.of(unauthorizedExam));
         when(examRepository.findByIdAndStudentId("unauthorized-exam", "student-1"))
                 .thenReturn(Optional.empty());
 

@@ -3,6 +3,8 @@ package com.codeassess.plagiarism;
 import com.codeassess.classes.entity.CourseClass;
 import com.codeassess.classes.repository.CourseClassRepository;
 import com.codeassess.exam.entity.Exam;
+import com.codeassess.exam.entity.ExamQuestion;
+import com.codeassess.exam.repository.ExamQuestionRepository;
 import com.codeassess.exam.repository.ExamRepository;
 import com.codeassess.plagiarism.entity.AstFingerprint;
 import com.codeassess.plagiarism.entity.PlagiarismEvidence;
@@ -102,6 +104,9 @@ public class AstPlagiarismAcceptanceAuditTest {
 
     @Autowired
     private ExamRepository examRepository;
+
+    @Autowired
+    private ExamQuestionRepository examQuestionRepository;
 
     private Set<Long> computeFingerprintHashes(String sourceCode) {
         if (sourceCode == null || sourceCode.trim().isEmpty()) {
@@ -380,8 +385,10 @@ public class AstPlagiarismAcceptanceAuditTest {
         CourseClass cc = courseClassRepository.save(CourseClass.builder().code("CC_B_" + suffix).name("Class B").teacher(teacher).semester("FA24").build());
         Exam exam = examRepository.save(Exam.builder().title("Exam Broken " + suffix).courseClass(cc).status("ACTIVE").build());
 
+        ExamQuestion qBroken = examQuestionRepository.save(ExamQuestion.builder().exam(exam).title("Q Broken").maxScore(BigDecimal.valueOf(10.00)).displayOrder(0).status("PUBLISHED").build());
         Submission sub = submissionRepository.save(Submission.builder()
                 .exam(exam)
+                .question(qBroken)
                 .student(student)
                 .status("EVALUATED")
                 .sourceCode(brokenCode)
@@ -420,8 +427,10 @@ public class AstPlagiarismAcceptanceAuditTest {
         CourseClass cc = courseClassRepository.save(CourseClass.builder().code("CC_Z_" + suffix).name("Class Z").teacher(teacher).semester("FA24").build());
         Exam exam = examRepository.save(Exam.builder().title("Exam Zip " + suffix).courseClass(cc).status("ACTIVE").build());
 
+        ExamQuestion qZip = examQuestionRepository.save(ExamQuestion.builder().exam(exam).title("Q Zip").maxScore(BigDecimal.valueOf(10.00)).displayOrder(0).status("PUBLISHED").build());
         Submission subA = submissionRepository.save(Submission.builder()
                 .exam(exam)
+                .question(qZip)
                 .student(stuA)
                 .status("EVALUATED")
                 .submissionType("ZIP")
@@ -505,9 +514,10 @@ public class AstPlagiarismAcceptanceAuditTest {
                 }
                 """; // Completely different code
 
-        Submission sub1 = submissionRepository.save(Submission.builder().exam(exam).student(stu1).status("EVALUATED").sourceCode(codeA).build());
-        Submission sub2 = submissionRepository.save(Submission.builder().exam(exam).student(stu2).status("EVALUATED").sourceCode(codeB).build());
-        Submission sub3 = submissionRepository.save(Submission.builder().exam(exam).student(stu3).status("EVALUATED").sourceCode(codeC).build());
+        ExamQuestion qAll = examQuestionRepository.save(ExamQuestion.builder().exam(exam).title("Q All").maxScore(BigDecimal.valueOf(10.00)).displayOrder(0).status("PUBLISHED").build());
+        Submission sub1 = submissionRepository.save(Submission.builder().exam(exam).question(qAll).student(stu1).status("EVALUATED").sourceCode(codeA).build());
+        Submission sub2 = submissionRepository.save(Submission.builder().exam(exam).question(qAll).student(stu2).status("EVALUATED").sourceCode(codeB).build());
+        Submission sub3 = submissionRepository.save(Submission.builder().exam(exam).question(qAll).student(stu3).status("EVALUATED").sourceCode(codeC).build());
 
         // Generate fingerprints for all 3 submissions
         astPlagiarismService.generateFingerprintsForSubmission(sub1.getId());
@@ -559,8 +569,9 @@ public class AstPlagiarismAcceptanceAuditTest {
         User stuA = userRepository.save(User.builder().email("sa_m42_" + suffix + "@test.com").fullName("Stu A").passwordHash("pwd").role(Role.STUDENT).build());
         User stuB = userRepository.save(User.builder().email("sb_m42_" + suffix + "@test.com").fullName("Stu B").passwordHash("pwd").role(Role.STUDENT).build());
 
-        Submission sub1 = submissionRepository.save(Submission.builder().exam(exam).student(stuA).status("EVALUATED").sourceCode("class A { int f(int x){ return x*2; } }").build());
-        Submission sub2 = submissionRepository.save(Submission.builder().exam(exam).student(stuB).status("EVALUATED").sourceCode("class B { int f(int y){ return y*2; } }").build());
+        ExamQuestion qM42 = examQuestionRepository.save(ExamQuestion.builder().exam(exam).title("Q M42").maxScore(BigDecimal.valueOf(10.00)).displayOrder(0).status("PUBLISHED").build());
+        Submission sub1 = submissionRepository.save(Submission.builder().exam(exam).question(qM42).student(stuA).status("EVALUATED").sourceCode("class A { int f(int x){ return x*2; } }").build());
+        Submission sub2 = submissionRepository.save(Submission.builder().exam(exam).question(qM42).student(stuB).status("EVALUATED").sourceCode("class B { int f(int y){ return y*2; } }").build());
 
         astPlagiarismService.generateFingerprintsForSubmission(sub1.getId());
         astPlagiarismService.generateFingerprintsForSubmission(sub2.getId());
@@ -606,8 +617,9 @@ public class AstPlagiarismAcceptanceAuditTest {
         User stuA = userRepository.save(User.builder().email("sa_m43_" + suffix + "@test.com").fullName("Stu A").passwordHash("pwd").role(Role.STUDENT).build());
         User stuB = userRepository.save(User.builder().email("sb_m43_" + suffix + "@test.com").fullName("Stu B").passwordHash("pwd").role(Role.STUDENT).build());
 
-        Submission sub1 = submissionRepository.save(Submission.builder().exam(exam).student(stuA).status("EVALUATED").sourceCode("class A { int f(int x){ return x*2; } }").build());
-        Submission sub2 = submissionRepository.save(Submission.builder().exam(exam).student(stuB).status("EVALUATED").sourceCode("class B { int f(int y){ return y*2; } }").build());
+        ExamQuestion qM43 = examQuestionRepository.save(ExamQuestion.builder().exam(exam).title("Q M43").maxScore(BigDecimal.valueOf(10.00)).displayOrder(0).status("PUBLISHED").build());
+        Submission sub1 = submissionRepository.save(Submission.builder().exam(exam).question(qM43).student(stuA).status("EVALUATED").sourceCode("class A { int f(int x){ return x*2; } }").build());
+        Submission sub2 = submissionRepository.save(Submission.builder().exam(exam).question(qM43).student(stuB).status("EVALUATED").sourceCode("class B { int f(int y){ return y*2; } }").build());
 
         astPlagiarismService.generateFingerprintsForSubmission(sub1.getId());
         astPlagiarismService.generateFingerprintsForSubmission(sub2.getId());

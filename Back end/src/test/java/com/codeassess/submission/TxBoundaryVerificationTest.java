@@ -1,10 +1,14 @@
 package com.codeassess.submission;
 
+import java.math.BigDecimal;
+
 import com.codeassess.classes.entity.ClassStudent;
 import com.codeassess.classes.entity.CourseClass;
 import com.codeassess.classes.repository.ClassStudentRepository;
 import com.codeassess.classes.repository.CourseClassRepository;
 import com.codeassess.exam.entity.Exam;
+import com.codeassess.exam.entity.ExamQuestion;
+import com.codeassess.exam.repository.ExamQuestionRepository;
 import com.codeassess.exam.repository.ExamRepository;
 import com.codeassess.plagiarism.service.AstPlagiarismService;
 import com.codeassess.submission.dto.request.SubmissionCreateRequest;
@@ -51,6 +55,7 @@ class TxBoundaryVerificationTest {
     @Autowired private CourseClassRepository classRepository;
     @Autowired private ClassStudentRepository classStudentRepository;
     @Autowired private ExamRepository examRepository;
+    @Autowired private ExamQuestionRepository examQuestionRepository;
     @Autowired private SubmissionRepository submissionRepository;
     @Autowired private StudentSubmissionService studentSubmissionService;
     @Autowired private ApplicationEvents applicationEvents;
@@ -74,6 +79,7 @@ class TxBoundaryVerificationTest {
         similarityPairRepository.deleteAll();
         astFingerprintRepository.deleteAll();
         submissionRepository.deleteAll();
+        examQuestionRepository.deleteAll();
         if (activeExam != null) {
             examRepository.delete(activeExam);
             activeExam = null;
@@ -120,7 +126,14 @@ class TxBoundaryVerificationTest {
 
         activeExam = examRepository.save(Exam.builder()
                 .courseClass(courseClass).title("Tx Test Exam")
-                .status("active").examDate(LocalDateTime.now()).duration(60).build());
+                .status("active").examDate(LocalDateTime.now().minusMinutes(5)).duration(60).build());
+        examQuestionRepository.save(ExamQuestion.builder()
+                .exam(activeExam)
+                .title("Tx Test Question")
+                .maxScore(BigDecimal.valueOf(10.00))
+                .displayOrder(0)
+                .status("PUBLISHED")
+                .build());
     }
 
     @AfterEach

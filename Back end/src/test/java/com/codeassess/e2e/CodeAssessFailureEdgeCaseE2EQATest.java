@@ -6,6 +6,8 @@ import com.codeassess.classes.entity.CourseClass;
 import com.codeassess.classes.repository.ClassStudentRepository;
 import com.codeassess.classes.repository.CourseClassRepository;
 import com.codeassess.exam.entity.Exam;
+import com.codeassess.exam.entity.ExamQuestion;
+import com.codeassess.exam.repository.ExamQuestionRepository;
 import com.codeassess.exam.repository.ExamRepository;
 import com.codeassess.plagiarism.entity.Appeal;
 import com.codeassess.plagiarism.entity.PlagiarismEvidence;
@@ -55,6 +57,7 @@ public class CodeAssessFailureEdgeCaseE2EQATest {
     @Autowired private CourseClassRepository courseClassRepository;
     @Autowired private ClassStudentRepository classStudentRepository;
     @Autowired private ExamRepository examRepository;
+    @Autowired private ExamQuestionRepository examQuestionRepository;
     @Autowired private SubmissionRepository submissionRepository;
     @Autowired private SimilarityPairRepository similarityPairRepository;
     @Autowired private PlagiarismEvidenceRepository plagiarismEvidenceRepository;
@@ -77,6 +80,7 @@ public class CodeAssessFailureEdgeCaseE2EQATest {
         similarityPairRepository.deleteAll();
         astFingerprintRepository.deleteAll();
         submissionRepository.deleteAll();
+        examQuestionRepository.deleteAll();
         examRepository.deleteAll();
         classStudentRepository.deleteAll();
         courseClassRepository.deleteAll();
@@ -93,8 +97,26 @@ public class CodeAssessFailureEdgeCaseE2EQATest {
         classStudentRepository.save(ClassStudent.builder().id(new ClassStudent.ClassStudentId(classA.getId(), studentA.getId())).courseClass(classA).student(studentA).build());
         classStudentRepository.save(ClassStudent.builder().id(new ClassStudent.ClassStudentId(classA.getId(), studentB.getId())).courseClass(classA).student(studentB).build());
 
-        activeExam = examRepository.save(Exam.builder().title("Active").courseClass(classA).examDate(LocalDateTime.now().plusDays(1)).duration(90).status("ACTIVE").build());
+        activeExam = createActiveExam("Active");
         inactiveExam = examRepository.save(Exam.builder().title("Inactive").courseClass(classA).examDate(LocalDateTime.now().minusDays(1)).duration(90).status("INACTIVE").build());
+    }
+
+    private Exam createActiveExam(String title) {
+        Exam exam = examRepository.save(Exam.builder()
+                .title(title)
+                .courseClass(classA)
+                .examDate(LocalDateTime.now().minusMinutes(10))
+                .duration(90)
+                .status("ACTIVE")
+                .build());
+        examQuestionRepository.save(ExamQuestion.builder()
+                .exam(exam)
+                .title("Default Question")
+                .maxScore(BigDecimal.valueOf(10.00))
+                .displayOrder(0)
+                .status("PUBLISHED")
+                .build());
+        return exam;
     }
 
     private HttpHeaders getAuthHeaders(String email) {
@@ -122,7 +144,7 @@ public class CodeAssessFailureEdgeCaseE2EQATest {
     @Test
     @Order(2)
     public void testSubmission_InvalidJava() {
-        Exam isolatedExam = examRepository.save(Exam.builder().title("Invalid Exam").courseClass(classA).examDate(LocalDateTime.now().plusDays(1)).duration(90).status("ACTIVE").build());
+        Exam isolatedExam = createActiveExam("Invalid Exam");
         HttpHeaders headers = getAuthHeaders(studentA.getEmail());
         SubmissionCreateRequest req = new SubmissionCreateRequest("public class { invalid syntax!!! }");
         ResponseEntity<Map> res = restTemplate.exchange("/api/student/exams/" + isolatedExam.getId() + "/submissions", HttpMethod.POST, new HttpEntity<>(req, headers), Map.class);
@@ -145,7 +167,7 @@ public class CodeAssessFailureEdgeCaseE2EQATest {
     @Test
     @Order(3)
     public void testSubmission_ValidJavaAfterInvalid() {
-        Exam isolatedExam = examRepository.save(Exam.builder().title("Valid After Invalid").courseClass(classA).examDate(LocalDateTime.now().plusDays(1)).duration(90).status("ACTIVE").build());
+        Exam isolatedExam = createActiveExam("Valid After Invalid");
         HttpHeaders headers = getAuthHeaders(studentB.getEmail());
         SubmissionCreateRequest req = new SubmissionCreateRequest("public class Main { public static void main(String[] args) { System.out.println(\"Valid!\"); } }");
         ResponseEntity<Map> res = restTemplate.exchange("/api/student/exams/" + isolatedExam.getId() + "/submissions", HttpMethod.POST, new HttpEntity<>(req, headers), Map.class);
@@ -195,7 +217,7 @@ public class CodeAssessFailureEdgeCaseE2EQATest {
     @Test
     @Order(7)
     public void testPlagiarism_NoMatchingPair() {
-        Exam isolatedExam = examRepository.save(Exam.builder().title("No Match Exam").courseClass(classA).examDate(LocalDateTime.now().plusDays(1)).duration(90).status("ACTIVE").build());
+        Exam isolatedExam = createActiveExam("No Match Exam");
         
         HttpHeaders headersA = getAuthHeaders(studentA.getEmail());
         HttpHeaders headersB = getAuthHeaders(studentB.getEmail());
@@ -219,14 +241,15 @@ public class CodeAssessFailureEdgeCaseE2EQATest {
     @Test
     @Order(8)
     public void testAppeal_ConcurrentAndDuplicate() throws Exception {
-        Exam isolatedExam = examRepository.save(Exam.builder().title("Appeal Exam").courseClass(classA).examDate(LocalDateTime.now().plusDays(1)).duration(90).status("ACTIVE").build());
-        Submission sub = submissionRepository.save(Submission.builder().id(UUID.randomUUID().toString()).exam(isolatedExam).student(studentA).sourceCode("A").status("GRADED").build());
+        Exam isolatedExam = createActiveExam("Appeal Exam");
+        ExamQuestion qAppeal = examQuestionRepository.findByExam_IdOrderByDisplayOrderAscCreatedAtAsc(isolatedExam.getId()).get(0);
+        Submission sub = submissionRepository.save(Submission.builder().id(UUID.randomUUID().toString()).exam(isolatedExam).question(qAppeal).student(studentA).sourceCode("A").status("GRADED").build());
         
         HttpHeaders headers = getAuthHeaders(studentA.getEmail());
         AppealCreateRequestDto req = new AppealCreateRequestDto();
         req.setSubmissionId(sub.getId());
         req.setBasis("MISTAKE");
-        req.setExplanation("Concurrent test");
+        req.setExplanation("Concurrent test explanation with more than 20 characters");
 
         HttpEntity<AppealCreateRequestDto> entity = new HttpEntity<>(req, headers);
         
@@ -261,7 +284,7 @@ public class CodeAssessFailureEdgeCaseE2EQATest {
     @Order(10)
     public void testDEF01_ConcurrentMatrixGenerationRaceCondition_DoesNotLoseData() throws Exception {
         // We create an isolated exam
-        Exam isolatedExam = examRepository.save(Exam.builder().title("DEF-01 Exam").courseClass(classA).examDate(LocalDateTime.now().plusDays(1)).duration(90).status("ACTIVE").build());
+        Exam isolatedExam = createActiveExam("DEF-01 Exam");
         
         // We prepare 3 submissions with slightly different code so they all parse
         SubmissionCreateRequest reqA = new SubmissionCreateRequest("public class A { public void run() { int x = 1; } }");

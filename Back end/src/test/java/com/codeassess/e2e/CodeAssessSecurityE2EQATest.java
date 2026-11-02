@@ -6,6 +6,8 @@ import com.codeassess.classes.entity.CourseClass;
 import com.codeassess.classes.repository.ClassStudentRepository;
 import com.codeassess.classes.repository.CourseClassRepository;
 import com.codeassess.exam.entity.Exam;
+import com.codeassess.exam.entity.ExamQuestion;
+import com.codeassess.exam.repository.ExamQuestionRepository;
 import com.codeassess.exam.repository.ExamRepository;
 import com.codeassess.plagiarism.entity.Appeal;
 import com.codeassess.plagiarism.entity.PlagiarismEvidence;
@@ -57,6 +59,9 @@ public class CodeAssessSecurityE2EQATest {
     private ExamRepository examRepository;
 
     @Autowired
+    private ExamQuestionRepository examQuestionRepository;
+
+    @Autowired
     private SubmissionRepository submissionRepository;
 
     @Autowired
@@ -101,12 +106,24 @@ public class CodeAssessSecurityE2EQATest {
     @BeforeEach
     public void setupDb() {
         com.codeassess.testconfig.DatabaseSafetyGuard.assertSafeTestDatabase(dataSource);
-        appealRepository.deleteAll();
-        plagiarismEvidenceRepository.deleteAll();
-        similarityPairRepository.deleteAll();
-        astFingerprintRepository.deleteAll();
-        submissionRepository.deleteAll();
-        examRepository.deleteAll();
+        try {
+            appealRepository.deleteAllInBatch();
+            plagiarismEvidenceRepository.deleteAllInBatch();
+            similarityPairRepository.deleteAllInBatch();
+            astFingerprintRepository.deleteAllInBatch();
+            submissionRepository.deleteAllInBatch();
+            examQuestionRepository.deleteAllInBatch();
+            examRepository.deleteAllInBatch();
+        } catch (Exception e) {
+            try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+            appealRepository.deleteAllInBatch();
+            plagiarismEvidenceRepository.deleteAllInBatch();
+            similarityPairRepository.deleteAllInBatch();
+            astFingerprintRepository.deleteAllInBatch();
+            submissionRepository.deleteAllInBatch();
+            examQuestionRepository.deleteAllInBatch();
+            examRepository.deleteAllInBatch();
+        }
         classStudentRepository.deleteAll();
         courseClassRepository.deleteAll();
         userRepository.deleteAll();
@@ -126,12 +143,13 @@ public class CodeAssessSecurityE2EQATest {
         classStudentRepository.save(ClassStudent.builder().id(new ClassStudent.ClassStudentId(classA.getId(), studentA.getId())).courseClass(classA).student(studentA).build());
         classStudentRepository.save(ClassStudent.builder().id(new ClassStudent.ClassStudentId(classA.getId(), studentC.getId())).courseClass(classA).student(studentC).build());
         
-        examA = examRepository.save(Exam.builder().title("Exam A").courseClass(classA).examDate(LocalDateTime.now().plusDays(1)).duration(90).status("ACTIVE").build());
+        examA = examRepository.save(Exam.builder().title("Exam A").courseClass(classA).examDate(LocalDateTime.now().minusMinutes(10)).duration(90).status("ACTIVE").build());
+        ExamQuestion qA = examQuestionRepository.save(ExamQuestion.builder().exam(examA).title("Question A").maxScore(BigDecimal.valueOf(10.00)).displayOrder(0).status("PUBLISHED").build());
         
-        subA = submissionRepository.save(Submission.builder().id(UUID.randomUUID().toString()).exam(examA).student(studentA).sourceCode("codeA").status("GRADED").totalScore(new BigDecimal("10")).build());
-        Submission subC = submissionRepository.save(Submission.builder().id(UUID.randomUUID().toString()).exam(examA).student(studentC).sourceCode("codeC").status("GRADED").totalScore(new BigDecimal("10")).build());
+        subA = submissionRepository.save(Submission.builder().id(UUID.randomUUID().toString()).exam(examA).question(qA).student(studentA).sourceCode("codeA").status("GRADED").totalScore(new BigDecimal("10")).build());
+        Submission subC = submissionRepository.save(Submission.builder().id(UUID.randomUUID().toString()).exam(examA).question(qA).student(studentC).sourceCode("codeC").status("GRADED").totalScore(new BigDecimal("10")).build());
         
-        pairA = similarityPairRepository.save(SimilarityPair.builder().exam(examA).submissionA(subA).submissionB(subC).similarityRate(new BigDecimal("85")).sharedHashesCount(10).isFlagged(true).build());
+        pairA = similarityPairRepository.save(SimilarityPair.builder().exam(examA).question(qA).submissionA(subA).submissionB(subC).similarityRate(new BigDecimal("85")).sharedHashesCount(10).isFlagged(true).build());
         plagiarismEvidenceRepository.save(PlagiarismEvidence.builder().similarityPair(pairA).evidenceType("STRUCTURAL").description("Test").startLineA(1).endLineA(2).startLineB(1).endLineB(2).build());
         appealA = appealRepository.save(Appeal.builder().submission(subA).student(studentA).reason("Test appeal A").basis("MISTAKE").status("PENDING").build());
 
@@ -140,12 +158,13 @@ public class CodeAssessSecurityE2EQATest {
         classStudentRepository.save(ClassStudent.builder().id(new ClassStudent.ClassStudentId(classB.getId(), studentB.getId())).courseClass(classB).student(studentB).build());
         classStudentRepository.save(ClassStudent.builder().id(new ClassStudent.ClassStudentId(classB.getId(), studentD.getId())).courseClass(classB).student(studentD).build());
 
-        examB = examRepository.save(Exam.builder().title("Exam B").courseClass(classB).examDate(LocalDateTime.now().plusDays(1)).duration(90).status("ACTIVE").build());
+        examB = examRepository.save(Exam.builder().title("Exam B").courseClass(classB).examDate(LocalDateTime.now().minusMinutes(10)).duration(90).status("ACTIVE").build());
+        ExamQuestion qB = examQuestionRepository.save(ExamQuestion.builder().exam(examB).title("Question B").maxScore(BigDecimal.valueOf(10.00)).displayOrder(0).status("PUBLISHED").build());
         
-        subB = submissionRepository.save(Submission.builder().id(UUID.randomUUID().toString()).exam(examB).student(studentB).sourceCode("codeB").status("GRADED").totalScore(new BigDecimal("10")).build());
-        Submission subD = submissionRepository.save(Submission.builder().id(UUID.randomUUID().toString()).exam(examB).student(studentD).sourceCode("codeD").status("GRADED").totalScore(new BigDecimal("10")).build());
+        subB = submissionRepository.save(Submission.builder().id(UUID.randomUUID().toString()).exam(examB).question(qB).student(studentB).sourceCode("codeB").status("GRADED").totalScore(new BigDecimal("10")).build());
+        Submission subD = submissionRepository.save(Submission.builder().id(UUID.randomUUID().toString()).exam(examB).question(qB).student(studentD).sourceCode("codeD").status("GRADED").totalScore(new BigDecimal("10")).build());
         
-        pairB = similarityPairRepository.save(SimilarityPair.builder().exam(examB).submissionA(subB).submissionB(subD).similarityRate(new BigDecimal("80")).sharedHashesCount(8).isFlagged(true).build());
+        pairB = similarityPairRepository.save(SimilarityPair.builder().exam(examB).question(qB).submissionA(subB).submissionB(subD).similarityRate(new BigDecimal("80")).sharedHashesCount(8).isFlagged(true).build());
         plagiarismEvidenceRepository.save(PlagiarismEvidence.builder().similarityPair(pairB).evidenceType("STRUCTURAL").description("Test").startLineA(1).endLineA(2).startLineB(1).endLineB(2).build());
         appealB = appealRepository.save(Appeal.builder().submission(subB).student(studentB).reason("Test appeal B").basis("MISTAKE").status("PENDING").build());
     }
