@@ -23,10 +23,11 @@ public class AdminExamService {
     private final ExamRepository examRepository;
     private final ExamMapper examMapper;
     private final CourseClassRepository courseClassRepository;
+    private final com.codeassess.submission.repository.SubmissionRepository submissionRepository;
 
     @Transactional(readOnly = true)
     public List<ExamResponse> getAllExams() {
-        return examRepository.findAll().stream()
+        return examRepository.findAllActive().stream()
                 .map(examMapper::toResponse)
                 .collect(Collectors.toList());
     }
@@ -34,8 +35,32 @@ public class AdminExamService {
     @Transactional(readOnly = true)
     public ExamResponse getExamById(String id) {
         Exam exam = examRepository.findById(id)
+                .filter(e -> e.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found with id: " + id));
         return examMapper.toResponse(exam);
+    }
+
+    @Transactional
+    public void deleteExam(String id) {
+        Exam exam = examRepository.findById(id)
+                .filter(e -> e.getDeletedAt() == null)
+                .orElseThrow(() -> new ResourceNotFoundException("Exam not found with id: " + id));
+
+        long activeGradingJobs = submissionRepository.countActiveGradingSubmissionsByExamId(id);
+        if (activeGradingJobs > 0) {
+            throw new IllegalStateException("Cannot delete exam while submissions are actively being graded");
+        }
+
+        long submissionCount = submissionRepository.countByExam_Id(id);
+        if (submissionCount > 0) {
+            exam.setDeletedAt(java.time.LocalDateTime.now());
+            exam.setStatus("archived");
+            examRepository.save(exam);
+            return;
+        }
+
+        exam.getClasses().clear();
+        examRepository.delete(exam);
     }
 
     @Transactional

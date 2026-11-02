@@ -28,6 +28,9 @@ class StudentScoringServiceTest {
     @Mock
     private RuleScoreRepository ruleScoreRepository;
 
+    @Mock
+    private com.codeassess.testcase.repository.SubmissionTestResultRepository submissionTestResultRepository;
+
     @InjectMocks
     private StudentScoringService studentScoringService;
 
@@ -46,22 +49,22 @@ class StudentScoringServiceTest {
 
     @Test
     void testEffectiveScoreCalculationWithOverride() {
-        submission.setTotalScore(BigDecimal.valueOf(18));
-        submission.setOverrideScore(BigDecimal.valueOf(20));
+        submission.setTotalScore(BigDecimal.valueOf(7.5));
+        submission.setOverrideScore(BigDecimal.valueOf(8.5));
 
         Mockito.when(submissionRepository.findByIdAndStudent_Id("sub-1", "student-1")).thenReturn(Optional.of(submission));
         Mockito.when(ruleScoreRepository.findBySubmission_Id("sub-1")).thenReturn(new ArrayList<>());
 
         var result = studentScoringService.getStudentResult("sub-1", "student-1");
 
-        assertEquals(BigDecimal.valueOf(18), result.getTotalScore());
-        assertEquals(BigDecimal.valueOf(20), result.getOverrideTotalScore());
-        assertEquals(BigDecimal.valueOf(20), result.getEffectiveScore());
+        assertEquals(BigDecimal.valueOf(7.5), result.getTotalScore());
+        assertEquals(BigDecimal.valueOf(8.5), result.getOverrideTotalScore());
+        assertEquals(BigDecimal.valueOf(8.5), result.getEffectiveScore());
     }
 
     @Test
     void testEffectiveScoreCalculationWithoutOverride() {
-        submission.setTotalScore(BigDecimal.valueOf(18));
+        submission.setTotalScore(BigDecimal.valueOf(7.5));
         submission.setOverrideScore(null);
 
         Mockito.when(submissionRepository.findByIdAndStudent_Id("sub-1", "student-1")).thenReturn(Optional.of(submission));
@@ -69,8 +72,8 @@ class StudentScoringServiceTest {
 
         var result = studentScoringService.getStudentResult("sub-1", "student-1");
 
-        assertEquals(BigDecimal.valueOf(18), result.getTotalScore());
+        assertEquals(BigDecimal.valueOf(7.5), result.getTotalScore());
         assertEquals(null, result.getOverrideTotalScore());
-        assertEquals(BigDecimal.valueOf(18), result.getEffectiveScore());
+        assertEquals(BigDecimal.valueOf(7.5), result.getEffectiveScore());
     }
 }

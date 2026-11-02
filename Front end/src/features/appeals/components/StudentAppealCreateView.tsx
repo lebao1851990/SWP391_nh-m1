@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { AppLink as Link } from '@/components/ui/app-link';
 import { useSearchParams } from 'next/navigation';
 import { useAppRouter as useRouter } from '@/hooks/use-app-router';
-import { AxiosError } from 'axios';
 import { useCreateAppeal, useStudentAppeals } from '../hooks';
 import { useStudentResult } from '@/features/scoring/hooks';
 import { useForm } from 'react-hook-form';
@@ -15,14 +14,11 @@ import {
   Send, 
   CheckCircle2, 
   AlertCircle, 
-  X, 
   Scale, 
   FileText, 
   Check, 
   Loader2,
-  HelpCircle,
   ShieldCheck,
-  ShieldAlert,
   Award
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -34,8 +30,8 @@ export function StudentAppealCreateView() {
   const examTitleParam = searchParams?.get('examTitle') || '';
   const scoreParam = searchParams?.get('score') || '';
 
-  const { data: appeals, isLoading: isLoadingAppeals } = useStudentAppeals();
-  const { data: studentResult } = useStudentResult(submissionId);
+  const { data: appeals } = useStudentAppeals();
+  const { data: studentResult, isError: isStudentResultError } = useStudentResult(submissionId);
   const createAppeal = useCreateAppeal();
 
   const displayExamName = studentResult?.examName || examTitleParam || `Bài thi liên quan`;
@@ -126,6 +122,20 @@ export function StudentAppealCreateView() {
           </div>
         </div>
 
+        {/* Submission Loading Error Warning */}
+        {isStudentResultError && (
+          <div className="bg-rose-50 p-space-md rounded-2xl border border-rose-200 text-rose-800 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <div className="text-xs space-y-1">
+              <p className="font-semibold text-rose-900">Không tìm thấy bài nộp hoặc quyền truy cập bị từ chối</p>
+              <p>Hệ thống không thể tải dữ liệu bài nộp này. Vui lòng đảm bảo bạn đang khiếu nại đúng bài nộp của chính mình và bài thi đã được chấm điểm.</p>
+              <Link href="/student/appeals" className="inline-block mt-1 font-semibold underline text-rose-900">
+                Quay lại danh sách khiếu nại &rarr;
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Existing Pending Warning */}
         {existingPendingAppeal && (
           <div className="bg-amber-50 p-space-md rounded-2xl border border-amber-200 text-amber-800 flex items-start gap-3">
@@ -153,7 +163,7 @@ export function StudentAppealCreateView() {
           <div className="flex items-center gap-3 bg-surface-container-low px-4 py-2.5 rounded-xl border border-outline-variant/30 self-start sm:self-auto">
             <span className="text-on-surface-variant text-xs font-medium">Điểm hiện tại:</span>
             <span className="text-xl font-bold text-primary font-mono">
-              {displayScore} <span className="text-xs text-outline font-normal">/ 100</span>
+              {displayScore} <span className="text-xs text-outline font-normal">/ 10</span>
             </span>
           </div>
         </div>
@@ -249,6 +259,7 @@ export function StudentAppealCreateView() {
                 </p>
                 <textarea 
                   {...register('explanation')}
+                  maxLength={1000}
                   className="w-full bg-surface-container-low rounded-xl p-3 text-xs text-on-surface border border-outline-variant/40 focus:border-primary focus:outline-none transition-all resize-y leading-relaxed" 
                   placeholder="Ví dụ: Trong hàm calculateHash() và traverseTree(), thuật toán BFS chuẩn từ sách giáo trình được áp dụng từ slide Bài giảng 6..." 
                   rows={6}
@@ -264,7 +275,7 @@ export function StudentAppealCreateView() {
                   Hủy
                 </Link>
                 <button 
-                  disabled={createAppeal.isPending || !!existingPendingAppeal} 
+                  disabled={createAppeal.isPending || !!existingPendingAppeal || isStudentResultError} 
                   className="px-6 py-2 rounded-lg bg-primary text-on-primary text-xs font-semibold hover:bg-primary/90 transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer" 
                   type="submit"
                 >

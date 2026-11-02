@@ -77,16 +77,7 @@ public class InternalGradingService {
 
         if ("SINGLE_FILE".equalsIgnoreCase(submissionType)) {
             // Execute single-file submission through AutomatedTestRunnerService
-            try {
-                automatedTestRunnerService.runAndGrade(submission);
-            } catch (Exception e) {
-                log.error("Failed to run and grade submission {}: {}", submissionId, e.getMessage(), e);
-                submission.setStatus("FAILED");
-                submission.setExecutionStatus("INTERNAL_ERROR");
-                submission.setClaimToken(null);
-                submission.setLeaseExpiresAt(null);
-                submissionRepository.save(submission);
-            }
+            automatedTestRunnerService.runAndGrade(submission);
 
             // Reload fresh entity state
             submission = submissionRepository.findById(submissionId).orElse(submission);
@@ -109,20 +100,25 @@ public class InternalGradingService {
 
             return InternalGradingResponse.builder()
                     .submissionId(submissionId)
-                    .status(submission.getStatus())
+                    .status("COMPLETED")
                     .executionStatus(submission.getExecutionStatus())
                     .exitCode(submission.getExitCode())
-                    .message("Finished grading single-file submission")
+                    .message("Successfully graded single-file submission with automated test cases")
                     .build();
         } else {
-            // ZIP submission: execution telemetry was persisted during upload; complete with fencing check
+            // ZIP submission: execute automated test runner if not already completed
+            if (!"COMPLETED".equalsIgnoreCase(submission.getStatus()) && !"EVALUATED".equalsIgnoreCase(submission.getStatus())) {
+                automatedTestRunnerService.runAndGrade(submission);
+                submission = submissionRepository.findById(submissionId).orElse(submission);
+            }
+
             int completed = submissionRepository.completeZipGradingWithToken(
                     submissionId,
                     claimToken,
                     LocalDateTime.now()
             );
 
-            if (completed == 0) {
+            if (completed == 0 && !"COMPLETED".equalsIgnoreCase(submission.getStatus())) {
                 log.warn("ZIP submission {} lost its claim lease during execution (claimToken={}); discarding obsolete results",
                         submissionId, claimToken);
                 return InternalGradingResponse.builder()

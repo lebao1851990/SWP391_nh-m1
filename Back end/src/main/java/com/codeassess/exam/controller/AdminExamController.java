@@ -47,4 +47,11 @@ public class AdminExamController {
     public ExamResponse updateExam(@PathVariable String id, @Valid @RequestBody UpdateExamDto dto) {
         return adminExamService.updateExam(id, dto);
     }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}")
+    @org.springframework.web.bind.annotation.ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
+    public void deleteExam(@PathVariable String id) {
+        adminExamService.deleteExam(id);
+    }
 }

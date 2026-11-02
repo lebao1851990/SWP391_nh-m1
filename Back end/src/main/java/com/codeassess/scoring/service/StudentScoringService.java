@@ -46,7 +46,9 @@ public class StudentScoringService {
                 .build()).collect(Collectors.toList());
 
         List<com.codeassess.testcase.entity.SubmissionTestResult> testResults = 
-                submissionTestResultRepository.findBySubmission_IdOrderByIdAsc(submissionId);
+                submissionTestResultRepository != null 
+                        ? submissionTestResultRepository.findBySubmission_IdOrderByIdAsc(submissionId)
+                        : java.util.Collections.emptyList();
 
         List<com.codeassess.testcase.dto.response.SubmissionTestResultDto> testResultDtos = testResults.stream().map(tr -> {
             boolean isHidden = Boolean.TRUE.equals(tr.getIsHidden());
@@ -74,7 +76,7 @@ public class StudentScoringService {
                 .filter(java.util.Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         if (maxTotalScore.compareTo(BigDecimal.ZERO) == 0) {
-            maxTotalScore = BigDecimal.valueOf(100);
+            maxTotalScore = BigDecimal.valueOf(10);
         }
 
         boolean isDone = "COMPLETED".equalsIgnoreCase(submission.getStatus())
@@ -96,6 +98,9 @@ public class StudentScoringService {
                 .effectiveScore(effectiveScore)
                 .maxTotalScore(maxTotalScore)
                 .criteria(criteriaDtos)
+                .instructorFeedback(submission.getInstructorFeedback())
+                .originalFilename(submission.getOriginalFilename())
+                .submissionType(submission.getSubmissionType())
                 .build();
     }
 }

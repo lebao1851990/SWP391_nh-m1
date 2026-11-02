@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { registerSchema, RegisterFormData } from '../schemas/auth.schema';
 import { authApi } from '../api/auth.api';
 import { Eye, EyeOff, Lock, User, Mail, Shield, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
-import { parseApiError } from '@/lib/api-error';
+import { AxiosError } from 'axios';
 
 export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -44,12 +44,8 @@ export function RegisterForm() {
     registerMutation.mutate(data);
   };
 
-  const parsedError = registerMutation.isError ? parseApiError(registerMutation.error) : null;
-  const isEmailExists = parsedError?.isConflict;
-  const isNetworkError = parsedError?.isNetworkError;
-  const isValidationError = parsedError?.isBadRequest;
-  const isServerError = parsedError?.isServerError;
-  const isGenericError = registerMutation.isError && !isEmailExists && !isNetworkError && !isValidationError && !isServerError;
+  const isEmailExists = registerMutation.isError && registerMutation.error instanceof AxiosError && registerMutation.error.response?.status === 409;
+  const isGenericError = registerMutation.isError && !isEmailExists;
 
   const getPasswordReqClasses = (met: boolean) => 
     met ? 'text-green-700 font-medium' : 'text-slate-600';
@@ -107,37 +103,7 @@ export function RegisterForm() {
               <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <div className="text-xs sm:text-sm">
                 <p className="font-semibold">Email này đã được đăng ký</p>
-                <p className="mt-0.5 opacity-90">Email này đã được đăng ký. Vui lòng <Link href="/login" className="underline font-medium hover:opacity-80">đăng nhập</Link> hoặc sử dụng email khác.</p>
-              </div>
-            </div>
-          )}
-
-          {isNetworkError && (
-            <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive flex items-start gap-3 transition-all">
-              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <div className="text-xs sm:text-sm">
-                <p className="font-semibold">Không thể kết nối máy chủ</p>
-                <p className="mt-0.5 opacity-90">Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại sau.</p>
-              </div>
-            </div>
-          )}
-
-          {isValidationError && (
-            <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive flex items-start gap-3 transition-all">
-              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <div className="text-xs sm:text-sm">
-                <p className="font-semibold">Dữ liệu không hợp lệ</p>
-                <p className="mt-0.5 opacity-90">Thông tin đăng ký không hợp lệ. Vui lòng kiểm tra lại các trường thông tin.</p>
-              </div>
-            </div>
-          )}
-
-          {isServerError && (
-            <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive flex items-start gap-3 transition-all">
-              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <div className="text-xs sm:text-sm">
-                <p className="font-semibold">Lỗi hệ thống</p>
-                <p className="mt-0.5 opacity-90">Máy chủ đang gặp sự cố trong quá trình xử lý. Vui lòng thử lại sau ít phút.</p>
+                <p className="mt-0.5 opacity-90">Một tài khoản với địa chỉ email trường này đã tồn tại. Vui lòng <Link href="/login" className="underline font-medium hover:opacity-80">đăng nhập</Link> hoặc yêu cầu đặt lại mật khẩu.</p>
               </div>
             </div>
           )}

@@ -19,6 +19,6 @@ public class AppealCreateRequestDto {
     private String basis;
 
     @NotBlank(message = "Please provide an explanation")
-    @Size(min = 10, max = 2000, message = "Giải trình khiếu nại phải có độ dài từ 10 đến 2000 ký tự")
+    @Size(min = 20, max = 1000, message = "Giải trình khiếu nại phải có độ dài từ 20 đến 1000 ký tự")
     private String explanation;
 }

@@ -34,8 +34,7 @@ public class AiAssistantService {
         List<PlagiarismEvidence> evidenceList = plagiarismEvidenceRepository.findBySimilarityPair_Id(pairId);
 
         StringBuilder prompt = new StringBuilder();
-        prompt.append("You are an advisory assistant analyzing code similarity. ");
-        prompt.append("Do NOT declare guilt or state that plagiarism is confirmed. ");
+        prompt.append(com.codeassess.ai.prompt.AiPromptTemplates.PLAGIARISM_SIMILARITY_EXPLANATION_SYSTEM).append("\n\n");
         prompt.append("Provide a neutral, educational explanation of why the two submissions are structurally similar based on the following metrics and evidence.\n\n");
         
         prompt.append("Similarity Rate: ").append(pair.getSimilarityRate()).append("%\n");
@@ -69,9 +68,8 @@ public class AiAssistantService {
         String sourceB = extractLines(pair.getSubmissionB().getSourceCode(), evidence.getStartLineB(), evidence.getEndLineB());
 
         StringBuilder prompt = new StringBuilder();
-        prompt.append("You are an advisory AI code reviewer. ");
-        prompt.append("Your task is to analyze the following two code snippets which were flagged for structural similarity. ");
-        prompt.append("Do NOT declare guilt. Provide a neutral, objective review of how the code blocks align logically or syntactically.\n\n");
+        prompt.append(com.codeassess.ai.prompt.AiPromptTemplates.PLAGIARISM_CODE_REVIEW_SYSTEM).append("\n\n");
+        prompt.append("Analyze the following two code snippets which were flagged for structural similarity.\n\n");
 
         prompt.append("Evidence Type: ").append(evidence.getEvidenceType()).append("\n");
         prompt.append("Match Description: ").append(evidence.getDescription()).append("\n\n");

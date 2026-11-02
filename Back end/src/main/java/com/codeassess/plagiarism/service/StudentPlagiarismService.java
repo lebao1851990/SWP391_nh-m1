@@ -29,6 +29,6 @@ public class StudentPlagiarismService {
 
         List<PlagiarismEvidence> evidences = evidenceRepository.findBySimilarityPair_Id(pairId);
 
-        return mapper.toStudentDetailDto(pair, evidences);
+        return mapper.toStudentDetailDto(pair, evidences, student.getId());
     }
 }

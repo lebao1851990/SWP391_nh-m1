@@ -26,10 +26,14 @@ public class SecurityConfig {
 
     private final CorsConfigurationSource corsConfigurationSource;
     private final CustomUserDetailsService customUserDetailsService;
+    private final SessionTokenFilter sessionTokenFilter;
 
-    public SecurityConfig(CorsConfigurationSource corsConfigurationSource, CustomUserDetailsService customUserDetailsService) {
+    public SecurityConfig(CorsConfigurationSource corsConfigurationSource, 
+                          CustomUserDetailsService customUserDetailsService,
+                          SessionTokenFilter sessionTokenFilter) {
         this.corsConfigurationSource = corsConfigurationSource;
         this.customUserDetailsService = customUserDetailsService;
+        this.sessionTokenFilter = sessionTokenFilter;
     }
 
     @Bean
@@ -37,6 +41,7 @@ public class SecurityConfig {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
             .csrf(AbstractHttpConfigurer::disable)
+            .addFilterBefore(sessionTokenFilter, org.springframework.security.web.context.SecurityContextHolderFilter.class)
             .sessionManagement(session -> session
                     .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
             )
@@ -46,13 +51,19 @@ public class SecurityConfig {
             )
             .logout(logout -> logout
                     .logoutUrl("/api/auth/logout")
-                    .logoutSuccessHandler((request, response, authentication) -> response.setStatus(200))
+                    .logoutSuccessHandler((request, response, authentication) -> {
+                        String token = request.getHeader("X-Auth-Token");
+                        if (token != null) {
+                            SessionTokenRegistry.removeSession(token);
+                        }
+                        response.setStatus(200);
+                    })
                     .invalidateHttpSession(true)
                     .deleteCookies("codeassess_session", "codeassess_role")
             )
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/api/health").permitAll()
-                    .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/forgot-password", "/api/auth/reset-password").permitAll()
+                    .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/auth/logout").permitAll()
                     .requestMatchers("/api/internal/**").permitAll()
                     .requestMatchers("/api/**").authenticated()
                     .anyRequest().denyAll()

@@ -120,14 +120,14 @@ export default function TeacherSubmissionDetail({ params }: { params: Promise<{ 
                   <span className="font-display-lg text-display-lg text-primary font-bold tracking-tight">
                     {submission.totalScore != null ? submission.totalScore : 'N/A'}
                   </span>
-                  <span className="font-headline-lg text-headline-lg text-outline">/ 100</span>
+                  <span className="font-headline-lg text-headline-lg text-outline">/ 10</span>
                 </div>
               </div>
               
               {submission.overrideScore != null && (
                 <div className="flex items-center justify-between p-space-sm bg-surface-container-low rounded-lg mt-2">
                   <span className="font-label-sm text-label-sm font-semibold text-outline">Manual Override Score:</span>
-                  <span className="font-label-md text-label-md font-bold text-secondary">{submission.overrideScore} / 100</span>
+                  <span className="font-label-md text-label-md font-bold text-secondary">{submission.overrideScore} / 10</span>
                 </div>
               )}
               

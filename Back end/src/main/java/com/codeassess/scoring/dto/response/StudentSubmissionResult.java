@@ -26,6 +26,8 @@ public class StudentSubmissionResult {
     private Integer testCasesPassed;
     private Integer testCasesTotal;
     private List<com.codeassess.testcase.dto.response.SubmissionTestResultDto> testResults;
-    
     private List<CriterionScoreDto> criteria;
+    private String instructorFeedback;
+    private String originalFilename;
+    private String submissionType;
 }

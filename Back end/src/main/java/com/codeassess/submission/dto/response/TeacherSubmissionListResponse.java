@@ -17,4 +17,13 @@ public class TeacherSubmissionListResponse {
     private String status;
     private BigDecimal totalScore;
     private LocalDateTime submittedAt; // Maps to createdAt or evaluatedAt based on status
+
+    private String originalFilename;
+    private String executionStatus;
+    private BigDecimal autoScore;
+    private Integer testCasesPassed;
+    private Integer testCasesTotal;
+    private String plagiarismStatus;
+    private BigDecimal maxSimilarityRate;
+    private String instructorFeedback;
 }

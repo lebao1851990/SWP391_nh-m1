@@ -80,13 +80,24 @@ export function StudentPlagiarismDetailView({ recordId }: { recordId: string }) 
 
             {data.isFlagged && (
               <div className="flex items-center gap-2 self-start md:self-auto">
-                <Link 
-                  href={`/student/appeals/new?submissionId=${data.recordId}`}
-                  className="px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-all"
-                >
-                  <Scale className="w-3.5 h-3.5 text-purple-600" />
-                  <span>Tạo đơn khiếu nại bài nộp này</span>
-                </Link>
+                {data.submissionId ? (
+                  <Link 
+                    href={`/student/appeals/new?submissionId=${encodeURIComponent(data.submissionId)}&examTitle=${encodeURIComponent(data.examName || '')}`}
+                    className="px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-all"
+                  >
+                    <Scale className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Tạo đơn khiếu nại bài nộp này</span>
+                  </Link>
+                ) : (
+                  <button 
+                    disabled
+                    title="Không xác định được mã bài nộp để khiếu nại"
+                    className="px-4 py-2 bg-purple-50/50 text-purple-400 border border-purple-100 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-not-allowed opacity-60"
+                  >
+                    <Scale className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Tạo đơn khiếu nại bài nộp này</span>
+                  </button>
+                )}
               </div>
             )}
           </div>

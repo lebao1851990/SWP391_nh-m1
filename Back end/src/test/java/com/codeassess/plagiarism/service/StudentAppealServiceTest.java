@@ -108,4 +108,40 @@ public class StudentAppealServiceTest {
         
         verify(appealRepository, never()).save(any(Appeal.class));
     }
+
+    @Test
+    public void createAppeal_ExplanationTooShort_ThrowsIllegalArgumentException() {
+        requestDto.setExplanation("Short text"); // 10 chars < 20
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                studentAppealService.createAppeal(requestDto, student));
+
+        assertTrue(ex.getMessage().contains("20"));
+        verify(appealRepository, never()).save(any(Appeal.class));
+    }
+
+    @Test
+    public void createAppeal_ExplanationTooLong_ThrowsIllegalArgumentException() {
+        String longText = "a".repeat(1001); // 1001 chars > 1000
+        requestDto.setExplanation(longText);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                studentAppealService.createAppeal(requestDto, student));
+
+        assertTrue(ex.getMessage().contains("1000"));
+        verify(appealRepository, never()).save(any(Appeal.class));
+    }
+
+    @Test
+    public void createAppeal_SubmissionNotGraded_ThrowsIllegalArgumentException() {
+        submission.setStatus("PENDING");
+        when(submissionRepository.findByIdAndStudent_IdForUpdate("sub1", "student1"))
+                .thenReturn(Optional.of(submission));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                studentAppealService.createAppeal(requestDto, student));
+
+        assertTrue(ex.getMessage().contains("đã được chấm điểm"));
+        verify(appealRepository, never()).save(any(Appeal.class));
+    }
 }

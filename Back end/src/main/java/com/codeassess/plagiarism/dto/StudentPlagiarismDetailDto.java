@@ -14,6 +14,7 @@ import java.util.List;
 @AllArgsConstructor
 public class StudentPlagiarismDetailDto {
     private String recordId;
+    private String submissionId;
     private String examName;
     private BigDecimal similarityRate;
     private boolean isFlagged;

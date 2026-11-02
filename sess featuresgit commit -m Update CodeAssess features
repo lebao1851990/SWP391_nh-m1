@@ -1,0 +1,85 @@
+ .../codeassess/auth/controller/AuthController.java |  24 [32m+[m
+ .../auth/dto/response/LoginResponse.java           |   1 [32m+[m
+ .../com/codeassess/auth/service/AuthService.java   |   4 [32m+[m
+ .../common/exception/ExamTimeExpiredException.java |   7 [32m+[m
+ .../common/exception/GlobalExceptionHandler.java   |   6 [32m+[m
+ .../java/com/codeassess/config/CorsConfig.java     |   1 [32m+[m
+ .../config/FlexibleLocalDateTimeDeserializer.java  |   6 [32m+[m[31m-[m
+ .../exam/controller/AdminExamController.java       |   7 [32m+[m
+ .../exam/controller/TeacherExamController.java     |   7 [32m+[m
+ .../codeassess/exam/dto/request/CreateExamDto.java |   4 [32m+[m
+ .../codeassess/exam/dto/request/UpdateExamDto.java |   5 [32m+[m
+ .../codeassess/exam/dto/response/ExamResponse.java |  10 [32m+[m
+ .../main/java/com/codeassess/exam/entity/Exam.java |   3 [32m+[m
+ .../com/codeassess/exam/mapper/ExamMapper.java     |  10 [32m+[m
+ .../codeassess/exam/repository/ExamRepository.java |  11 [32m+[m[31m-[m
+ .../codeassess/exam/service/AdminExamService.java  |  27 [32m+[m[31m-[m
+ .../exam/service/TeacherExamService.java           |  92 [32m+++[m[31m-[m
+ .../sandbox/service/DockerSandboxService.java      | 362 [32m+++++++++++++[m[31m-[m
+ .../scoring/dto/response/ScoringDetail.java        |   8 [32m+[m
+ .../dto/response/StudentSubmissionResult.java      |   4 [32m+[m[31m-[m
+ .../scoring/service/StudentScoringService.java     |   7 [32m+[m[31m-[m
+ .../scoring/service/TeacherScoringService.java     |  19 [32m+[m[31m-[m
+ .../com/codeassess/security/SecurityConfig.java    |  17 [32m+[m[31m-[m
+ .../codeassess/security/SessionTokenFilter.java    | 114 [32m+++++[m
+ .../codeassess/security/SessionTokenRegistry.java  |  62 [32m+++[m
+ .../controller/StudentSubmissionController.java    |  22 [32m+[m
+ .../controller/TeacherSubmissionController.java    |  36 [32m++[m
+ .../dto/response/SubmissionDetailResponse.java     |   1 [32m+[m
+ .../submission/dto/response/SubmissionFileDto.java |  17 [32m+[m
+ .../response/TeacherSubmissionListResponse.java    |   9 [32m+[m
+ .../codeassess/submission/entity/Submission.java   |   6 [32m+[m
+ .../submission/mapper/SubmissionMapper.java        |   3 [32m+[m[31m-[m
+ .../repository/SubmissionRepository.java           |   3 [32m+[m
+ .../submission/service/InternalGradingService.java |   9 [32m+[m[31m-[m
+ .../service/StudentSubmissionService.java          | 109 [32m++++[m[31m-[m
+ .../service/SubmissionStorageService.java          | 122 [32m+++++[m
+ .../service/TeacherSubmissionService.java          |  42 [32m+[m[31m-[m
+ .../service/AutomatedTestRunnerService.java        | 182 [32m+++++[m[31m--[m
+ .../codeassess/user/controller/UserController.java |  35 [32m++[m
+ ...V15__add_exam_soft_delete_and_time_tracking.sql |   7 [32m+[m
+ .../V16__add_submission_storage_and_feedback.sql   |   5 [32m+[m
+ .../V6.1__fix_schema_and_create_missing_tables.sql |   6 [32m+[m
+ .../V6__fix_schema_and_create_missing_tables.sql   | 143 [31m------[m
+ .../codeassess/auth/service/AuthServiceTest.java   |   1 [32m+[m
+ .../e2e/BullMqEndToEndPipelineIntegrationTest.java |   4 [32m+[m[31m-[m
+ .../e2e/CodeAssessFailureEdgeCaseE2EQATest.java    |   2 [32m+[m[31m-[m
+ .../exam/service/ExamLifecycleAndDeadlineTest.java | 279 [32m+++++++++++[m
+ .../scoring/service/StudentScoringServiceTest.java |   3 [32m+[m
+ ...SessionIsolationAndDurationIntegrationTest.java | 326 [32m+++++++++++++[m
+ Back end/src/test/resources/application.yml        |   1 [32m+[m
+ Front end/next.config.ts                           |   6 [32m+[m[31m-[m
+ Front end/src/app/admin/layout.tsx                 |  17 [32m+[m[31m-[m
+ Front end/src/app/student/layout.tsx               |  19 [32m+[m[31m-[m
+ Front end/src/app/teacher/layout.tsx               |  19 [32m+[m[31m-[m
+ Front end/src/components/auth/auth-guard.tsx       | 191 [32m++++++++[m
+ Front end/src/components/layout/header.tsx         |  32 [32m+[m[31m-[m
+ Front end/src/components/layout/sidebar.tsx        |  49 [32m+[m[31m-[m
+ Front end/src/components/ui/language-switcher.tsx  |  78 [32m+++[m
+ Front end/src/features/admin/api/admin.api.ts      |   4 [32m+[m
+ .../admin/components/AdminExamDetailView.tsx       |   2 [32m+[m[31m-[m
+ .../admin/components/AdminExamListView.tsx         | 115 [32m++++[m[31m-[m
+ Front end/src/features/admin/hooks/index.ts        |  11 [32m+[m
+ Front end/src/features/auth/api/auth.api.ts        |   6 [32m+[m
+ .../src/features/auth/components/login-form.tsx    |   2 [32m+[m[31m-[m
+ .../src/features/exams/api/student-exams.api.ts    |  24 [32m+[m[31m-[m
+ .../src/features/exams/api/teacher-exams.api.ts    |  37 [32m++[m
+ .../exams/components/StudentExamDetailView.tsx     | 453 [32m++++++++++++++[m[31m----[m
+ .../features/exams/components/StudentExamsView.tsx |  10 [32m+[m[31m-[m
+ .../exams/components/TeacherExamDetailView.tsx     | 531 [32m++++++++++++++++[m[31m-----[m
+ .../features/exams/components/TeacherExamsView.tsx | 151 [32m+++++[m[31m-[m
+ .../src/features/exams/hooks/use-student-exams.ts  |  13 [32m+[m
+ .../src/features/exams/hooks/use-teacher-exams.ts  |  18 [32m+[m
+ .../scoring/components/teacher-scoring-form.tsx    | 275 [32m+++++++++[m[31m--[m
+ Front end/src/features/scoring/types/index.ts      |   8 [32m+[m
+ .../components/TeacherSubmissionsView.tsx          |  48 [32m+[m[31m-[m
+ Front end/src/i18n/index.ts                        |  70 [32m+++[m
+ Front end/src/i18n/locales/en.ts                   | 128 [32m+++++[m
+ Front end/src/i18n/locales/vi.ts                   | 128 [32m+++++[m
+ Front end/src/lib/api-client.ts                    |  10 [32m+[m[31m-[m
+ Front end/src/stores/session.store.ts              |  10 [32m+[m[31m-[m
+ scratch/check_db_state.ps1                         |  26 [32m+[m
+ scratch/run_full_e2e_test.js                       | 232 [32m+++++++++[m
+ scratch/test_complete_workflow.ps1                 | 186 [32m++++++++[m
+ scratch/test_e2e.js                                |  41 [32m++[m
+ 84 files changed, 4566 insertions(+), 575 deletions(-)

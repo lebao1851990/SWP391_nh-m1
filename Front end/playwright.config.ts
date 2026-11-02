@@ -13,13 +13,41 @@ export default defineConfig({
   reporter: 'list',
   use: {
     actionTimeout: 0,
-    baseURL: 'http://localhost:3000',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',
     trace: 'on-first-retry',
     video: 'off',
   },
   projects: [
     {
-      name: 'chromium',
+      name: 'mocked',
+      testMatch: [
+        '**/admin-class-roster.spec.ts',
+        '**/student-ai-assistant.spec.ts',
+        '**/teacher-plagiarism-detail-visual.spec.ts',
+        '**/plagiarism-normalizer.spec.ts',
+      ],
+      grepInvert: /UI Consumer/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'live',
+      testMatch: [
+        '**/auth-guard-session.spec.ts',
+        '**/class-aware-exams.spec.ts',
+        '**/core-flows.spec.ts',
+        '**/grade-audit-history.spec.ts',
+        '**/scoring-override.spec.ts',
+        '**/student-plagiarism-appeal-link.spec.ts',
+        '**/responsive.spec.ts',
+        '**/ast-plagiarism-dashboard-matrix.spec.ts',
+        '**/live-ai-task17.spec.ts',
+      ],
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'hybrid',
+      testMatch: ['**/plagiarism-normalizer.spec.ts'],
+      grep: /UI Consumer/,
       use: { ...devices['Desktop Chrome'] },
     },
   ],

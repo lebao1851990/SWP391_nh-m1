@@ -1,0 +1,137 @@
+[1mdiff --git a/Back end/src/main/resources/db/migration/V15__add_exam_soft_delete_and_time_tracking.sql b/Back end/src/main/resources/db/migration/V15__add_exam_soft_delete_and_time_tracking.sql[m
+[1mnew file mode 100644[m
+[1mindex 0000000..bf8f9ea[m
+[1m--- /dev/null[m
+[1m+++ b/Back end/src/main/resources/db/migration/V15__add_exam_soft_delete_and_time_tracking.sql[m	
+[36m@@ -0,0 +1,7 @@[m
+[32m+[m[32m-- Migration V15: Add soft delete support to exams table[m
+[32m+[m[32m-- Preserves existing submissions, scores, appeals, and audit logs on deletion[m
+[32m+[m
+[32m+[m[32mALTER TABLE exams[m
+[32m+[m[32m    ADD COLUMN deleted_at TIMESTAMP NULL,[m
+[32m+[m[32m    ADD INDEX idx_exams_deleted_at (deleted_at),[m
+[32m+[m[32m    ADD INDEX idx_exams_status_deleted (status, deleted_at);[m
+[1mdiff --git a/Back end/src/main/resources/db/migration/V16__add_submission_storage_and_feedback.sql b/Back end/src/main/resources/db/migration/V16__add_submission_storage_and_feedback.sql[m
+[1mnew file mode 100644[m
+[1mindex 0000000..07b73dd[m
+[1m--- /dev/null[m
+[1m+++ b/Back end/src/main/resources/db/migration/V16__add_submission_storage_and_feedback.sql[m	
+[36m@@ -0,0 +1,5 @@[m
+[32m+[m[32m-- Migration V16: Add submission ZIP storage path and instructor feedback[m
+[32m+[m
+[32m+[m[32mALTER TABLE submissions[m
+[32m+[m[32m    ADD COLUMN zip_storage_path VARCHAR(500) NULL,[m
+[32m+[m[32m    ADD COLUMN instructor_feedback TEXT NULL;[m
+[1mdiff --git a/Back end/src/main/resources/db/migration/V6.1__fix_schema_and_create_missing_tables.sql b/Back end/src/main/resources/db/migration/V6.1__fix_schema_and_create_missing_tables.sql[m
+[1mnew file mode 100644[m
+[1mindex 0000000..42f6cfc[m
+[1m--- /dev/null[m
+[1m+++ b/Back end/src/main/resources/db/migration/V6.1__fix_schema_and_create_missing_tables.sql[m	
+[36m@@ -0,0 +1,6 @@[m
+[32m+[m[32m-- =============================================================================[m
+[32m+[m[32m-- V6.1: Schema reconciliation[m
+[32m+[m[32m-- All tables (similarity_matrix, ast_fingerprints, plagiarism_evidence)[m
+[32m+[m[32m-- are properly initialized in V1 and V5. This migration is a safe no-op.[m
+[32m+[m[32m-- =============================================================================[m
+[32m+[m[32mSELECT 1;[m
+[1mdiff --git a/Back end/src/main/resources/db/migration/V6__fix_schema_and_create_missing_tables.sql b/Back end/src/main/resources/db/migration/V6__fix_schema_and_create_missing_tables.sql[m
+[1mdeleted file mode 100644[m
+[1mindex 0505e9d..0000000[m
+[1m--- a/Back end/src/main/resources/db/migration/V6__fix_schema_and_create_missing_tables.sql[m	
+[1m+++ /dev/null[m
+[36m@@ -1,143 +0,0 @@[m
+[31m--- =============================================================================[m
+[31m--- V6: Fix schema mismatches and create missing tables[m
+[31m---[m
+[31m--- Issues fixed:[m
+[31m---   1. plagiarism_evidence: replace wrong location columns with correct line-range[m
+[31m---      columns that match PlagiarismEvidence.java entity.[m
+[31m---   2. similarity_matrix: table missing from all previous migrations.[m
+[31m---   3. ast_fingerprints:  table missing from all previous migrations.[m
+[31m---   4. rule_scores: column was named 'score_awarded' in V5 but entity uses 'score'.[m
+[31m---   5. scoring_criteria: V5 added exam_id FK that has no matching field in entity.[m
+[31m---[m
+[31m--- Safety: every DDL uses IF EXISTS / IF NOT EXISTS guards so the migration is[m
+[31m--- idempotent and safe to run on databases that were created manually or via[m
+[31m--- hibernate ddl-auto before this migration was introduced.[m
+[31m--- =============================================================================[m
+[31m-[m
+[31m--- ---------------------------------------------------------------------------[m
+[31m--- 1. FIX plagiarism_evidence[m
+[31m---    V5 created columns: submission_a_location VARCHAR(100),[m
+[31m---                        submission_b_location VARCHAR(100)[m
+[31m---    Entity PlagiarismEvidence.java expects:[m
+[31m---                        submission_a_start_line INT,[m
+[31m---                        submission_a_end_line   INT,[m
+[31m---                        submission_b_start_line INT,[m
+[31m---                        submission_b_end_line   INT[m
+[31m--- ---------------------------------------------------------------------------[m
+[31m-[m
+[31m--- Add correct columns (ignore error if they already exist)[m
+[31m-ALTER TABLE plagiarism_evidence[m
+[31m-    ADD COLUMN IF NOT EXISTS submission_a_start_line INT NULL,[m
+[31m-    ADD COLUMN IF NOT EXISTS submission_a_end_line   INT NULL,[m
+[31m-    ADD COLUMN IF NOT EXISTS submission_b_start_line INT NULL,[m
+[31m-    ADD COLUMN IF NOT EXISTS submission_b_end_line   INT NULL;[m
+[31m-[m
+[31m--- Drop the wrong columns created by V5 (ignore error if already removed)[m
+[31m-ALTER TABLE plagiarism_evidence[m
+[31m-    DROP COLUMN IF EXISTS submission_a_location,[m
+[31m-    DROP COLUMN IF EXISTS submission_b_location;[m
+[31m-[m
+[31m--- ---------------------------------------------------------------------------[m
+[31m--- 2. FIX scoring_criteria[m
+[31m---    V5 added exam_id + FK but ScoringCriteria entity has no exam field.[m
+[31m---    Drop the FK constraint first, then the column.[m
+[31m--- ---------------------------------------------------------------------------[m
+[31m-[m
+[31m--- Drop the FK constraint if it exists (constraint name matches V5 definition)[m
+[31m-ALTER TABLE scoring_criteria[m
+[31m-    DROP FOREIGN KEY IF EXISTS fk_scoring_criteria_exam;[m
+[31m-[m
+[31m--- Drop the orphaned exam_id column[m
+[31m-ALTER TABLE scoring_criteria[m
+[31m-    DROP COLUMN IF EXISTS exam_id;[m
+[31m-[m
+[31m--- ---------------------------------------------------------------------------[m
+[31m--- 3. FIX rule_scores[m
+[31m---    V5 named the column 'score_awarded'; entity RuleScore.java maps to 'score'.[m
+[31m--- ---------------------------------------------------------------------------[m
+[31m-[m
+[31m--- Add the correctly-named column if it does not exist yet[m
+[31m-ALTER TABLE rule_scores[m
+[31m-    ADD COLUMN IF NOT EXISTS score DECIMAL(5,2) NOT NULL DEFAULT 0.00;[m
+[31m-[m
+[31m--- Migrate existing data from score_awarded → score (if old column still present)[m
+[31m-UPDATE rule_scores SET score = score_awarded WHERE score = 0.00 AND score_awarded IS NOT NULL;[m
+[31m-[m
+[31m--- Drop the wrongly-named column[m
+[31m-ALTER TABLE rule_scores[m
+[31m-    DROP COLUMN IF EXISTS score_awarded;[m
+[31m-[m
+[31m--- Also rename FK column from 'criteria_id' if V5 used 'criteria_id' already[m
+[31m--- (Entity uses @JoinColumn(name="criteria_id") so this is already correct — no change needed)[m
+[31m-[m
+[31m--- ---------------------------------------------------------------------------[m
+[31m--- 4. CREATE similarity_matrix (if not exists)[m
+[31m---    Entity: SimilarityPair.java  →  @Table(name = "similarity_matrix")[m
+[31m---    PK:     BIGINT AUTO_INCREMENT[m
+[31m---    FKs:    exam_id → exams(id), submission_a_id → submissions(id),[m
+[31m---            submission_b_id → submissions(id)[m
+[31m--- ---------------------------------------------------------------------------[m
+[31m-[m
+[31m-CREATE TABLE IF NOT EXISTS similarity_matrix ([m
+[31m-    id                 BIGINT          NOT NULL AUTO_INCREMENT,[m
+[31m-    exam_id            VARCHAR(36)     NOT NULL,[m
+[31m-    submission_a_id    VARCHAR(36)     NOT NULL,[m
+[31m-    submission_b_id    VARCHAR(36)     NOT NULL,[m
+[31m-    similarity_rate    DECIMAL(5,2)    NOT NULL,[m
+[31m-    shared_hashes_count INT            NULL,[m
+[31m-    is_flagged         TINYINT(1)      NULL,[m
+[31m-    created_at         TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,[m
+[31m-[m
+[31m-    PRIMARY KEY (id),[m
+[31m-    UNIQUE KEY uq_similarity_pair (submission_a_id, submission_b_id),[m
+[31m-    INDEX idx_sm_exam (exam_id),[m
+[31m-    INDEX idx_sm_sub_a (submission_a_id),[m
+[31m-    INDEX idx_sm_

@@ -514,4 +514,84 @@ class TeacherScoringServiceTest {
 
         assertNull(savedLog.getRationale());
     }
+
+    @Test
+    void testGetAuditLogs_TeacherAuthorized_Success() {
+        when(submissionRepository.findByIdAndExam_CourseClass_Teacher_Id("sub-1", "teacher-1"))
+                .thenReturn(Optional.of(submission));
+
+        GradeAuditLog auditLog = GradeAuditLog.builder()
+                .id("101")
+                .submission(submission)
+                .actor(teacher)
+                .actionType("SCORE_OVERRIDE")
+                .preEffectiveScore(BigDecimal.valueOf(7.0))
+                .postEffectiveScore(BigDecimal.valueOf(9.0))
+                .rationale("Regrading verified")
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(gradeAuditLogRepository.findBySubmission_IdOrderByCreatedAtDesc("sub-1"))
+                .thenReturn(List.of(auditLog));
+
+        List<GradeAuditLogDto> result = teacherScoringService.getAuditLogs("sub-1", teacher);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("101", result.get(0).getId());
+        assertEquals("SCORE_OVERRIDE", result.get(0).getActionType());
+        assertEquals(BigDecimal.valueOf(9.0), result.get(0).getPostEffectiveScore());
+    }
+
+    @Test
+    void testGetAuditLogs_TeacherUnauthorized_ThrowsResourceNotFoundException() {
+        when(submissionRepository.findByIdAndExam_CourseClass_Teacher_Id("sub-1", "other-teacher"))
+                .thenReturn(Optional.empty());
+
+        User otherTeacher = User.builder().id("other-teacher").role(com.codeassess.user.entity.Role.TEACHER).build();
+
+        assertThrows(ResourceNotFoundException.class, () ->
+                teacherScoringService.getAuditLogs("sub-1", otherTeacher));
+
+        verify(gradeAuditLogRepository, never()).findBySubmission_IdOrderByCreatedAtDesc(anyString());
+    }
+
+    @Test
+    void testGetAuditLogs_AdminAuthorized_Success() {
+        User admin = User.builder().id("admin-1").email("admin@test.com").role(com.codeassess.user.entity.Role.ADMIN).build();
+
+        when(submissionRepository.findById("sub-1")).thenReturn(Optional.of(submission));
+
+        GradeAuditLog auditLog = GradeAuditLog.builder()
+                .id("202")
+                .submission(submission)
+                .actor(admin)
+                .actionType("ARBITRATION_UPDATE")
+                .preEffectiveScore(BigDecimal.valueOf(6.0))
+                .postEffectiveScore(BigDecimal.valueOf(8.5))
+                .rationale("Admin appeal arbitration")
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(gradeAuditLogRepository.findBySubmission_IdOrderByCreatedAtDesc("sub-1"))
+                .thenReturn(List.of(auditLog));
+
+        List<GradeAuditLogDto> result = teacherScoringService.getAuditLogs("sub-1", admin);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("202", result.get(0).getId());
+        assertEquals("ARBITRATION_UPDATE", result.get(0).getActionType());
+        verify(submissionRepository, never()).findByIdAndExam_CourseClass_Teacher_Id(anyString(), anyString());
+    }
+
+    @Test
+    void testGetAuditLogs_AdminSubmissionNotFound_ThrowsResourceNotFoundException() {
+        User admin = User.builder().id("admin-1").email("admin@test.com").role(com.codeassess.user.entity.Role.ADMIN).build();
+
+        when(submissionRepository.findById("non-existent")).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () ->
+                teacherScoringService.getAuditLogs("non-existent", admin));
+    }
 }

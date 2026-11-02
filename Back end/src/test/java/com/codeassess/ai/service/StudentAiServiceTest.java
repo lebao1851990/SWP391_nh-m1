@@ -155,6 +155,108 @@ class StudentAiServiceTest {
     }
 
     @Test
+    void testGetSubmissionFeedback_ConcludedExamAllowedEvenIfStatusActive() {
+        exam.setStatus("active");
+        exam.setExamDate(java.time.LocalDateTime.now(Exam.APP_ZONE).minusHours(2));
+        exam.setDuration(60); // Concluded 1 hour ago
+        when(submissionRepository.findByIdAndStudent_Id("sub-789", "student-123"))
+                .thenReturn(Optional.of(submission));
+        when(aiClient.generateStudentFeedback(anyString(), anyString()))
+                .thenReturn("Detailed feedback after exam concluded.");
+
+        StudentAiRequest request = new StudentAiRequest(StudentAiMode.CODE_EXPLANATION, null);
+        StudentAiResponse response = studentAiService.getSubmissionFeedback("sub-789", "student-123", request);
+
+        assertNotNull(response);
+        assertEquals("Detailed feedback after exam concluded.", response.explanation());
+    }
+
+    @Test
+    void testGetSubmissionFeedback_OngoingExamWithinDurationRejectedWith403() {
+        exam.setStatus("active");
+        exam.setExamDate(java.time.LocalDateTime.now(Exam.APP_ZONE).minusMinutes(15));
+        exam.setDuration(90); // 75 minutes remaining
+        when(submissionRepository.findByIdAndStudent_Id("sub-789", "student-123"))
+                .thenReturn(Optional.of(submission));
+
+        StudentAiRequest request = new StudentAiRequest(StudentAiMode.CODE_EXPLANATION, null);
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                studentAiService.getSubmissionFeedback("sub-789", "student-123", request));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    void testGetSubmissionFeedback_UpcomingExamRejectedWith403() {
+        exam.setStatus("active");
+        exam.setExamDate(java.time.LocalDateTime.now(Exam.APP_ZONE).plusMinutes(30));
+        exam.setDuration(60);
+        when(submissionRepository.findByIdAndStudent_Id("sub-789", "student-123"))
+                .thenReturn(Optional.of(submission));
+
+        StudentAiRequest request = new StudentAiRequest(StudentAiMode.CODE_EXPLANATION, null);
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                studentAiService.getSubmissionFeedback("sub-789", "student-123", request));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    void testGetSubmissionFeedback_ScheduledExamStatusRejectedWith403() {
+        exam.setStatus("scheduled");
+        when(submissionRepository.findByIdAndStudent_Id("sub-789", "student-123"))
+                .thenReturn(Optional.of(submission));
+
+        StudentAiRequest request = new StudentAiRequest(StudentAiMode.CODE_EXPLANATION, null);
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                studentAiService.getSubmissionFeedback("sub-789", "student-123", request));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    void testGetSubmissionFeedback_ActiveExamMissingTimeDataRejectedWith403() {
+        exam.setStatus("active");
+        exam.setExamDate(null);
+        when(submissionRepository.findByIdAndStudent_Id("sub-789", "student-123"))
+                .thenReturn(Optional.of(submission));
+
+        StudentAiRequest request = new StudentAiRequest(StudentAiMode.CODE_EXPLANATION, null);
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                studentAiService.getSubmissionFeedback("sub-789", "student-123", request));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    void testGetSubmissionFeedback_UnknownStatusRejectedWith403() {
+        exam.setStatus("UNKNOWN_STATUS");
+        when(submissionRepository.findByIdAndStudent_Id("sub-789", "student-123"))
+                .thenReturn(Optional.of(submission));
+
+        StudentAiRequest request = new StudentAiRequest(StudentAiMode.CODE_EXPLANATION, null);
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
+                studentAiService.getSubmissionFeedback("sub-789", "student-123", request));
+
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    void testGetSubmissionFeedback_CancelledExamAllowed() {
+        exam.setStatus("cancelled");
+        when(submissionRepository.findByIdAndStudent_Id("sub-789", "student-123"))
+                .thenReturn(Optional.of(submission));
+        when(aiClient.generateStudentFeedback(anyString(), anyString()))
+                .thenReturn("Feedback for cancelled exam.");
+
+        StudentAiRequest request = new StudentAiRequest(StudentAiMode.CODE_EXPLANATION, null);
+        StudentAiResponse response = studentAiService.getSubmissionFeedback("sub-789", "student-123", request);
+
+        assertNotNull(response);
+        assertEquals("Feedback for cancelled exam.", response.explanation());
+    }
+
+    @Test
     void testRateLimit_ExceededThrows429() {
         String studentId = "rate-limit-student";
         when(submissionRepository.findByIdAndStudent_Id("sub-789", studentId))

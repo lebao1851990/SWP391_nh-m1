@@ -4,6 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev:backend": "cd \"Back end\" && run_backend.bat",
+    "dev:frontend": "cd \"Front end\" && npm run dev",
+    "start": "start_project.bat",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

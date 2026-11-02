@@ -4,6 +4,7 @@ import { UserSession } from '@/stores/session.store';
 
 interface LoginResponse {
   user: UserSession;
+  token?: string;
 }
 
 export const authApi = {
@@ -22,6 +23,11 @@ export const authApi = {
 
   logout: async (): Promise<void> => {
     await apiClient.post('/auth/logout');
+  },
+
+  getProfile: async (): Promise<UserSession> => {
+    const response = await apiClient.get<UserSession>('/user/profile');
+    return response.data;
   },
 
   forgotPassword: async (data: ForgotPasswordFormData): Promise<void> => {

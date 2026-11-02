@@ -33,4 +33,5 @@ public class SubmissionDetailResponse {
     private String stdout;
     private String stderr;
     private Long executionDurationMs;
+    private String instructorFeedback;
 }

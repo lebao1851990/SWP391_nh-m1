@@ -1,11 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { login } from './helpers';
 
+const TEACHER_EMAIL = process.env.E2E_TEACHER_EMAIL || 'teachera@fpt.edu.vn';
+const STUDENT_EMAIL = process.env.E2E_STUDENT_EMAIL || 'studenta@fpt.edu.vn';
+
 test.describe('Teacher Grade Audit History UI Verification', () => {
   const submissionWithAuditLogs = '040b61a8-3c7a-4ea2-aace-18a0ba2d9d32';
 
   test('Teacher views populated audit history with chronological order and score diffs', async ({ page }) => {
-    await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+    await login(page, TEACHER_EMAIL, { role: 'TEACHER' });
     await expect(page).toHaveURL(/\/teacher\/dashboard/);
 
     // Navigate to teacher submission detail page
@@ -50,7 +53,7 @@ test.describe('Teacher Grade Audit History UI Verification', () => {
   });
 
   test('Teacher scoring page also embeds and displays Grade Audit History', async ({ page }) => {
-    await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+    await login(page, TEACHER_EMAIL, { role: 'TEACHER' });
     await expect(page).toHaveURL(/\/teacher\/dashboard/);
 
     await page.goto(`/teacher/scoring/${submissionWithAuditLogs}`);
@@ -62,7 +65,7 @@ test.describe('Teacher Grade Audit History UI Verification', () => {
   });
 
   test('Renders NULL override as "No override" distinctly from numeric 0.00 pts', async ({ page }) => {
-    await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+    await login(page, TEACHER_EMAIL, { role: 'TEACHER' });
 
     // Mock an audit log response containing both a null override and a 0.00 override
     await page.route(`**/api/teacher/submissions/${submissionWithAuditLogs}/scoring/audit-logs`, async (route) => {
@@ -105,7 +108,7 @@ test.describe('Teacher Grade Audit History UI Verification', () => {
   });
 
   test('Displays empty state when no audit history exists', async ({ page }) => {
-    await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+    await login(page, TEACHER_EMAIL, { role: 'TEACHER' });
 
     // Mock empty response
     await page.route(`**/api/teacher/submissions/${submissionWithAuditLogs}/scoring/audit-logs`, async (route) => {
@@ -125,7 +128,7 @@ test.describe('Teacher Grade Audit History UI Verification', () => {
   });
 
   test('Displays error callout and retry button on API failure', async ({ page }) => {
-    await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+    await login(page, TEACHER_EMAIL, { role: 'TEACHER' });
 
     // Mock 500 Internal Server Error
     await page.route(`**/api/teacher/submissions/${submissionWithAuditLogs}/scoring/audit-logs`, async (route) => {
@@ -145,7 +148,7 @@ test.describe('Teacher Grade Audit History UI Verification', () => {
   });
 
   test('Student route does NOT expose Grade Audit History', async ({ page }) => {
-    await login(page, 'studenta@fpt.edu.vn', 'testpass123');
+    await login(page, STUDENT_EMAIL, { role: 'STUDENT' });
     await expect(page).toHaveURL(/\/student\/dashboard/);
 
     // Navigate to student submission result page
@@ -159,7 +162,7 @@ test.describe('Teacher Grade Audit History UI Verification', () => {
   });
 
   test('Responsive verification: Mobile and Desktop layouts', async ({ page }) => {
-    await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+    await login(page, TEACHER_EMAIL, { role: 'TEACHER' });
 
     // Mobile viewport (390 x 844)
     await page.setViewportSize({ width: 390, height: 844 });

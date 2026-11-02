@@ -329,64 +329,50 @@ public class AutomatedTestRunnerService {
             resultsToSave.add(result);
         }
 
-        // Section F1: autoScore = maxScore * passedWeight / totalWeight
+        // Section F1: autoScore = maxScore * passedWeight / totalWeight (10-point scale)
         int totalTests = testCases.size();
         BigDecimal autoScore;
         if (totalWeight.compareTo(BigDecimal.ZERO) > 0) {
-            autoScore = BigDecimal.valueOf(100.0)
+            autoScore = BigDecimal.valueOf(10.0)
                     .multiply(passedWeight)
                     .divide(totalWeight, 2, RoundingMode.HALF_UP);
         } else if (totalTests > 0) {
-            autoScore = BigDecimal.valueOf(100.0)
+            autoScore = BigDecimal.valueOf(10.0)
                     .multiply(BigDecimal.valueOf(passedTests))
                     .divide(BigDecimal.valueOf(totalTests), 2, RoundingMode.HALF_UP);
         } else {
             autoScore = BigDecimal.ZERO;
         }
 
-        // Clamp autoScore between 0.00 and 100.00
+        // Clamp autoScore between 0.00 and 10.00
         if (autoScore.compareTo(BigDecimal.ZERO) < 0) {
             autoScore = BigDecimal.ZERO;
-        } else if (autoScore.compareTo(BigDecimal.valueOf(100.0)) > 0) {
-            autoScore = BigDecimal.valueOf(100.0);
+        } else if (autoScore.compareTo(BigDecimal.valueOf(10.0)) > 0) {
+            autoScore = BigDecimal.valueOf(10.0);
         }
 
-        boolean isInfrastructureFailure = !resultsToSave.isEmpty() && resultsToSave.stream()
-                .allMatch(r -> "INTERNAL_ERROR".equalsIgnoreCase(r.getStatus()));
+        submission.setAutoScore(autoScore);
+        submission.setTestCasesPassed(passedTests);
+        submission.setTestCasesTotal(totalTests);
 
-        if (isInfrastructureFailure) {
-            // Section F1 & F2: Infrastructure failure must NOT be graded as student failure (0.00 score)
-            submission.setAutoScore(null);
-            submission.setTestCasesPassed(0);
-            submission.setTestCasesTotal(totalTests);
-            submission.setExecutionStatus("INTERNAL_ERROR");
-            submission.setExitCode(null);
+        // Section F2: If teacher has not manually graded total_score, set total_score to auto_score
+        if (submission.getTotalScore() == null) {
+            submission.setTotalScore(autoScore);
+        }
+
+        if (!suiteResult.isCompiled()) {
+            submission.setExecutionStatus("COMPILE_ERROR");
+            submission.setExitCode(1);
             submission.setCompileOutput(suiteResult.getCompileOutput());
-            submission.setStatus("FAILED"); // System/pipeline failure, allowing audit or re-grading
+        } else if (passedTests == totalTests) {
+            submission.setExecutionStatus("SUCCESS");
+            submission.setExitCode(0);
         } else {
-            submission.setAutoScore(autoScore);
-            submission.setTestCasesPassed(passedTests);
-            submission.setTestCasesTotal(totalTests);
-
-            // If teacher has not manually graded total_score, set total_score to auto_score
-            if (submission.getTotalScore() == null) {
-                submission.setTotalScore(autoScore);
-            }
-
-            if (!suiteResult.isCompiled()) {
-                submission.setExecutionStatus("COMPILE_ERROR");
-                submission.setExitCode(1);
-                submission.setCompileOutput(suiteResult.getCompileOutput());
-            } else if (passedTests == totalTests) {
-                submission.setExecutionStatus("SUCCESS");
-                submission.setExitCode(0);
-            } else {
-                submission.setExecutionStatus(passedTests > 0 ? "PARTIAL_SUCCESS" : "FAILED");
-                submission.setExitCode(2);
-            }
-            submission.setStatus("COMPLETED");
+            submission.setExecutionStatus(passedTests > 0 ? "PARTIAL_SUCCESS" : "FAILED");
+            submission.setExitCode(2);
         }
 
+        submission.setStatus("COMPLETED");
         submission.setEvaluatedAt(LocalDateTime.now());
         submission.setExecutionDurationMs(suiteResult.getTotalDurationMs());
         submission.setClaimToken(null);

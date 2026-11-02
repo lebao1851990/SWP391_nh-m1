@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { mockUserProfile } from './helpers';
 
 test.describe('Admin Class & Student Roster Management UI', () => {
   const classId = 'test-class-cs102';
@@ -11,6 +12,14 @@ test.describe('Admin Class & Student Roster Management UI', () => {
       { name: 'codeassess_session', value: 'mock-admin-session', url: 'http://localhost:3000' },
       { name: 'codeassess_role', value: 'ADMIN', url: 'http://localhost:3000' },
     ]);
+
+    // Mock admin profile to satisfy AuthGuard on /admin routes
+    await mockUserProfile(page, {
+      id: 'admin-01',
+      email: 'admin@codeassess.edu.vn',
+      fullName: 'Quản trị viên Kiểm thử',
+      role: 'ADMIN',
+    });
 
     page.on('console', msg => console.log(`[Browser Console]: ${msg.text()}`));
     page.on('request', req => console.log(`[Request]: ${req.method()} ${req.url()}`));
@@ -402,7 +411,7 @@ test.describe('Admin Class & Student Roster Management UI', () => {
 
   // 8. Import sinh viên từ file Excel (Partial mode)
   test('Opens Excel Import modal, uploads Excel spreadsheet in partial mode, and displays summary and row-level errors', async ({ page }) => {
-    let enrolled = [
+    const enrolled = [
       { id: 's-1', studentId: 's-1', email: 'alice@school.edu', fullName: 'Alice Smith' },
     ];
 

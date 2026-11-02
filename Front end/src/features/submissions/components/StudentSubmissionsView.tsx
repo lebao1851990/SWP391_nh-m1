@@ -134,7 +134,7 @@ export function StudentSubmissionsView() {
             <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">Điểm trung bình</span>
             <div className="mt-2 flex items-baseline gap-1">
               <span className="font-display-lg font-bold text-primary">{stats.avgScore}</span>
-              <span className="text-xs text-outline font-normal">/ 100</span>
+              <span className="text-xs text-outline font-normal">/ 10</span>
             </div>
           </div>
         </div>
@@ -228,7 +228,7 @@ export function StudentSubmissionsView() {
                           {isGraded ? (
                             <span className="font-mono bg-surface-container px-2 py-0.5 rounded font-bold text-on-surface">
                               {sub.overrideScore != null ? sub.overrideScore : (sub.totalScore != null ? sub.totalScore : 0)}
-                              <span className="text-outline text-[10px] ml-0.5">/100</span>
+                              <span className="text-outline text-[10px] ml-0.5">/10</span>
                             </span>
                           ) : (
                             <span className="text-outline italic">Chờ chấm</span>

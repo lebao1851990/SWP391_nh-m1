@@ -5,7 +5,11 @@
 Back end/classpath.txt
 /Back end/classpath.txt
 
-scratch/
-test-results/
-Front end/test-results/
+# Local Environment files
+.env
+.env.local
+*.env
 
+# Runtime data & uploads
+Back end/data/
+/Back end/data/

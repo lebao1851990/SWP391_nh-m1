@@ -30,9 +30,13 @@ public class CreateExamDto {
     private String semester;
 
     @NotNull(message = "Exam date is required")
+    @com.fasterxml.jackson.annotation.JsonAlias({"date", "examDate", "startTime"})
     @JsonDeserialize(using = FlexibleLocalDateTimeDeserializer.class)
     private LocalDateTime date;
 
     @NotNull(message = "Duration in minutes is required")
+    @jakarta.validation.constraints.Min(value = 1, message = "Thời lượng bài thi phải tối thiểu 1 phút")
+    @jakarta.validation.constraints.Max(value = 1440, message = "Thời lượng bài thi tối đa 1440 phút (24 giờ)")
+    @com.fasterxml.jackson.annotation.JsonAlias({"duration", "durationMinutes", "timeLimit"})
     private Integer durationMinutes;
 }

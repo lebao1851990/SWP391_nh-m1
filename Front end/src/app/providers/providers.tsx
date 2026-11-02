@@ -20,7 +20,13 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      <Toaster position="top-right" richColors />
+      <Toaster
+        position="top-right"
+        richColors
+        toastOptions={{
+          className: 'backdrop-blur-xl bg-white/90 border border-blue-500/25 shadow-[0_8px_30px_rgba(37,99,235,0.15)] rounded-xl',
+        }}
+      />
     </QueryClientProvider>
   );
 }

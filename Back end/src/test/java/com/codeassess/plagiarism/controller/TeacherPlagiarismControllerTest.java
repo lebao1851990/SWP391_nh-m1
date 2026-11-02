@@ -56,6 +56,9 @@ public class TeacherPlagiarismControllerTest {
     @MockBean
     private CustomUserDetailsService customUserDetailsService;
 
+    @MockBean
+    private com.codeassess.plagiarism.service.AstTreeBuilderService astTreeBuilderService;
+
     private User teacherA;
     private User teacherB;
     private SimilarityPair pairA;
@@ -107,7 +110,8 @@ public class TeacherPlagiarismControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].pairId").value("101"))
                 .andExpect(jsonPath("$[0].similarityRate").value(85.50))
-                .andExpect(jsonPath("$[0].flagged").value(true));
+                .andExpect(jsonPath("$[0].flagged").value(true))
+                .andExpect(jsonPath("$[0].isFlagged").value(true));
 
         verify(similarityPairRepository).findActiveByTeacherId("teacher-a-id");
         verify(similarityPairRepository, never()).findAll();
@@ -180,6 +184,44 @@ public class TeacherPlagiarismControllerTest {
         mockMvc.perform(get("/api/teacher/plagiarism/101/compare"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.pairId").value("101"));
+    }
+
+    @Test
+    @WithMockUser(username = "teachera@fpt.edu.vn", roles = "TEACHER")
+    public void getAstTree_Success() throws Exception {
+        when(userRepository.findByEmail("teachera@fpt.edu.vn")).thenReturn(Optional.of(teacherA));
+        when(similarityPairRepository.findById(101L)).thenReturn(Optional.of(pairA));
+        when(evidenceRepository.findBySimilarityPair_Id(101L)).thenReturn(Collections.emptyList());
+
+        com.codeassess.plagiarism.dto.AstTreeComparisonDto treeDto = com.codeassess.plagiarism.dto.AstTreeComparisonDto.builder()
+                .pairId("101")
+                .parseStatus("SUCCESS")
+                .displayedNodesA(25)
+                .displayedNodesB(30)
+                .build();
+        when(astTreeBuilderService.buildComparisonTree(eq(pairA), any())).thenReturn(treeDto);
+
+        mockMvc.perform(get("/api/teacher/plagiarism/101/ast-tree"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pairId").value("101"))
+                .andExpect(jsonPath("$.parseStatus").value("SUCCESS"))
+                .andExpect(jsonPath("$.displayedNodesA").value(25));
+    }
+
+    @Test
+    @WithMockUser(username = "teachera@fpt.edu.vn", roles = "TEACHER")
+    public void getAstTree_OtherTeacherPair_ReturnsNotFound() throws Exception {
+        when(userRepository.findByEmail("teachera@fpt.edu.vn")).thenReturn(Optional.of(teacherA));
+        when(similarityPairRepository.findById(202L)).thenReturn(Optional.of(pairB)); // pairB belongs to teacherB
+
+        mockMvc.perform(get("/api/teacher/plagiarism/202/ast-tree"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    public void getAstTree_Unauthenticated_ReturnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/teacher/plagiarism/101/ast-tree"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

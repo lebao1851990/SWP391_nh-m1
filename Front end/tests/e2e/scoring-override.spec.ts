@@ -1,11 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { login } from './helpers';
 
+const TEACHER_EMAIL = process.env.E2E_TEACHER_EMAIL || 'teachera@fpt.edu.vn';
+const STUDENT_EMAIL = process.env.E2E_STUDENT_EMAIL || 'studenta@fpt.edu.vn';
+
 test.describe('Scoring & Override Critical Flow Verification', () => {
   const submissionId = '007cf9ae-4385-46dc-b492-ba891af6a535';
 
   test('Teacher sets override, reloads page, and confirms persistence', async ({ page }) => {
-    await login(page, 'teachera@fpt.edu.vn', 'testpass123');
+    await login(page, TEACHER_EMAIL, { role: 'TEACHER' });
     await expect(page).toHaveURL(/\/teacher\/dashboard/);
 
     // Navigate to teacher scoring page
@@ -51,7 +54,7 @@ test.describe('Scoring & Override Critical Flow Verification', () => {
   });
 
   test('Student views effective score and instructor adjustment badge', async ({ page }) => {
-    await login(page, 'studenta@fpt.edu.vn', 'testpass123');
+    await login(page, STUDENT_EMAIL, { role: 'STUDENT' });
     await expect(page).toHaveURL(/\/student\/dashboard/);
 
     // Navigate to student result view

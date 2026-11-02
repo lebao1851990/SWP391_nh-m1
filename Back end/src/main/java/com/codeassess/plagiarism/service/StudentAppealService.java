@@ -32,6 +32,13 @@ public class StudentAppealService {
         if (dto.getExplanation() == null || dto.getExplanation().trim().isEmpty()) {
             throw new IllegalArgumentException("Nội dung giải trình không được để trống.");
         }
+        String trimmedExplanation = dto.getExplanation().trim();
+        if (trimmedExplanation.length() < 20) {
+            throw new IllegalArgumentException("Giải trình khiếu nại phải có ít nhất 20 ký tự.");
+        }
+        if (trimmedExplanation.length() > 1000) {
+            throw new IllegalArgumentException("Giải trình khiếu nại không được vượt quá 1000 ký tự.");
+        }
 
         // Fetch submission with pessimistic write lock to prevent concurrent creations
         Submission submission = submissionRepository.findByIdAndStudent_IdForUpdate(dto.getSubmissionId(), student.getId())

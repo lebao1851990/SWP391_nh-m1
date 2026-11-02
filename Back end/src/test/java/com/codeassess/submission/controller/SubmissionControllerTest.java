@@ -6,6 +6,7 @@ import com.codeassess.submission.dto.response.SubmissionListResponse;
 import com.codeassess.submission.dto.response.TeacherSubmissionListResponse;
 import com.codeassess.submission.service.AdminSubmissionService;
 import com.codeassess.submission.service.StudentSubmissionService;
+import com.codeassess.scoring.service.TeacherScoringService;
 import com.codeassess.submission.service.TeacherSubmissionService;
 import com.codeassess.user.entity.Role;
 import com.codeassess.user.entity.User;
@@ -38,6 +39,9 @@ class SubmissionControllerTest {
 
     @MockBean
     private TeacherSubmissionService teacherSubmissionService;
+
+    @MockBean
+    private TeacherScoringService teacherScoringService;
 
     @MockBean
     private StudentSubmissionService studentSubmissionService;
@@ -188,5 +192,54 @@ class SubmissionControllerTest {
         mockMvc.perform(get("/api/student/submissions").with(user(studentUser)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    void teacherCanAccessAuditLogsFromOwnClass() throws Exception {
+        com.codeassess.scoring.dto.response.GradeAuditLogDto logDto = com.codeassess.scoring.dto.response.GradeAuditLogDto.builder()
+                .id("log-1")
+                .submissionId("sub-1")
+                .actionType("OVERRIDE_SET")
+                .build();
+        Mockito.when(teacherScoringService.getAuditLogs(org.mockito.ArgumentMatchers.eq("sub-1"), org.mockito.ArgumentMatchers.any(User.class)))
+                .thenReturn(List.of(logDto));
+
+        mockMvc.perform(get("/api/teacher/submissions/sub-1/audit-logs").with(user(teacherUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value("log-1"))
+                .andExpect(jsonPath("$[0].actionType").value("OVERRIDE_SET"));
+    }
+
+    @Test
+    @WithMockUser(roles = "STUDENT")
+    void studentCannotAccessTeacherAuditLogs() throws Exception {
+        mockMvc.perform(get("/api/teacher/submissions/sub-1/audit-logs"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminCanAccessAuditLogs() throws Exception {
+        com.codeassess.scoring.dto.response.GradeAuditLogDto logDto = com.codeassess.scoring.dto.response.GradeAuditLogDto.builder()
+                .id("log-admin-1")
+                .submissionId("sub-1")
+                .actionType("ARBITRATION_UPDATE")
+                .build();
+        Mockito.when(teacherScoringService.getAuditLogs(org.mockito.ArgumentMatchers.eq("sub-1"), org.mockito.ArgumentMatchers.any(User.class)))
+                .thenReturn(List.of(logDto));
+
+        mockMvc.perform(get("/api/teacher/submissions/sub-1/audit-logs").with(user(adminUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value("log-admin-1"));
+    }
+
+    @Test
+    void teacherCannotAccessAuditLogsFromOtherClass() throws Exception {
+        Mockito.when(teacherScoringService.getAuditLogs(org.mockito.ArgumentMatchers.eq("sub-other"), org.mockito.ArgumentMatchers.any(User.class)))
+                .thenThrow(new ResourceNotFoundException("Submission not found or access denied"));
+
+        mockMvc.perform(get("/api/teacher/submissions/sub-other/audit-logs").with(user(teacherUser)))
+                .andExpect(status().isNotFound());
     }
 }

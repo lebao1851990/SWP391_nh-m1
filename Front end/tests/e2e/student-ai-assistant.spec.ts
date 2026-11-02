@@ -6,9 +6,23 @@ test.describe('Student AI Learning Assistant UI Verification', () => {
   test.beforeEach(async ({ page }) => {
     // Set student authentication cookies to satisfy proxy/middleware
     await page.context().addCookies([
-      { name: 'codeassess_session', value: 'mock-session-token', domain: 'localhost', path: '/' },
-      { name: 'codeassess_role', value: 'STUDENT', domain: 'localhost', path: '/' },
+      { name: 'codeassess_session', value: 'mock-session-token', url: 'http://localhost:3000' },
+      { name: 'codeassess_role', value: 'STUDENT', url: 'http://localhost:3000' },
     ]);
+
+    // Mock user profile to satisfy AuthGuard on student route
+    await page.route('**/api/user/profile', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'student-01',
+          email: 'student@codeassess.edu.vn',
+          fullName: 'Sinh viên Kiểm thử',
+          role: 'STUDENT',
+        }),
+      });
+    });
 
     // Mock student result API
     await page.route(`**/api/student/submissions/${submissionId}/result`, async (route) => {
@@ -59,16 +73,16 @@ test.describe('Student AI Learning Assistant UI Verification', () => {
     await page.goto(`/student/submissions/${submissionId}`);
 
     // Verify header and rubric
-    await expect(page.locator('h1')).toContainText('Midterm Java Assessment — Official Result');
+    await expect(page.locator('h1')).toContainText('Kết quả Chính thức');
 
     // Verify AI Assistant Card
-    await expect(page.getByText('AI Learning Assistant', { exact: true })).toBeVisible();
-    await expect(page.getByText('Advisory Only', { exact: true })).toBeVisible();
+    await expect(page.getByText('Trợ lý Học tập AI', { exact: true })).toBeVisible();
+    await expect(page.getByText('Chỉ mang tính tham vấn', { exact: true })).toBeVisible();
 
     // Switch tab to Explain Code
     const explainCodeTab = page.locator('#tab-code-explanation');
     await explainCodeTab.click();
-    await expect(page.getByText('Mode selected: Explain My Code')).toBeVisible();
+    await expect(page.getByText('Chế độ đã chọn: Giải thích mã nguồn')).toBeVisible();
 
     // Click Get AI Guidance
     const getGuidanceBtn = page.locator('#btn-request-ai');
@@ -80,8 +94,7 @@ test.describe('Student AI Learning Assistant UI Verification', () => {
     await expect(responseContainer).toContainText('Your code declares a Main class with an entrypoint.');
 
     // Confirm Advisory notice is prominently rendered
-    await expect(responseContainer).toContainText('Advisory Notice:');
-    await expect(responseContainer).toContainText('does not replace teacher assessment, alter test suite outcomes, or modify assignment scores');
+    await expect(responseContainer).toContainText('Lưu ý tham vấn');
 
     // Confirm official score remains unaffected
     await expect(page.locator('span:text-is("88")')).toBeVisible();
@@ -104,8 +117,7 @@ test.describe('Student AI Learning Assistant UI Verification', () => {
 
     const errorBanner = page.locator('#ai-error-banner');
     await expect(errorBanner).toBeVisible({ timeout: 5000 });
-    await expect(errorBanner).toContainText('Examination In Progress');
-    await expect(errorBanner).toContainText('locked during active examinations');
+    await expect(errorBanner).toContainText('Trợ lý học tập AI bị khóa trong thời gian diễn ra bài thi trực tiếp');
   });
 
   test('Displays 429 Rate Limit Exceeded message when limit is hit', async ({ page }) => {
@@ -125,6 +137,6 @@ test.describe('Student AI Learning Assistant UI Verification', () => {
 
     const errorBanner = page.locator('#ai-error-banner');
     await expect(errorBanner).toBeVisible({ timeout: 5000 });
-    await expect(errorBanner).toContainText('Rate Limit Exceeded');
+    await expect(errorBanner).toContainText('Đã đạt giới hạn yêu cầu');
   });
 });

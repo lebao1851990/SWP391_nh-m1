@@ -28,6 +28,13 @@ public class AppealResponseDto {
     private String reviewerName;
     private String reviewerEmail;
     private String submissionStatus;
+    private String originalFilename;
+    private String submissionType;
+    private Long fileSize;
+    private Boolean hasArchive;
+    private String executionStatus;
+    private String compileOutput;
+    private LocalDateTime submittedAt;
     private LocalDateTime createdAt;
     private LocalDateTime resolvedAt;
 }

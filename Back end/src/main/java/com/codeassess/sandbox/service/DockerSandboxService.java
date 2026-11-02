@@ -327,7 +327,7 @@ public class DockerSandboxService {
             script.append("echo '<<<").append(tcStart).append(i).append(">>>'; ");
             script.append("START_TS=$(date +%s%3N 2>/dev/null || date +%s000); ");
             script.append("timeout ").append(timeoutSec).append(" java -cp ").append(CLASS_DIR)
-                  .append(" -Xmx256m -Xms32m -Djava.security.manager=disallow Main < /tmp/sandbox/in_").append(i)
+                  .append(" -Xmx256m -Xms32m -Djava.security.manager=disallow ").append(mainClassName).append(" < /tmp/sandbox/in_").append(i)
                   .append(".txt > /tmp/sandbox/out_").append(i).append(".txt 2> /tmp/sandbox/err_").append(i).append(".txt; ");
             script.append("ec=$?; ");
             script.append("END_TS=$(date +%s%3N 2>/dev/null || date +%s000); ");
@@ -968,19 +968,6 @@ public class DockerSandboxService {
                         .exec(new WaitContainerResultCallback())
                         .awaitStatusCode(props.getTimeoutSeconds() + 2L, TimeUnit.SECONDS);
 
-                boolean logCompleted = false;
-                try {
-                    logCompleted = logCallback.awaitCompletion(3, TimeUnit.SECONDS);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    log.warn("Log collection interrupted for container {}", containerId);
-                } catch (Exception e) {
-                    log.warn("Log collection encountered exception for container {}: {}", containerId, e.getMessage());
-                }
-                if (!logCompleted) {
-                    log.warn("Log callback did not signal EOF within 3s for container {} — output might be truncated", containerId);
-                }
-
                 // Cancel the timeout thread if still running
                 timeoutThread.interrupt();
 
@@ -1173,19 +1160,6 @@ public class DockerSandboxService {
                         .waitContainerCmd(containerId)
                         .exec(new WaitContainerResultCallback())
                         .awaitStatusCode(props.getTimeoutSeconds() + 2L, TimeUnit.SECONDS);
-
-                boolean logCompleted = false;
-                try {
-                    logCompleted = logCallback.awaitCompletion(3, TimeUnit.SECONDS);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    log.warn("Log collection interrupted for workspace container {}", containerId);
-                } catch (Exception e) {
-                    log.warn("Log collection encountered exception for workspace container {}: {}", containerId, e.getMessage());
-                }
-                if (!logCompleted) {
-                    log.warn("Log callback did not signal EOF within 3s for workspace container {} — output might be truncated", containerId);
-                }
 
                 timeoutThread.interrupt();
                 long elapsedMs = System.currentTimeMillis() - startMs;

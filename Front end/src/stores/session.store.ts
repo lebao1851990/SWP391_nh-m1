@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 export type UserRole = 'ADMIN' | 'TEACHER' | 'STUDENT';
 
@@ -8,6 +8,7 @@ export interface UserSession {
   email: string;
   role: UserRole;
   name?: string;
+  fullName?: string;
 }
 
 interface SessionState {
@@ -17,6 +18,12 @@ interface SessionState {
   clearSession: () => void;
 }
 
+/**
+ * Client-side UI session cache.
+ * Stored in sessionStorage so each tab maintains its local UI context.
+ * NOTE: The backend HttpOnly session cookie is the SOLE authority for authentication.
+ * No access or refresh tokens are stored here.
+ */
 export const useSessionStore = create<SessionState>()(
   persist(
     (set) => ({
@@ -27,6 +34,7 @@ export const useSessionStore = create<SessionState>()(
     }),
     {
       name: 'codeassess-session',
+      storage: createJSONStorage(() => sessionStorage),
     }
   )
 );

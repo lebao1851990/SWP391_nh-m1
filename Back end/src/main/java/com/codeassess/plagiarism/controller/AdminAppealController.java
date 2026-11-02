@@ -84,4 +84,20 @@ public class AdminAppealController {
         User admin = getAuthenticatedAdmin(currentUser);
         return ResponseEntity.ok(adminAppealService.resolveAppeal(opaqueId, dto, admin));
     }
+
+    @GetMapping("/{id}/submission/archive")
+    public ResponseEntity<byte[]> downloadSubmissionArchive(
+            @PathVariable("id") String opaqueId,
+            @AuthenticationPrincipal User currentUser) {
+        User admin = getAuthenticatedAdmin(currentUser);
+        byte[] zipBytes = adminAppealService.getAppealSubmissionArchive(opaqueId, admin);
+        String filename = adminAppealService.getSubmissionArchiveFilename(opaqueId);
+        String encodedFilename = java.net.URLEncoder.encode(filename, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, 
+                        "attachment; filename=\"" + filename + "\"; filename*=UTF-8''" + encodedFilename)
+                .contentType(org.springframework.http.MediaType.parseMediaType("application/zip"))
+                .body(zipBytes);
+    }
 }

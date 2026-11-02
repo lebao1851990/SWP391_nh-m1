@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LogoutButton } from '@/features/auth/components/logout-button';
 import { useUiStore } from '@/stores/ui.store';
+import { useTranslation } from '@/i18n';
+import { useSessionStore } from '@/stores/session.store';
 import {
   LayoutDashboard,
   FileCode2,
@@ -27,38 +29,43 @@ interface NavItem {
 }
 
 interface SidebarProps {
-  role: 'ADMIN' | 'TEACHER' | 'STUDENT';
+  role?: 'ADMIN' | 'TEACHER' | 'STUDENT';
 }
 
-export function Sidebar({ role }: SidebarProps) {
+export function Sidebar({ role = 'STUDENT' }: SidebarProps) {
   const pathname = usePathname();
   const { isMobileNavOpen, setMobileNavOpen } = useUiStore();
+  const { t } = useTranslation();
+  const user = useSessionStore((state) => state.user);
+
+  // Active role is strictly derived from the tab session, falling back to layout role
+  const activeRole = user?.role || role;
 
   const teacherNav: NavItem[] = [
-    { name: 'Bảng điều khiển', href: '/teacher/dashboard', icon: LayoutDashboard },
-    { name: 'Quản lý bài thi', href: '/teacher/exams', icon: FileCode2 },
-    { name: 'Lớp học của tôi', href: '/teacher/classes', icon: GraduationCap },
-    { name: 'Bài nộp & Chấm điểm', href: '/teacher/submissions', icon: Code2 },
-    { name: 'Kiểm tra đạo văn AST', href: '/teacher/plagiarism', icon: GitCompare, badge: { text: 'AST', type: 'AST' } },
-    { name: 'Đơn khiếu nại', href: '/teacher/appeals', icon: Scale },
+    { name: t('nav.dashboard'), href: '/teacher/dashboard', icon: LayoutDashboard },
+    { name: t('nav.exams'), href: '/teacher/exams', icon: FileCode2 },
+    { name: t('nav.classes'), href: '/teacher/classes', icon: GraduationCap },
+    { name: t('nav.submissions'), href: '/teacher/submissions', icon: Code2 },
+    { name: t('nav.plagiarism'), href: '/teacher/plagiarism', icon: GitCompare, badge: { text: 'AST', type: 'AST' } },
+    { name: t('nav.appeals'), href: '/teacher/appeals', icon: Scale },
   ];
 
   const studentNav: NavItem[] = [
-    { name: 'Bảng điều khiển', href: '/student/dashboard', icon: LayoutDashboard },
-    { name: 'Bài thi của tôi', href: '/student/exams', icon: FileCode2 },
-    { name: 'Bài nộp của tôi', href: '/student/submissions', icon: Code2 },
-    { name: 'Khiếu nại / Phúc khảo', href: '/student/appeals', icon: Scale },
+    { name: t('nav.dashboard'), href: '/student/dashboard', icon: LayoutDashboard },
+    { name: t('nav.myExams'), href: '/student/exams', icon: FileCode2 },
+    { name: t('nav.mySubmissions'), href: '/student/submissions', icon: Code2 },
+    { name: t('nav.appeals'), href: '/student/appeals', icon: Scale },
   ];
 
   const adminNav: NavItem[] = [
-    { name: 'Bảng điều khiển', href: '/admin/dashboard', icon: LayoutDashboard },
-    { name: 'Người dùng', href: '/admin/users', icon: Users },
-    { name: 'Lớp học', href: '/admin/classes', icon: GraduationCap },
-    { name: 'Bài thi', href: '/admin/exams', icon: BookOpen },
-    { name: 'Quản lý khiếu nại', href: '/admin/appeals', icon: Scale },
+    { name: t('nav.dashboard'), href: '/admin/dashboard', icon: LayoutDashboard },
+    { name: t('nav.users'), href: '/admin/users', icon: Users },
+    { name: t('nav.classes'), href: '/admin/classes', icon: GraduationCap },
+    { name: t('nav.exams'), href: '/admin/exams', icon: BookOpen },
+    { name: t('nav.appeals'), href: '/admin/appeals', icon: Scale },
   ];
 
-  const navItems = role === 'ADMIN' ? adminNav : role === 'TEACHER' ? teacherNav : studentNav;
+  const navItems = activeRole === 'ADMIN' ? adminNav : activeRole === 'TEACHER' ? teacherNav : studentNav;
 
   return (
     <>
@@ -72,32 +79,44 @@ export function Sidebar({ role }: SidebarProps) {
         />
       )}
 
-      <aside className={`fixed left-0 top-0 h-full w-[260px] bg-slate-900 border-r border-slate-800 z-50 flex flex-col justify-between select-none shadow-xl transition-transform duration-200 ease-in-out ${
+      <aside
+        data-nc-theme="dark"
+        className={`fixed left-0 top-0 h-full w-[260px] bg-gradient-to-b from-[#020617] via-[#0B1220] to-[#0F172A] border-r border-slate-800/80 z-50 flex flex-col justify-between select-none shadow-2xl transition-transform duration-200 ease-in-out overflow-hidden ${
         isMobileNavOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       }`}>
-        <div className="flex flex-col">
+        {/* Subtle Blueprint Grid Overlay */}
+        <div className="pointer-events-none absolute inset-0 nc-sidebar-grid opacity-75" aria-hidden="true" />
+        {/* Ambient Cyan Top Glow */}
+        <div
+          className="pointer-events-none absolute -top-20 -left-20 w-56 h-56 rounded-full bg-cyan-500/10 blur-3xl"
+          aria-hidden="true"
+        />
+
+        <div className="relative z-10 flex flex-col flex-1 min-h-0">
           {/* Brand Header */}
-          <div className="h-16 px-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
-            <Link 
-              href={role === 'TEACHER' ? '/teacher/dashboard' : role === 'STUDENT' ? '/student/dashboard' : '/admin/dashboard'} 
+          <div className="h-16 px-4 border-b border-slate-800/80 flex items-center justify-between bg-[#020617]/85 backdrop-blur-md shrink-0">
+            <Link
+              href={activeRole === 'TEACHER' ? '/teacher/dashboard' : activeRole === 'STUDENT' ? '/student/dashboard' : '/admin/dashboard'}
               onClick={() => setMobileNavOpen(false)}
               className="flex items-center gap-2.5 group"
             >
-              <div className="w-8 h-8 bg-gradient-to-tr from-indigo-600 to-sky-500 rounded-lg flex items-center justify-center font-bold text-white shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
-                <ShieldCheck className="w-4 h-4 text-white" />
+              <div className="relative w-8 h-8 flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 bg-gradient-to-tr from-[#2563EB] via-[#0284C7] to-[#6366F1] rounded-lg flex items-center justify-center font-bold text-white shadow-xs group-hover:opacity-90 transition-opacity">
+                  <ShieldCheck className="w-4 h-4 text-white" />
+                </div>
               </div>
               <div className="flex flex-col">
-                <span className="font-semibold text-sm text-slate-100 tracking-tight leading-none group-hover:text-white transition-colors">
+                <span className="font-semibold text-sm text-slate-100 tracking-tight leading-none group-hover:text-cyan-200 transition-colors">
                   AITA Intelligent
                 </span>
-                <span className="text-[10px] text-slate-400 font-mono tracking-wider mt-1">
+                <span className="text-[10px] text-cyan-400/85 font-semibold uppercase tracking-wide mt-1">
                   CỔNG HỌC THUẬT
                 </span>
               </div>
             </Link>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-950 border border-indigo-700/50 text-indigo-300 font-mono">
-                {role === 'TEACHER' ? 'GIẢNG VIÊN' : role === 'STUDENT' ? 'SINH VIÊN' : 'QUẢN TRỊ'}
+              <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/35 text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.15)]">
+                {activeRole === 'TEACHER' ? 'GIẢNG VIÊN' : activeRole === 'STUDENT' ? 'SINH VIÊN' : 'QUẢN TRỊ'}
               </span>
               <button
                 type="button"
@@ -110,63 +129,83 @@ export function Sidebar({ role }: SidebarProps) {
             </div>
           </div>
 
-        {/* Section Title */}
-        <div className="px-4 pt-5 pb-2">
-          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest font-mono">
-            ĐIỀU HƯỚNG
-          </span>
-        </div>
-
-        {/* Nav Items */}
-        <nav className="px-2 space-y-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href || (item.href !== `/${role.toLowerCase()}/dashboard` && pathname.startsWith(item.href));
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileNavOpen(false)}
-                className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                  isActive
-                    ? 'bg-indigo-600/90 text-white shadow-sm shadow-indigo-600/20 font-semibold'
-                    : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-100'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`} />
-                  <span>{item.name}</span>
-                </div>
-                {item.badge && item.badge.type === 'AST' && (
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-semibold ${
-                    isActive ? 'bg-white/20 text-white' : 'bg-indigo-950 text-indigo-300 border border-indigo-800/50'
-                  }`}>
-                    {item.badge.text}
-                  </span>
-                )}
-                {item.badge && item.badge.type === 'Count' && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-rose-500/20 text-rose-300 font-semibold border border-rose-500/30">
-                    {item.badge.text}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* Footer System Status & Logout */}
-      <div className="p-3 border-t border-slate-800 bg-slate-950/60">
-        <div className="flex items-center justify-between px-2 py-1.5 mb-2 rounded-md bg-slate-900 border border-slate-800 text-xs">
-          <div className="flex items-center gap-1.5 text-slate-300">
-            <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            <span className="text-[11px] text-slate-300 font-medium">Hệ thống AST v2.0</span>
+          {/* Section Title */}
+          <div className="px-4 pt-5 pb-2 flex items-center justify-between shrink-0">
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+              ĐIỀU HƯỚNG HỆ THỐNG
+            </span>
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400/60" aria-hidden="true" />
           </div>
-          <span className="text-[10px] font-mono text-emerald-400 font-semibold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/40">HOẠT ĐỘNG</span>
+
+          {/* Nav Items */}
+          <nav className="px-2.5 pb-3 space-y-1 overflow-y-auto flex-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href || (item.href !== `/${activeRole.toLowerCase()}/dashboard` && pathname.startsWith(item.href));
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileNavOpen(false)}
+                  title={item.name}
+                  className={`group relative flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-all overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22D3EE] ${
+                    isActive
+                      ? 'bg-gradient-to-r from-[#2563EB]/30 via-[#22D3EE]/15 to-transparent text-white border border-cyan-400/35 shadow-[0_0_20px_-4px_rgba(34,211,238,0.32)] font-semibold'
+                      : 'text-slate-400 hover:bg-gradient-to-r hover:from-slate-800/80 hover:via-cyan-950/30 hover:to-transparent hover:text-slate-100 border border-transparent hover:border-slate-700/60'
+                  }`}
+                >
+                  {/* Active Glowing Cyan Left Bar */}
+                  {isActive && (
+                    <span
+                      className="pointer-events-none absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-[#22D3EE] shadow-[0_0_10px_#22D3EE]"
+                      aria-hidden="true"
+                    />
+                  )}
+
+                  <div className="flex items-center gap-2.5 pl-0.5">
+                    <Icon
+                      className={`w-4 h-4 transition-colors duration-150 ${
+                        isActive
+                          ? 'text-[#22D3EE]'
+                          : 'text-slate-400 group-hover:text-slate-200'
+                      }`}
+                    />
+                    <span>{item.name}</span>
+                  </div>
+                  {item.badge && item.badge.type === 'AST' && (
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-semibold ${
+                      isActive
+                        ? 'bg-cyan-400/20 text-cyan-200 border border-cyan-400/40'
+                        : 'bg-indigo-950/90 text-cyan-300 border border-cyan-800/40'
+                    }`}>
+                      {item.badge.text}
+                    </span>
+                  )}
+                  {item.badge && item.badge.type === 'Count' && (
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-rose-500/20 text-rose-300 font-semibold border border-rose-500/30 font-mono">
+                      {item.badge.text}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
-        <LogoutButton />
-      </div>
-    </aside>
-  </>
+
+        {/* Footer System Status & Logout */}
+        <div className="relative z-10 p-3 pb-4 border-t border-slate-800/80 bg-[#020617]/90 backdrop-blur-md shrink-0">
+          <div className="flex items-center justify-between px-2.5 py-1.5 mb-2 rounded-lg bg-slate-900/90 border border-slate-800 text-xs">
+            <div className="flex items-center gap-1.5 text-slate-300">
+              <Activity className="w-3.5 h-3.5 text-[#34D399] animate-pulse" />
+              <span className="text-[11px] text-slate-200 font-medium">Hệ thống AST</span>
+            </div>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#34D399] bg-emerald-950/70 px-1.5 py-0.5 rounded border border-emerald-500/30 shadow-[0_0_10px_rgba(52,211,153,0.18)]">
+              HOẠT ĐỘNG
+            </span>
+          </div>
+          <LogoutButton />
+        </div>
+      </aside>
+    </>
   );
 }

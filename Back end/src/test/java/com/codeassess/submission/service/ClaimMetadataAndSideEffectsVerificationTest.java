@@ -11,6 +11,7 @@ import com.codeassess.submission.dto.response.SubmissionListResponse;
 import com.codeassess.submission.entity.Submission;
 import com.codeassess.submission.mapper.SubmissionMapper;
 import com.codeassess.submission.repository.SubmissionRepository;
+import com.codeassess.testcase.service.AutomatedTestRunnerService;
 import com.codeassess.user.entity.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -44,6 +45,9 @@ public class ClaimMetadataAndSideEffectsVerificationTest {
 
     @Mock
     private SimilarityMatrixService similarityMatrixService;
+
+    @Mock
+    private AutomatedTestRunnerService automatedTestRunnerService;
 
     @InjectMocks
     private InternalGradingService internalGradingService;
@@ -136,22 +140,15 @@ public class ClaimMetadataAndSideEffectsVerificationTest {
     @Test
     @DisplayName("P0.3 Test 4: Zombie worker with expired lease CANNOT write results or generate AST fingerprints")
     void testZombieWorker_CannotWriteResultsOrGenerateFingerprints() {
+        testSubmission.setSubmissionType("ZIP");
         when(submissionRepository.findById("sub-claim-1")).thenReturn(Optional.of(testSubmission));
         // Worker successfully claims initially
         when(submissionRepository.claimSubmissionWithToken(eq("sub-claim-1"), anyString(), any(LocalDateTime.class)))
                 .thenReturn(1);
 
-        // Docker sandbox executes (took longer than 60s lease)
-        when(dockerSandboxService.execute(anyString())).thenReturn(SandboxResult.builder()
-                .status(SandboxResult.Status.SUCCESS)
-                .exitCode(0)
-                .stdout("Late result")
-                .executionTimeMs(65000L)
-                .build());
-
-        // But lease was revoked while docker was running (completeGradingWithToken returns 0)
-        when(submissionRepository.completeGradingWithToken(
-                eq("sub-claim-1"), anyString(), anyString(), anyInt(), any(), any(), any(), anyLong(), any(LocalDateTime.class)))
+        // But lease was revoked while running (completeZipGradingWithToken returns 0)
+        when(submissionRepository.completeZipGradingWithToken(
+                eq("sub-claim-1"), anyString(), any(LocalDateTime.class)))
                 .thenReturn(0);
 
         InternalGradingResponse response = internalGradingService.processGrading("sub-claim-1");

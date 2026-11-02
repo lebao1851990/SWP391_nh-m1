@@ -17,10 +17,16 @@ public class TeacherSubmissionService {
 
     private final SubmissionRepository submissionRepository;
     private final SubmissionMapper submissionMapper;
+    private final SubmissionStorageService submissionStorageService;
 
-    public TeacherSubmissionService(SubmissionRepository submissionRepository, SubmissionMapper submissionMapper) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public TeacherSubmissionService(
+            SubmissionRepository submissionRepository,
+            SubmissionMapper submissionMapper,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) SubmissionStorageService submissionStorageService) {
         this.submissionRepository = submissionRepository;
         this.submissionMapper = submissionMapper;
+        this.submissionStorageService = submissionStorageService;
     }
 
     @Transactional(readOnly = true)
@@ -37,6 +43,12 @@ public class TeacherSubmissionService {
                         .submittedAt(("COMPLETED".equalsIgnoreCase(sub.getStatus()) || "EVALUATED".equalsIgnoreCase(sub.getStatus())) && sub.getEvaluatedAt() != null
                                 ? sub.getEvaluatedAt()
                                 : sub.getCreatedAt())
+                        .originalFilename(sub.getOriginalFilename())
+                        .executionStatus(sub.getExecutionStatus())
+                        .autoScore(sub.getAutoScore())
+                        .testCasesPassed(sub.getTestCasesPassed())
+                        .testCasesTotal(sub.getTestCasesTotal())
+                        .instructorFeedback(sub.getInstructorFeedback())
                         .build())
                 .collect(Collectors.toList());
     }
@@ -46,5 +58,33 @@ public class TeacherSubmissionService {
         Submission submission = submissionRepository.findByIdAndExam_CourseClass_Teacher_Id(id, teacherId)
                 .orElseThrow(() -> new ResourceNotFoundException("Submission not found or access denied"));
         return submissionMapper.toDetailResponse(submission);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] getSubmissionZip(String id, String teacherId) {
+        Submission submission = submissionRepository.findByIdAndExam_CourseClass_Teacher_Id(id, teacherId)
+                .orElseThrow(() -> new ResourceNotFoundException("Submission not found or access denied"));
+        if (submissionStorageService == null) {
+            throw new ResourceNotFoundException("Storage service not available");
+        }
+        return submissionStorageService.getZipBytes(submission.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.codeassess.submission.dto.response.SubmissionFileDto> getSubmissionFiles(String id, String teacherId) {
+        Submission submission = submissionRepository.findByIdAndExam_CourseClass_Teacher_Id(id, teacherId)
+                .orElseThrow(() -> new ResourceNotFoundException("Submission not found or access denied"));
+        if (submissionStorageService == null) {
+            return java.util.Collections.emptyList();
+        }
+        return submissionStorageService.getSubmissionFiles(submission.getId());
+    }
+
+    @Transactional
+    public void saveInstructorFeedback(String id, String teacherId, String feedback) {
+        Submission submission = submissionRepository.findByIdAndExam_CourseClass_Teacher_Id(id, teacherId)
+                .orElseThrow(() -> new ResourceNotFoundException("Submission not found or access denied"));
+        submission.setInstructorFeedback(feedback);
+        submissionRepository.save(submission);
     }
 }

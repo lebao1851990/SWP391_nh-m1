@@ -62,8 +62,8 @@ import static org.awaitility.Awaitility.await;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class BullMqEndToEndPipelineIntegrationTest {
 
-    private static final String BULLMQ_SERVICE_DIR = "d:/AST Plagiarism Detection/bullmq-service";
-    private static final String NODE_BINARY = "C:/Program Files/nodejs/node.exe";
+    private static final String BULLMQ_SERVICE_DIR = new File("../bullmq-service").getAbsolutePath();
+    private static final String NODE_BINARY = "node";
     private static Process nodeWorkerProcess;
 
     @Autowired

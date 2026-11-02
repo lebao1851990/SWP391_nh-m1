@@ -1,0 +1,39 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "1. Start Backend (Spring Boot :8088)",
+      "type": "shell",
+      "command": "cmd.exe /c run_backend.bat",
+      "options": {
+        "cwd": "${workspaceFolder}/Back end"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "2. Start Frontend (Next.js :3000)",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/Front end"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Full Project (Backend + Frontend)",
+      "dependsOn": [
+        "1. Start Backend (Spring Boot :8088)",
+        "2. Start Frontend (Next.js :3000)"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
+    }
+  ]
+}
