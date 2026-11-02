@@ -30,6 +30,12 @@ spring:
     baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:true}
     baseline-version: ${FLYWAY_BASELINE_VERSION:0}
 
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: ${MULTIPART_MAX_FILE_SIZE:10MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:15MB}
+
 queue:
   plagiarism:
     enabled: ${QUEUE_PLAGIARISM_ENABLED:true}
@@ -44,13 +50,14 @@ queue:
 
 server:
   port: ${PORT:8081}
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:framework}
   servlet:
     session:
       cookie:
         name: codeassess_session
         http-only: true
-        secure: false # set to true in production
-        same-site: lax
+        secure: ${COOKIE_SECURE:false} # set to true in production HTTPS
+        same-site: ${COOKIE_SAME_SITE:lax}
         
 plagiarism:
   kgram-size: 5
@@ -58,7 +65,7 @@ plagiarism:
 
 app:
   internal:
-    api-secret: ${INTERNAL_API_SECRET:codeassess-internal-secret-2026}
+    api-secret: ${INTERNAL_API_SECRET:}
   cors:
     allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000}
   ai:

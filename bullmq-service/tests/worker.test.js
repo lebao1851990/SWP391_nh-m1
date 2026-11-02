@@ -1,3 +1,5 @@
+process.env.INTERNAL_API_SECRET = 'test-internal-secret-for-bullmq-worker-suite';
+
 const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert');
 const http = require('node:http');
@@ -5,6 +7,8 @@ const { Queue, Worker } = require('bullmq');
 const IORedis = require('ioredis');
 const axios = require('axios');
 const config = require('../src/config');
+
+const TEST_SECRET = 'test-internal-secret-for-bullmq-worker-suite';
 
 describe('BullMQ Worker Execution & Backend Bridge Tests', () => {
   let mockServer;
@@ -24,9 +28,9 @@ describe('BullMQ Worker Execution & Backend Bridge Tests', () => {
       receivedHeaders = req.headers;
       receivedSubmissionId = req.url.split('/')[4];
 
-      if (req.headers['x-internal-token'] !== 'codeassess-internal-secret-2026') {
+      if (req.headers['x-internal-token'] !== TEST_SECRET) {
         res.writeHead(401, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Unauthorized' }));
+        res.end(JSON.stringify({ error: 'Unauthorized: invalid or missing internal token' }));
         return;
       }
 
@@ -56,7 +60,7 @@ describe('BullMQ Worker Execution & Backend Bridge Tests', () => {
     await new Promise((resolve) => mockServer.close(resolve));
   });
 
-  test('Worker successfully processes job and sends X-Internal-Token header', async () => {
+  test('Worker successfully processes job and sends configured X-Internal-Token header', async () => {
     let jobProcessed = false;
 
     testWorker = new Worker(
@@ -67,7 +71,7 @@ describe('BullMQ Worker Execution & Backend Bridge Tests', () => {
           {},
           {
             headers: {
-              'X-Internal-Token': 'codeassess-internal-secret-2026',
+              'X-Internal-Token': config.backend.internalSecret,
             },
           }
         );
@@ -90,7 +94,25 @@ describe('BullMQ Worker Execution & Backend Bridge Tests', () => {
     });
 
     assert.strictEqual(jobProcessed, true);
-    assert.strictEqual(receivedHeaders['x-internal-token'], 'codeassess-internal-secret-2026');
+    assert.strictEqual(receivedHeaders['x-internal-token'], TEST_SECRET);
     assert.strictEqual(receivedSubmissionId, 'sub-verify-101');
+  });
+
+  test('Worker call is rejected with 401 when token does not match', async () => {
+    let errorStatus = null;
+    try {
+      await axios.post(
+        `http://localhost:${serverPort}/api/internal/submissions/sub-verify-101/process-grading`,
+        {},
+        {
+          headers: {
+            'X-Internal-Token': 'wrong-unauthorized-secret',
+          },
+        }
+      );
+    } catch (err) {
+      errorStatus = err.response ? err.response.status : null;
+    }
+    assert.strictEqual(errorStatus, 401);
   });
 });

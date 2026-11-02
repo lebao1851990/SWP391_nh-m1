@@ -1,3 +1,5 @@
+process.env.INTERNAL_API_SECRET = 'test-internal-secret-for-bullmq-worker-suite';
+
 const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert');
 const { gradingQueue, addGradingJob, redisConnection } = require('../src/queue');
