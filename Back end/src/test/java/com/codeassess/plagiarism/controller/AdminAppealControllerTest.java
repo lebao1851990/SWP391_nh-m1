@@ -150,6 +150,32 @@ public class AdminAppealControllerTest {
 
     @Test
     @WithMockUser(username = "admin@codeassess.edu", roles = "ADMIN")
+    public void resolveAppeal_Approved_WithoutAdjustedScore_Success() throws Exception {
+        when(userRepository.findByEmail("admin@codeassess.edu")).thenReturn(Optional.of(admin));
+        AppealResolveRequestDto request = AppealResolveRequestDto.builder()
+                .decision("APPROVED")
+                .reviewerNotes("Accepting valid explanation without changing score")
+                .build();
+
+        AppealResponseDto response = AppealResponseDto.builder()
+                .id("apl_100")
+                .status("APPROVED")
+                .reviewerNotes("Accepting valid explanation without changing score")
+                .build();
+
+        when(adminAppealService.resolveAppeal(eq("apl_100"), any(), any())).thenReturn(response);
+
+        mockMvc.perform(put("/api/admin/appeals/apl_100/resolve")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APPROVED"))
+                .andExpect(jsonPath("$.updatedScore").doesNotExist());
+    }
+
+    @Test
+    @WithMockUser(username = "admin@codeassess.edu", roles = "ADMIN")
     public void resolveAppeal_Rejected_Success() throws Exception {
         when(userRepository.findByEmail("admin@codeassess.edu")).thenReturn(Optional.of(admin));
         AppealResolveRequestDto request = AppealResolveRequestDto.builder()

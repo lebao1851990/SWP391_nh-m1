@@ -13,19 +13,15 @@ import {
   Scale, 
   FileText, 
   Check, 
-  X, 
   Loader2, 
-  Calendar, 
   Lock, 
   ShieldCheck,
-  ExternalLink,
   Award,
   Code2,
   FileCode2,
   UserCheck,
   Download,
   Archive,
-  HardDrive
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -42,7 +38,6 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
   const resolveMutation = useResolveAdminAppeal(appealId);
   const [decision, setDecision] = useState<'APPROVED' | 'REJECTED'>('APPROVED');
   const [reviewerNotes, setReviewerNotes] = useState('');
-  const [adjustedScore, setAdjustedScore] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -111,28 +106,14 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
       return;
     }
 
-    if (decision === 'APPROVED' && adjustedScore.trim() !== '') {
-      const num = Number(adjustedScore);
-      if (isNaN(num) || num < 0 || num > 10) {
-        setErrorMessage('Điểm điều chỉnh phải là số hợp lệ từ 0 đến 10.');
-        return;
-      }
-    }
-
     setShowConfirmModal(true);
   };
 
   const handleConfirmResolve = () => {
-    let parsedScore: number | undefined = undefined;
-    if (decision === 'APPROVED' && adjustedScore.trim() !== '') {
-      parsedScore = Number(adjustedScore);
-    }
-
     resolveMutation.mutate(
       { 
         decision, 
-        reviewerNotes: reviewerNotes.trim(), 
-        adjustedScore: parsedScore 
+        reviewerNotes: reviewerNotes.trim()
       },
       {
         onSuccess: (data) => {
@@ -488,42 +469,13 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
                   </div>
                 </div>
 
-                {/* Score adjustment (if approved) */}
-                {decision === 'APPROVED' && (
-                  <div className="space-y-1.5 p-3 rounded-xl bg-emerald-50/50 border border-emerald-200/60">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-emerald-950 block">
-                        2. Cập nhật điểm chính thức mới (Tùy chọn):
-                      </label>
-                      <span className="text-[11px] text-emerald-800">
-                        Điểm hiện tại: <strong className="font-mono">{appeal.currentScore ?? appeal.originalScore ?? '—'}</strong> / 10
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-emerald-800">
-                      Nếu đồng ý nâng/hạ điểm sau phúc khảo, nhập điểm mới bên dưới (thang 0 - 10). Nếu chấp thuận giải trình nhưng giữ nguyên điểm số, để trống ô này.
-                    </p>
-                    <div className="flex items-center gap-2 max-w-xs mt-1">
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="10"
-                        placeholder="VD: 9.0"
-                        value={adjustedScore}
-                        onChange={(e) => setAdjustedScore(e.target.value)}
-                        className="w-full px-3 py-1.5 rounded-lg border border-emerald-300 bg-surface-container-lowest text-on-surface text-xs font-mono focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                        disabled={resolveMutation.isPending}
-                      />
-                      <span className="text-xs text-emerald-900 font-semibold font-mono">/ 10</span>
-                    </div>
-                  </div>
-                )}
+
 
                 {/* Reviewer Notes (Mandatory) */}
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-on-surface block">
-                      {decision === 'APPROVED' ? '3.' : '2.'} Căn cứ phán quyết &amp; Giải trình của Admin * (Bắt buộc):
+                      2. Căn cứ phán quyết &amp; Giải trình của Admin * (Bắt buộc):
                     </label>
                     <span className="text-[11px] text-outline font-mono">Bắt buộc</span>
                   </div>
@@ -581,12 +533,7 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
                   {decision === 'APPROVED' ? 'Chấp thuận (APPROVED)' : 'Từ chối (REJECTED)'}
                 </strong>
               </div>
-              {decision === 'APPROVED' && adjustedScore.trim() !== '' && (
-                <div className="flex justify-between">
-                  <span className="text-outline">Điểm số mới:</span>
-                  <strong className="font-mono text-emerald-700">{adjustedScore} / 10</strong>
-                </div>
-              )}
+
               <div className="pt-2 border-t border-outline-variant/20">
                 <span className="text-outline block mb-1">Giải trình:</span>
                 <p className="text-on-surface italic line-clamp-3">&ldquo;{reviewerNotes}&rdquo;</p>

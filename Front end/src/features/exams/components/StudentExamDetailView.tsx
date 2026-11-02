@@ -2,14 +2,13 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useStudentExam, useSubmitExam, useSubmitExamZip } from '../hooks/use-student-exams';
+import { useStudentExam, useSubmitExamZip } from '../hooks/use-student-exams';
 import { SubmissionResultResponse } from '../api/student-exams.api';
 import { AxiosError } from 'axios';
 import { AppLink as Link } from '@/components/ui/app-link';
 import { useTranslation } from '@/i18n';
 import {
   ArrowLeft,
-  Code2,
   Send,
   AlertCircle,
   Clock,
@@ -28,8 +27,6 @@ import {
   Copy,
   Check,
   ExternalLink,
-  X,
-  Cpu,
   FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -42,11 +39,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
   const router = useRouter();
   const { t } = useTranslation();
   const { data: exam, isLoading, isError, error } = useStudentExam(examId);
-  const submitExam = useSubmitExam();
   const submitExamZip = useSubmitExamZip();
-
-  const [submissionMode, setSubmissionMode] = useState<'editor' | 'zip'>('editor');
-  const [sourceCode, setSourceCode] = useState('');
   const [selectedZip, setSelectedZip] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -127,9 +120,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   }, [remainingSeconds]);
 
-  const lineCount = sourceCode ? sourceCode.split('\n').length : 0;
-  const charCount = sourceCode.length;
-  const isPending = submitExam.isPending || submitExamZip.isPending;
+  const isPending = submitExamZip.isPending;
 
   const validateZipFile = (file: File): string | null => {
     if (!file.name.toLowerCase().endsWith('.zip')) {
@@ -227,21 +218,14 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
       return;
     }
 
-    if (submissionMode === 'editor') {
-      if (!sourceCode.trim()) {
-        setLocalError('Mã nguồn không được để trống.');
-        return;
-      }
-    } else {
-      if (!selectedZip) {
-        setLocalError('Vui lòng chọn hoặc kéo thả tệp .zip trước khi nộp.');
-        return;
-      }
-      const err = validateZipFile(selectedZip);
-      if (err) {
-        setLocalError(err);
-        return;
-      }
+    if (!selectedZip) {
+      setLocalError('Vui lòng chọn hoặc kéo thả tệp .zip trước khi nộp.');
+      return;
+    }
+    const err = validateZipFile(selectedZip);
+    if (err) {
+      setLocalError(err);
+      return;
     }
 
     setLocalError('');
@@ -252,64 +236,38 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
     setShowConfirmModal(false);
     setUploadProgress(0);
 
-    if (submissionMode === 'editor') {
-      submitExam.mutate(
-        { examId, sourceCode },
-        {
-          onSuccess: (data: SubmissionResultResponse) => {
-            toast.success('Nộp bài làm thành công! Hệ thống đang lưu trữ và phân tích.');
-            setSubmissionResult(data);
+    if (!selectedZip) return;
+    setSubmissionPhase('uploading');
+    submitExamZip.mutate(
+      {
+        examId,
+        file: selectedZip,
+        onUploadProgress: (pct) => setUploadProgress(pct)
+      },
+      {
+        onSuccess: (data: SubmissionResultResponse) => {
+          setSubmissionPhase('processing');
+          toast.success(`Nộp tệp ${data.originalFilename || selectedZip.name} thành công! Đã chuyển vào Sandbox kiểm thử.`);
+          setSubmissionResult(data);
+          setTimeout(() => {
+            setSubmissionPhase('completed');
             if (data?.id) {
-              setTimeout(() => {
-                router.push(`/student/submissions/${data.id}`);
-              }, 1200);
+              router.push(`/student/submissions/${data.id}`);
             }
-          },
-          onError: (err: unknown) => {
-            const axiosErr = err as AxiosError<{ message?: string; error?: string }>;
-            let msg = axiosErr?.response?.data?.message || (err as Error)?.message || t('studentExams.submitError');
-            if (axiosErr?.response?.status === 409 || axiosErr?.response?.data?.error === 'EXAM_TIME_EXPIRED' || msg === 'EXAM_TIME_EXPIRED') {
-              msg = t('errors.EXAM_TIME_EXPIRED') || 'Thời gian nộp bài đã kết thúc.';
-            }
-            setLocalError(msg);
-            toast.error(msg);
-          }
-        }
-      );
-    } else {
-      if (!selectedZip) return;
-      setSubmissionPhase('uploading');
-      submitExamZip.mutate(
-        {
-          examId,
-          file: selectedZip,
-          onUploadProgress: (pct) => setUploadProgress(pct)
+          }, 1000);
         },
-        {
-          onSuccess: (data: SubmissionResultResponse) => {
-            setSubmissionPhase('processing');
-            toast.success(`Nộp tệp ${data.originalFilename || selectedZip.name} thành công! Đã chuyển vào Sandbox kiểm thử.`);
-            setSubmissionResult(data);
-            setTimeout(() => {
-              setSubmissionPhase('completed');
-              if (data?.id) {
-                router.push(`/student/submissions/${data.id}`);
-              }
-            }, 1000);
-          },
-          onError: (err: unknown) => {
-            setSubmissionPhase('failed');
-            const axiosErr = err as AxiosError<{ message?: string; error?: string }>;
-            let msg = axiosErr?.response?.data?.message || (err as Error)?.message || 'Nộp tệp ZIP thất bại.';
-            if (axiosErr?.response?.status === 409 || axiosErr?.response?.data?.error === 'EXAM_TIME_EXPIRED' || msg === 'EXAM_TIME_EXPIRED') {
-              msg = t('errors.EXAM_TIME_EXPIRED') || 'Thời gian nộp bài đã kết thúc.';
-            }
-            setLocalError(msg);
-            toast.error(msg);
+        onError: (err: unknown) => {
+          setSubmissionPhase('failed');
+          const axiosErr = err as AxiosError<{ message?: string; error?: string }>;
+          let msg = axiosErr?.response?.data?.message || (err as Error)?.message || 'Nộp tệp ZIP thất bại.';
+          if (axiosErr?.response?.status === 409 || axiosErr?.response?.data?.error === 'EXAM_TIME_EXPIRED' || msg === 'EXAM_TIME_EXPIRED') {
+            msg = t('errors.EXAM_TIME_EXPIRED') || 'Thời gian nộp bài đã kết thúc.';
           }
+          setLocalError(msg);
+          toast.error(msg);
         }
-      );
-    }
+      }
+    );
   };
 
   const copyToClipboard = (text: string, sectionKey: string) => {
@@ -674,84 +632,24 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
         <div className="bg-surface-container-lowest p-space-md rounded-2xl border border-outline-variant/40 shadow-xs">
           <form onSubmit={handlePreSubmit} className="flex flex-col gap-4">
 
-            {/* Mode Switcher Tabs */}
+            {/* ZIP Submission Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-outline-variant/30 pb-3 gap-3">
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setSubmissionMode('editor'); setLocalError(''); }}
-                  disabled={isPending}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                    submissionMode === 'editor'
-                      ? 'bg-primary text-on-primary shadow-xs'
-                      : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
-                  }`}
-                >
-                  <Code2 className="w-3.5 h-3.5" />
-                  <span>Viết mã nguồn trực tiếp</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => { setSubmissionMode('zip'); setLocalError(''); }}
-                  disabled={isPending}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                    submissionMode === 'zip'
-                      ? 'bg-primary text-on-primary shadow-xs'
-                      : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
-                  }`}
-                >
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-primary text-on-primary shadow-xs">
                   <UploadCloud className="w-3.5 h-3.5" />
-                  <span>Tải lên tệp ZIP</span>
-                  <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-primary-fixed/20 text-on-surface">.zip</span>
-                </button>
+                  <span>Nộp bài qua tệp ZIP</span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-white/20 text-on-primary">.zip</span>
+                </div>
               </div>
 
               <div className="flex items-center gap-3 text-xs text-outline font-mono">
-                {submissionMode === 'editor' ? (
-                  <>
-                    <span>{lineCount} dòng</span>
-                    <span>•</span>
-                    <span>{charCount} ký tự</span>
-                    <span>•</span>
-                    <span className="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-semibold">Java 17</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Tối đa: 10 MB</span>
-                    <span>•</span>
-                    <span className="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-semibold">Multi-file Java ZIP</span>
-                  </>
-                )}
+                <span>Tối đa: 10 MB</span>
+                <span>•</span>
+                <span className="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-semibold">Multi-file Java ZIP</span>
               </div>
             </div>
 
-            {/* Mode 1: Code Textarea with IDE Styling */}
-            {submissionMode === 'editor' && (
-              <div className="relative rounded-xl border border-outline-variant/60 bg-slate-950 overflow-hidden shadow-inner focus-within:ring-2 focus-within:ring-primary/40 focus-within:border-primary transition-all">
-                <div className="px-4 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400 font-mono">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80"></span>
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80"></span>
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></span>
-                    <span className="ml-2 text-slate-300">Solution.java</span>
-                  </div>
-                  <span>UTF-8</span>
-                </div>
-
-                <textarea
-                  className="w-full h-96 p-4 bg-transparent font-mono text-xs text-slate-100 placeholder:text-slate-600 outline-none resize-y leading-relaxed"
-                  placeholder="// Nhập mã nguồn Java của bạn tại đây...&#10;public class Solution {&#10;    public static void main(String[] args) {&#10;        // Viết mã nguồn của bạn tại đây&#10;    }&#10;}"
-                  value={sourceCode}
-                  onChange={(e) => setSourceCode(e.target.value)}
-                  disabled={isPending || isClosed}
-                  spellCheck="false"
-                />
-              </div>
-            )}
-
-            {/* Mode 2: Drag and Drop ZIP Upload Area */}
-            {submissionMode === 'zip' && (
+            {/* Drag and Drop ZIP Upload Area */}
               <div className="flex flex-col gap-3">
                 <input
                   ref={fileInputRef}
@@ -850,7 +748,6 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                   </div>
                 )}
               </div>
-            )}
 
             {/* Upload & Execution Progress Bar */}
             {isPending && (
@@ -904,8 +801,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                   disabled={
                     isPending ||
                     isClosed ||
-                    (submissionMode === 'editor' && !sourceCode.trim()) ||
-                    (submissionMode === 'zip' && !selectedZip)
+                    !selectedZip
                   }
                 >
                   {isPending ? (
@@ -921,9 +817,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                           ? 'Chưa mở nộp bài'
                           : isDeadlinePassed
                           ? 'Đã quá hạn nộp'
-                          : submissionMode === 'zip'
-                          ? 'Nộp tệp ZIP'
-                          : 'Nộp bài làm'}
+                          : 'Nộp tệp ZIP'}
                       </span>
                       {/* Hidden text helper for Playwright e2e selector backwards compatibility */}
                       <span className="sr-only">Submit Code Artifact</span>
@@ -952,35 +846,18 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
               <div className="p-3 rounded-lg bg-surface-container-low border border-outline-variant/30 text-xs text-on-surface-variant space-y-1.5">
                 <div className="flex justify-between">
                   <span>Phương thức nộp:</span>
-                  <span className="font-semibold text-on-surface">
-                    {submissionMode === 'zip' ? 'Tệp nén đa file (.ZIP)' : 'Soạn thảo trực tiếp (Single file)'}
+                  <span className="font-semibold text-on-surface">Tệp nén đa file (.ZIP)</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tên tệp:</span>
+                  <span className="font-mono font-semibold text-on-surface truncate max-w-[200px]">{selectedZip?.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Dung lượng:</span>
+                  <span className="font-mono font-semibold text-on-surface">
+                    {selectedZip ? (selectedZip.size / (1024 * 1024)).toFixed(2) : 0} MB
                   </span>
                 </div>
-                {submissionMode === 'editor' ? (
-                  <>
-                    <div className="flex justify-between">
-                      <span>Số dòng code:</span>
-                      <span className="font-mono font-semibold text-on-surface">{lineCount}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Số lượng ký tự:</span>
-                      <span className="font-mono font-semibold text-on-surface">{charCount}</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex justify-between">
-                      <span>Tên tệp:</span>
-                      <span className="font-mono font-semibold text-on-surface truncate max-w-[200px]">{selectedZip?.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Dung lượng:</span>
-                      <span className="font-mono font-semibold text-on-surface">
-                        {selectedZip ? (selectedZip.size / (1024 * 1024)).toFixed(2) : 0} MB
-                      </span>
-                    </div>
-                  </>
-                )}
                 <div className="flex justify-between">
                   <span>Môi trường biên dịch:</span>
                   <span className="font-mono font-semibold text-on-surface">Java 17 (OpenJDK Temurin)</span>
@@ -1055,7 +932,7 @@ export function StudentExamDetailView({ examId }: StudentExamDetailViewProps) {
                 <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/20">
                   <span className="text-outline text-[11px] block">Loại bài nộp</span>
                   <span className="font-semibold text-on-surface font-mono mt-0.5 block">
-                    {submissionResult.submissionType || (submissionMode === 'zip' ? 'ZIP' : 'SINGLE_FILE')}
+                    {submissionResult.submissionType || 'ZIP'}
                   </span>
                 </div>
 

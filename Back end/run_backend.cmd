@@ -2,7 +2,7 @@
 setlocal
 cd /d "%~dp0"
 
-if not defined JAVA_HOME (
+if not exist "%JAVA_HOME%\bin\java.exe" (
     if exist "C:\Program Files\Java\jdk-21.0.12.1" (
         set "JAVA_HOME=C:\Program Files\Java\jdk-21.0.12.1"
     ) else if exist "C:\Program Files\Java\jdk-21.0.12" (
