@@ -10,7 +10,7 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
   --font-heading: var(--font-sans);
-  
+
   /* Surface and Containers */
   --color-surface: var(--surface);
   --color-on-surface: var(--on-surface);
@@ -35,14 +35,14 @@
   --color-on-primary-container: var(--on-primary-container);
   --color-primary-fixed: var(--primary-fixed);
   --color-on-primary-fixed: var(--on-primary-fixed);
-  
+
   --color-secondary: var(--secondary);
   --color-on-secondary: var(--on-secondary);
   --color-secondary-container: var(--secondary-container);
   --color-on-secondary-container: var(--on-secondary-container);
   --color-secondary-fixed: var(--secondary-fixed);
   --color-on-secondary-fixed: var(--on-secondary-fixed);
-  
+
   --color-tertiary: var(--tertiary);
   --color-on-tertiary: var(--on-tertiary);
   --color-tertiary-container: var(--tertiary-container);
@@ -50,7 +50,7 @@
   --color-tertiary-fixed: var(--tertiary-fixed);
   --color-on-tertiary-fixed: var(--on-tertiary-fixed);
   --color-tertiary-fixed-dim: var(--tertiary-fixed-dim);
-  
+
   /* Error */
   --color-error: var(--error);
   --color-on-error: var(--on-error);
@@ -79,7 +79,7 @@
   --color-popover: var(--surface-container-lowest);
   --color-card-foreground: var(--on-surface);
   --color-card: var(--surface-container-lowest);
-  
+
   /* Custom spacing/shadows/radius from Stitch */
   --spacing-space-xs: 0.25rem;
   --spacing-space-sm: 0.5rem;
@@ -87,7 +87,7 @@
   --spacing-space-lg: 1.5rem;
   --spacing-space-xl: 2rem;
   --spacing-space-2xl: 3rem;
-  
+
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
@@ -99,7 +99,7 @@
   /* Canvas Base & Foreground */
   --background: #f8fafc;
   --foreground: #0f172a;
-  
+
   /* Stitch Surfaces & Containers */
   --surface: #f8fafc;
   --on-surface: #0f172a;
@@ -148,15 +148,15 @@
   --on-error: #ffffff;
   --error-container: #fee2e2;
   --on-error-container: #991b1b;
-  
+
   /* Borders & Dividers for Shadcn compatibility */
   --border: var(--outline-variant);
   --input: var(--outline);
   --ring: var(--primary);
-  
+
   /* Geometry */
   --radius: 0.5rem;
-  
+
   /* Sidebar */
   --sidebar: var(--surface-container-lowest);
   --sidebar-foreground: var(--on-surface);
@@ -166,13 +166,34 @@
   --sidebar-accent-foreground: var(--on-surface);
   --sidebar-border: var(--outline-variant);
   --sidebar-ring: var(--primary);
+
+  /* ==========================================================================
+     NEURAL COMMAND CENTER — DESIGN TOKENS (2030 FUTURISTIC HUD)
+     ========================================================================== */
+  --nc-void: #010409;
+  --nc-deep-navy: #020617;
+  --nc-surface: #0B1220;
+  --nc-surface-2: #0F172A;
+  --nc-electric-blue: #2563EB;
+  --nc-neon-cyan: #22D3EE;
+  --nc-violet: #6366F1;
+  --nc-magenta: #A855F7;
+  --nc-signal-green: #34D399;
+  --nc-alert-amber: #F59E0B;
+  --nc-alert-red: #F43F5E;
+  --nc-gradient-primary: linear-gradient(135deg, #2563EB, #22D3EE 50%, #6366F1);
+  --nc-glass-bg: rgba(15, 23, 42, 0.55);
+  --nc-glass-border: rgba(148, 163, 184, 0.16);
+  --nc-glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --nc-glow: 0 0 0 1px rgba(34, 211, 238, 0.25), 0 8px 40px -8px rgba(37, 99, 235, 0.45);
+  --nc-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .dark {
   /* Canvas Base & Foreground */
   --background: #0b1120;
   --foreground: #f8fafc;
-  
+
   /* Stitch Surfaces & Containers */
   --surface: #0b1120;
   --on-surface: #f8fafc;
@@ -221,12 +242,12 @@
   --on-error: #450a0a;
   --error-container: #7f1d1d;
   --on-error-container: #fecaca;
-  
+
   /* Borders & Dividers for Shadcn compatibility */
   --border: var(--outline-variant);
   --input: var(--outline);
   --ring: var(--primary);
-  
+
   /* Sidebar */
   --sidebar: var(--surface-container-lowest);
   --sidebar-foreground: var(--on-surface);
@@ -242,8 +263,14 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground font-sans;
+  }
+
+  ::selection {
+    background-color: rgba(34, 211, 238, 0.25);
+    color: #0284c7;
   }
 }
 
@@ -254,12 +281,13 @@
     font-weight: 700;
     line-height: 40px;
   }
+
   .text-display-lg {
     font-size: 32px;
     font-weight: 700;
     line-height: 40px;
   }
-  
+
   .font-headline-xl {
     font-family: var(--font-sans);
     font-size: 30px;
@@ -267,13 +295,14 @@
     line-height: 36px;
     letter-spacing: -0.02em;
   }
+
   .text-headline-xl {
     font-size: 30px;
     font-weight: 700;
     line-height: 36px;
     letter-spacing: -0.02em;
   }
-  
+
   .font-headline-lg {
     font-family: var(--font-sans);
     font-size: 24px;
@@ -281,25 +310,27 @@
     line-height: 32px;
     letter-spacing: -0.015em;
   }
+
   .text-headline-lg {
     font-size: 24px;
     font-weight: 600;
     line-height: 32px;
     letter-spacing: -0.015em;
   }
-  
+
   .font-headline-md {
     font-family: var(--font-sans);
     font-size: 20px;
     font-weight: 600;
     line-height: 28px;
   }
+
   .text-headline-md {
     font-size: 20px;
     font-weight: 600;
     line-height: 28px;
   }
-  
+
   .font-headline-sm {
     font-family: var(--font-sans);
     font-size: 18px;
@@ -307,13 +338,14 @@
     line-height: 24px;
     letter-spacing: -0.01em;
   }
+
   .text-headline-sm {
     font-size: 18px;
     font-weight: 600;
     line-height: 24px;
     letter-spacing: -0.01em;
   }
-  
+
   .font-title-md {
     font-family: var(--font-sans);
     font-size: 15px;
@@ -321,19 +353,21 @@
     line-height: 20px;
     letter-spacing: -0.005em;
   }
+
   .text-title-md {
     font-size: 15px;
     font-weight: 600;
     line-height: 20px;
     letter-spacing: -0.005em;
   }
-  
+
   .font-body-lg {
     font-family: var(--font-sans);
     font-size: 15px;
     font-weight: 400;
     line-height: 22px;
   }
+
   .text-body-lg {
     font-size: 15px;
     font-weight: 400;
@@ -346,24 +380,26 @@
     font-weight: 400;
     line-height: 18px;
   }
+
   .text-body-md {
     font-size: 13px;
     font-weight: 400;
     line-height: 18px;
   }
-  
+
   .font-body-sm {
     font-family: var(--font-sans);
     font-size: 12px;
     font-weight: 400;
     line-height: 16px;
   }
+
   .text-body-sm {
     font-size: 12px;
     font-weight: 400;
     line-height: 16px;
   }
-  
+
   .font-label-md {
     font-family: var(--font-sans);
     font-size: 12px;
@@ -371,25 +407,27 @@
     line-height: 16px;
     letter-spacing: 0.01em;
   }
+
   .text-label-md {
     font-size: 12px;
     font-weight: 500;
     line-height: 16px;
     letter-spacing: 0.01em;
   }
-  
+
   .font-label-sm {
     font-family: var(--font-sans);
     font-size: 11px;
     font-weight: 600;
     line-height: 14px;
   }
+
   .text-label-sm {
     font-size: 11px;
     font-weight: 600;
     line-height: 14px;
   }
-  
+
   .font-label-xs {
     font-family: var(--font-sans);
     font-size: 10px;
@@ -397,43 +435,47 @@
     line-height: 12px;
     letter-spacing: 0.04em;
   }
+
   .text-label-xs {
     font-size: 10px;
     font-weight: 600;
     line-height: 12px;
     letter-spacing: 0.04em;
   }
-  
+
   .font-code-md {
     font-family: var(--font-mono);
     font-size: 13px;
     font-weight: 400;
     line-height: 20px;
   }
+
   .text-code-md {
     font-size: 13px;
     font-weight: 400;
     line-height: 20px;
   }
-  
+
   .font-code-sm {
     font-family: var(--font-mono);
     font-size: 11px;
     font-weight: 400;
     line-height: 16px;
   }
+
   .text-code-sm {
     font-size: 11px;
     font-weight: 400;
     line-height: 16px;
   }
-  
+
   .font-code-body {
     font-family: var(--font-mono);
     font-size: 13px;
     font-weight: 400;
     line-height: 20px;
   }
+
   .text-code-body {
     font-size: 13px;
     font-weight: 400;
@@ -441,29 +483,618 @@
   }
 }
 
-/* Next.js Page Route Transition & Micro-Interactions */
+/* ==========================================================================
+   NEURAL COMMAND CENTER — KEYFRAMES & VISUAL MOTIFS (PHASE 1 & 2)
+   ========================================================================== */
 @keyframes page-enter {
   0% {
-    opacity: 0.92;
-    transform: translateY(4px);
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(2px);
   }
+
   100% {
     opacity: 1;
     transform: translateY(0);
+    filter: blur(0px);
   }
 }
 
 .page-transition {
-  animation: page-enter 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: page-enter 220ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
   will-change: opacity, transform;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .page-transition {
-    animation: none !important;
-    will-change: auto;
+@keyframes nc-boot-card-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+    filter: blur(4px);
   }
-  *, *::before, *::after {
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0px);
+  }
+}
+
+.nc-boot-stagger>* {
+  animation: nc-boot-card-in 380ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.nc-boot-stagger>*:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.nc-boot-stagger>*:nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.nc-boot-stagger>*:nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.nc-boot-stagger>*:nth-child(4) {
+  animation-delay: 180ms;
+}
+
+.nc-boot-stagger>*:nth-child(5) {
+  animation-delay: 240ms;
+}
+
+@keyframes nc-orbit-cw {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes nc-orbit-ccw {
+  0% {
+    transform: rotate(360deg);
+  }
+
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes nc-float-breathe {
+
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.24;
+  }
+
+  50% {
+    transform: translate3d(0, -10px, 0) scale(1.03);
+    opacity: 0.34;
+  }
+}
+
+@keyframes nc-laser-sweep {
+  0% {
+    transform: translateY(-120%) rotate(-12deg);
+    opacity: 0;
+  }
+
+  15% {
+    opacity: 0.85;
+  }
+
+  50% {
+    transform: translateY(120%) rotate(-12deg);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateY(120%) rotate(-12deg);
+    opacity: 0;
+  }
+}
+
+@keyframes nc-card-scan-once {
+  0% {
+    transform: translateY(-110%);
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 0.9;
+  }
+
+  100% {
+    transform: translateY(220%);
+    opacity: 0;
+  }
+}
+
+@keyframes nc-aurora-drift {
+
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  33% {
+    transform: translate3d(28px, -18px, 0) scale(1.06);
+  }
+
+  66% {
+    transform: translate3d(-22px, 16px, 0) scale(0.96);
+  }
+}
+
+@keyframes nc-grid-pulse {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+
+  40% {
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: translateX(220%);
+    opacity: 0;
+  }
+}
+
+@keyframes nc-shockwave {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.9;
+  }
+
+  100% {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}
+
+@keyframes nc-shimmer {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+
+  100% {
+    transform: translateX(220%) skewX(-18deg);
+  }
+}
+
+/* Blueprint grid background pattern (Dark Auth) */
+.nc-grid-blueprint {
+  background-size: 52px 52px;
+  background-image:
+    linear-gradient(to right, rgba(34, 211, 238, 0.065) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(37, 99, 235, 0.065) 1px, transparent 1px);
+  mask-image: radial-gradient(ellipse 80% 75% at 50% 50%, #000 35%, transparent 100%);
+}
+
+/* Light Holographic Workspace Background Grid (opacity <= 0.035) */
+.nc-workspace-grid {
+  background-size: 44px 44px;
+  background-image:
+    linear-gradient(to right, rgba(37, 99, 235, 0.032) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(34, 211, 238, 0.032) 1px, transparent 1px);
+  mask-image: radial-gradient(ellipse 92% 85% at 50% 35%, #000 45%, transparent 100%);
+}
+
+/* Subtle dark blueprint grid for Sidebar */
+.nc-sidebar-grid {
+  background-size: 32px 32px;
+  background-image:
+    linear-gradient(to right, rgba(34, 211, 238, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(37, 99, 235, 0.035) 1px, transparent 1px);
+}
+
+/* Subtle scanline overlay (opacity <= 0.035) */
+.nc-scanlines {
+  background: repeating-linear-gradient(to bottom,
+      transparent 0px,
+      transparent 2px,
+      rgba(34, 211, 238, 0.025) 3px,
+      transparent 4px);
+}
+
+/* Holographic Dashboard Card & KPI v2 */
+.nc-holo-card,
+.nc-kpi-v2 {
+  position: relative;
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nc-holo-card:hover,
+.nc-kpi-v2:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -10px rgba(37, 99, 235, 0.18), 0 0 0 1px rgba(34, 211, 238, 0.35);
+}
+
+/* One-time vertical scan-line on KPI v2 hover */
+.nc-kpi-v2::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset-x: 0;
+  top: 0;
+  height: 45%;
+  background: linear-gradient(180deg,
+      transparent 0%,
+      rgba(34, 211, 238, 0.14) 85%,
+      rgba(37, 99, 235, 0.28) 100%);
+  opacity: 0;
+  transform: translateY(-110%);
+}
+
+.nc-kpi-v2:hover::after {
+  animation: nc-card-scan-once 680ms cubic-bezier(0.22, 1, 0.36, 1) 1 forwards;
+}
+
+/* Spotlight Card overlay driven by --mx and --my CSS variables */
+.nc-spotlight-card {
+  position: relative;
+}
+
+.nc-spotlight-card::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: var(--spot-opacity, 0);
+  transition: opacity 250ms ease;
+  background: radial-gradient(380px circle at var(--mx, 50%) var(--my, 50%),
+      rgba(34, 211, 238, 0.085),
+      rgba(37, 99, 235, 0.03) 45%,
+      transparent 75%);
+  z-index: 0;
+}
+
+/* Primary Button Shimmer on Hover */
+.nc-btn-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.nc-btn-shimmer::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 45%;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.28) 50%,
+      transparent 100%);
+  transform: translateX(-140%) skewX(-18deg);
+}
+
+.nc-btn-shimmer:hover::after {
+  animation: nc-shimmer 650ms cubic-bezier(0.22, 1, 0.36, 1) 1;
+}
+
+/* Quick Action Glass Pill */
+.nc-quick-pill {
+  position: relative;
+  overflow: hidden;
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nc-quick-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px -4px rgba(37, 99, 235, 0.16), 0 0 0 1px rgba(34, 211, 238, 0.35);
+}
+
+/* Shimmer Skeleton Loader */
+.nc-skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: #f1f5f9;
+}
+
+.nc-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.75) 50%,
+      transparent 100%);
+  animation: nc-shimmer 1.5s infinite;
+}
+
+/* Table row indicator on hover (SAFE for <tr>: attaches ::before to first <td> instead of <tr>) */
+.nc-table-row {
+  position: relative;
+  transition: background-color 140ms ease;
+}
+
+tr.nc-table-row:hover {
+  background-color: rgba(241, 245, 249, 0.6);
+}
+
+tr.nc-table-row>td:first-child {
+  position: relative;
+}
+
+tr.nc-table-row>td:first-child::before,
+:not(tr).nc-table-row::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 2.5px;
+  border-radius: 0 2px 2px 0;
+  background: #2563EB;
+  opacity: 0;
+  transform: scaleY(0.5);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+tr.nc-table-row:hover>td:first-child::before,
+:not(tr).nc-table-row:hover::before {
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+/* KPI Card v3: 3D Perspective Tilt + Specular Highlight + Scan-Line */
+.nc-kpi-v3 {
+  position: relative;
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(var(--ty, 0px));
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.nc-kpi-v3:hover {
+  box-shadow: 0 14px 32px -10px rgba(37, 99, 235, 0.2), 0 0 0 1px rgba(34, 211, 238, 0.42);
+}
+
+/* Specular highlight following cursor on KPI v3 */
+.nc-kpi-v3::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: var(--spec-opacity, 0);
+  transition: opacity 220ms ease;
+  background: radial-gradient(220px circle at var(--sx, 50%) var(--sy, 50%),
+      rgba(34, 211, 238, 0.13),
+      rgba(37, 99, 235, 0.04) 50%,
+      transparent 80%);
+  z-index: 0;
+}
+
+/* One-time vertical scan-line on KPI v3 hover */
+.nc-kpi-v3::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset-x: 0;
+  top: 0;
+  height: 45%;
+  background: linear-gradient(180deg,
+      transparent 0%,
+      rgba(34, 211, 238, 0.14) 85%,
+      rgba(37, 99, 235, 0.28) 100%);
+  opacity: 0;
+  transform: translateY(-110%);
+}
+
+.nc-kpi-v3:hover::after {
+  animation: nc-card-scan-once 680ms cubic-bezier(0.22, 1, 0.36, 1) 1 forwards;
+}
+
+/* Progress bar light streak */
+@keyframes nc-progress-streak {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(260%);
+  }
+}
+
+.nc-progress-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.nc-progress-shimmer::after {
+  content: "";
+  position: absolute;
+  inset-y: 0;
+  left: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+  animation: nc-progress-streak 2.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+/* Circuit trace flow animation */
+@keyframes nc-circuit-flow {
+  0% {
+    stroke-dashoffset: 120;
+  }
+
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.nc-circuit-trace {
+  stroke-dasharray: 10 110;
+  animation: nc-circuit-flow 5.5s linear infinite;
+}
+
+/* Blinking clock colon */
+@keyframes nc-blink-colon {
+
+  0%,
+  49% {
+    opacity: 1;
+  }
+
+  50%,
+  100% {
+    opacity: 0.25;
+  }
+}
+
+.nc-colon-blink {
+  animation: nc-blink-colon 1s steps(1, end) infinite;
+}
+
+/* Click scan ripple */
+@keyframes nc-click-ripple {
+  0% {
+    transform: translate(-50%, -50%) scale(0.2);
+    opacity: 0.85;
+  }
+
+  100% {
+    transform: translate(-50%, -50%) scale(2.4);
+    opacity: 0;
+  }
+}
+
+.nc-click-ripple {
+  animation: nc-click-ripple 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ==========================================================================
+   CURSOR AURA HUD SYSTEM (PHASE 3)
+   ========================================================================== */
+/* Layer 1: Soft Aura Glow adapting to light/dark surface and code zone */
+.nc-cursor-aura-glow {
+  background: radial-gradient(circle,
+      rgba(37, 99, 235, 0.085) 0%,
+      rgba(34, 211, 238, 0.055) 42%,
+      rgba(99, 102, 241, 0.025) 68%,
+      transparent 100%);
+  transition: opacity 220ms ease;
+}
+
+[data-active-theme="dark"] .nc-cursor-aura-glow {
+  background: radial-gradient(circle,
+      rgba(34, 211, 238, 0.14) 0%,
+      rgba(37, 99, 235, 0.09) 45%,
+      rgba(99, 102, 241, 0.04) 70%,
+      transparent 100%);
+}
+
+[data-code-zone="true"] .nc-cursor-aura-glow {
+  opacity: 0.4;
+}
+
+/* Layer 7: Grid Reveal under Cursor (180px radial mask around cursor) */
+.nc-cursor-grid-reveal {
+  background-size: 44px 44px;
+  background-image:
+    linear-gradient(to right, rgba(37, 99, 235, 0.085) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(34, 211, 238, 0.085) 1px, transparent 1px),
+    radial-gradient(circle at 22px 22px, rgba(34, 211, 238, 0.22) 1px, transparent 1.5px);
+}
+
+[data-active-theme="dark"] .nc-cursor-grid-reveal {
+  background-image:
+    linear-gradient(to right, rgba(34, 211, 238, 0.12) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(99, 102, 241, 0.11) 1px, transparent 1px),
+    radial-gradient(circle at 22px 22px, rgba(34, 211, 238, 0.28) 1px, transparent 1.5px);
+}
+
+[data-code-zone="true"] .nc-cursor-grid-reveal {
+  opacity: 0.25;
+}
+
+/* Layer 3: Target Lock Box */
+.nc-target-lock-box {
+  border: 1px solid rgba(34, 211, 238, 0.42);
+  background: linear-gradient(135deg,
+      rgba(34, 211, 238, 0.045) 0%,
+      transparent 50%,
+      rgba(37, 99, 235, 0.045) 100%);
+  box-shadow: 0 0 16px -4px rgba(34, 211, 238, 0.28), inset 0 0 10px -4px rgba(34, 211, 238, 0.15);
+}
+
+.nc-target-lock-box[data-subtle-input="true"] {
+  border-color: rgba(34, 211, 238, 0.25);
+  background: transparent;
+  box-shadow: none;
+}
+
+.nc-target-lock-box[data-subtle-input="true"] .nc-target-lock-badge {
+  opacity: 0.72;
+}
+
+/* Thin futuristic scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(37, 99, 235, 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .page-transition,
+  .nc-boot-stagger>*,
+  .nc-anim-orbit-cw,
+  .nc-anim-orbit-ccw,
+  .nc-anim-float,
+  .nc-anim-sweep,
+  .nc-anim-aurora,
+  .nc-kpi-v2:hover::after,
+  .nc-kpi-v3:hover::after,
+  .nc-btn-shimmer:hover::after,
+  .nc-progress-shimmer::after,
+  .nc-circuit-trace,
+  .nc-colon-blink,
+  .nc-click-ripple,
+  .nc-skeleton::after {
+    animation: none !important;
+    will-change: auto !important;
+    filter: none !important;
+  }
+
+  .nc-holo-card:hover,
+  .nc-kpi-v2:hover,
+  .nc-kpi-v3,
+  .nc-kpi-v3:hover,
+  .nc-quick-pill:hover {
+    transform: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

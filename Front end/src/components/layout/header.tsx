@@ -4,16 +4,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useSessionStore } from '@/stores/session.store';
 import { authApi } from '@/features/auth/api/auth.api';
-import { 
-  Search, 
-  Bell, 
-  HelpCircle, 
-  GraduationCap, 
-  User, 
-  LogOut, 
-  ChevronDown, 
-  CheckCircle2, 
-  ShieldAlert, 
+import {
+  Search,
+  Bell,
+  HelpCircle,
+  GraduationCap,
+  User,
+  LogOut,
+  ChevronDown,
+  CheckCircle2,
+  ShieldAlert,
   X,
   Code2,
   Calendar,
@@ -35,6 +35,7 @@ export function Header() {
   const { t } = useTranslation();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -109,9 +110,15 @@ export function Header() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 lg:left-[260px] right-0 h-16 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline-variant/30 z-40 px-4 lg:px-space-lg flex items-center justify-between transition-all">
-        {/* Mobile Menu Toggle & Search Bar */}
-        <div className="flex items-center gap-2 flex-1 max-w-xl min-w-0">
+      <header className="fixed top-0 left-0 lg:left-[260px] right-0 h-16 bg-white/80 backdrop-blur-xl z-40 px-4 lg:px-space-lg flex items-center justify-between shadow-[0_2px_16px_-4px_rgba(15,23,42,0.06)] transition-all">
+        {/* Bottom 1px futuristic blue-cyan gradient hairline */}
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-[#2563EB]/35 via-[#22D3EE]/55 to-[#6366F1]/35"
+          aria-hidden="true"
+        />
+
+        {/* Mobile Menu Toggle & Premium Search Bar */}
+        <div className="flex items-center gap-2.5 flex-1 max-w-xl min-w-0">
           <button
             type="button"
             onClick={toggleMobileNav}
@@ -121,61 +128,91 @@ export function Header() {
             <Menu className="w-5 h-5 text-on-surface" />
           </button>
           <form onSubmit={handleSearch} className="flex items-center gap-space-md flex-1 min-w-0">
-            <div className="relative w-full min-w-0">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-outline w-4 h-4" />
-            <input 
-              ref={searchInputRef}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-14 py-1.5 bg-surface-container-low rounded border border-outline-variant text-on-surface font-body-sm text-body-sm placeholder:text-outline focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-all" 
-              placeholder="Tìm kiếm bài thi, môn học hoặc mã ID (Nhấn Enter)..." 
-              type="text"
-            />
-            <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 font-label-xs text-[10px] text-outline bg-surface-container px-1.5 py-0.5 rounded border border-outline-variant/40 select-none">
-              ⌘K
-            </kbd>
-          </div>
-        </form>
-      </div>
+            <div
+              className={`relative w-full min-w-0 rounded-[12px] transition-all duration-200 ${
+                searchFocused
+                  ? 'shadow-[0_0_0_3px_rgba(37,99,235,0.2),0_4px_14px_rgba(34,211,238,0.16)]'
+                  : 'shadow-[0_2px_6px_rgba(37,99,235,0.08)] hover:-translate-y-[0.5px] hover:shadow-[0_4px_12px_rgba(37,99,235,0.14)]'
+              }`}
+            >
+              {/* Animated Conic Gradient Border on Focus */}
+              {searchFocused && (
+                <div
+                  className="pointer-events-none absolute -inset-[1.5px] rounded-[13px] overflow-hidden z-0"
+                  aria-hidden="true"
+                >
+                  <div
+                    className="nc-anim-orbit-cw absolute -inset-[150%]"
+                    style={{
+                      background:
+                        'conic-gradient(from 0deg, #2563EB 0%, #22D3EE 35%, #6366F1 65%, #2563EB 100%)',
+                      animation: 'nc-orbit-cw 6s linear infinite',
+                    }}
+                  />
+                </div>
+              )}
+
+              <div className="relative z-10 flex items-center w-full h-[44px] bg-[#FFFFFF] rounded-[12px] border-[1.5px] border-[#2563EB]">
+                <Search
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#1D4ED8] w-[18px] h-[18px] pointer-events-none shrink-0"
+                  aria-hidden="true"
+                />
+                <input
+                  ref={searchInputRef}
+                  value={searchQuery}
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setSearchFocused(false)}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-full pl-10 pr-16 bg-transparent rounded-[12px] text-[#0F172A] text-[14px] font-normal placeholder:text-[#475569] focus:outline-none transition-all"
+                  placeholder="Tìm kiếm bài thi, môn học hoặc mã ID (Nhấn Enter)..."
+                  type="text"
+                />
+                <kbd className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[11px] font-medium text-[#475569] bg-[#F1F5F9] px-2 py-0.5 rounded-[6px] border border-[#E2E8F0] select-none pointer-events-none">
+                  ⌘K
+                </kbd>
+              </div>
+            </div>
+          </form>
+        </div>
 
         {/* User Actions */}
         <div className="flex items-center gap-2 sm:gap-space-md shrink-0">
           {/* Semester Badge */}
-          <div className="hidden md:flex items-center gap-1.5 px-space-sm py-1 rounded bg-surface-container border border-outline-variant/30 text-on-surface text-xs font-medium">
-            <GraduationCap className="w-3.5 h-3.5 text-primary" />
+          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-blue-200/60 text-on-surface text-xs font-medium shadow-2xs">
+            <GraduationCap className="w-3.5 h-3.5 text-[#2563EB]" />
             <span className="font-label-md text-label-md">Học kỳ Fall 2026</span>
           </div>
-          
+
           {/* Notifications Trigger */}
           <div className="relative" ref={notificationsRef}>
-            <button 
+            <button
               onClick={() => {
                 setNotificationsOpen(!notificationsOpen);
                 setProfileOpen(false);
               }}
-              className="relative p-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded transition-colors cursor-pointer" 
+              className="relative p-1.5 text-on-surface-variant hover:text-[#2563EB] hover:bg-blue-50/70 rounded-lg transition-colors cursor-pointer"
               title="Thông báo hệ thống"
             >
               <Bell className="w-4 h-4" />
-              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-surface-container-lowest"></span>
+              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white"></span>
             </button>
 
             {/* Notifications Popover */}
             {notificationsOpen && (
-              <div className="absolute right-0 mt-2 w-80 bg-surface-container-lowest border border-outline-variant/40 rounded-xl shadow-xl z-50 p-space-md flex flex-col gap-space-sm">
+              <div className="absolute right-0 mt-2 w-80 bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-xl shadow-[0_12px_36px_-8px_rgba(15,23,42,0.16)] z-50 p-space-md flex flex-col gap-space-sm">
                 <div className="flex items-center justify-between border-b border-outline-variant/30 pb-2">
                   <span className="font-label-md font-semibold text-on-surface">Trạng thái hệ thống</span>
-                  <span className="font-label-xs text-xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">Hoạt động</span>
+                  <span className="font-mono text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">Hoạt động</span>
                 </div>
                 <div className="space-y-2 text-xs">
-                  <div className="flex items-start gap-2 p-2 rounded bg-surface-container-low">
+                  <div className="flex items-start gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                     <div>
                       <p className="font-semibold text-on-surface">Công cụ AST đã đồng bộ</p>
                       <p className="text-on-surface-variant text-[11px]">Bộ phân tích cú pháp mã nguồn sẵn sàng cho bài nộp.</p>
                     </div>
                   </div>
-                  <div className="flex items-start gap-2 p-2 rounded bg-surface-container-low">
+                  <div className="flex items-start gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100">
                     <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                     <div>
                       <p className="font-semibold text-on-surface">Hộp cát Docker v2 sẵn sàng</p>
@@ -183,7 +220,7 @@ export function Header() {
                     </div>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => setNotificationsOpen(false)}
                   className="w-full py-1 text-center font-label-xs text-primary hover:underline cursor-pointer"
                 >
@@ -192,31 +229,31 @@ export function Header() {
               </div>
             )}
           </div>
-          
+
           {/* Language Switcher */}
           <LanguageSwitcher />
 
           {/* Academic Integrity Guide Trigger */}
-          <button 
+          <button
             onClick={() => setHelpOpen(true)}
-            className="p-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded transition-colors cursor-pointer" 
+            className="p-1.5 text-on-surface-variant hover:text-[#2563EB] hover:bg-blue-50/70 rounded-lg transition-colors cursor-pointer"
             title={t('header.integrityGuide')}
           >
             <HelpCircle className="w-4 h-4" />
           </button>
-          
+
           <div className="h-5 w-[1px] bg-outline-variant/40"></div>
-          
+
           {/* User Profile Menu */}
           <div className="relative" ref={profileRef}>
-            <button 
+            <button
               onClick={() => {
                 setProfileOpen(!profileOpen);
                 setNotificationsOpen(false);
               }}
-              className="flex items-center gap-space-sm pl-space-xs cursor-pointer hover:bg-surface-container-low p-1.5 rounded-lg border border-transparent hover:border-outline-variant/30 transition-all text-left"
+              className="flex items-center gap-space-sm pl-space-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded-lg border border-transparent hover:border-blue-200/60 transition-all text-left"
             >
-              <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-xs">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#2563EB] to-[#22D3EE] flex items-center justify-center text-white font-bold text-xs shadow-xs">
                 {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
               </div>
               <div className="flex flex-col hidden sm:flex">
@@ -224,21 +261,21 @@ export function Header() {
                   <span className="font-label-md text-label-md font-semibold text-on-surface truncate max-w-[120px]">
                     {user?.fullName || (user?.email ? user.email.split('@')[0] : '...')}
                   </span>
-                  <span className={`font-label-xs text-[10px] px-1.5 py-0.2 rounded font-semibold ${
-                    user?.role === 'TEACHER' 
-                      ? 'bg-blue-100 text-blue-800' 
-                      : user?.role === 'ADMIN' 
-                      ? 'bg-purple-100 text-purple-800' 
+                  <span className={`font-mono text-[10px] px-1.5 py-0.2 rounded font-semibold ${
+                    user?.role === 'TEACHER'
+                      ? 'bg-blue-50 text-blue-700 border border-blue-200/80'
+                      : user?.role === 'ADMIN'
+                      ? 'bg-purple-50 text-purple-700 border border-purple-200/80'
                       : user?.role === 'STUDENT'
-                      ? 'bg-emerald-100 text-emerald-800'
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
                       : 'bg-slate-100 text-slate-700'
                   }`}>
-                    {user?.role === 'ADMIN' 
-                      ? t('header.admin') 
-                      : user?.role === 'TEACHER' 
-                      ? t('header.teacher') 
-                      : user?.role === 'STUDENT' 
-                      ? t('header.student') 
+                    {user?.role === 'ADMIN'
+                      ? t('header.admin')
+                      : user?.role === 'TEACHER'
+                      ? t('header.teacher')
+                      : user?.role === 'STUDENT'
+                      ? t('header.student')
                       : '...'}
                   </span>
                 </div>
@@ -248,11 +285,11 @@ export function Header() {
 
             {/* Profile Dropdown */}
             {profileOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-surface-container-lowest border border-outline-variant/40 rounded-xl shadow-xl z-50 p-2 flex flex-col gap-1">
+              <div className="absolute right-0 mt-2 w-64 bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-xl shadow-[0_12px_36px_-8px_rgba(15,23,42,0.16)] z-50 p-2 flex flex-col gap-1">
                 <div className="px-3 py-2 border-b border-outline-variant/20 mb-1">
                   <p className="font-label-xs text-outline uppercase tracking-wider">{t('header.loggedInAs')}</p>
                   <p className="font-label-md font-semibold text-on-surface truncate">{user?.email || 'N/A'}</p>
-                  <p className="font-label-xs text-outline-variant truncate">ID: {user?.id || '...'}</p>
+                  <p className="font-mono text-[10px] text-outline-variant truncate">ID: {user?.id || '...'}</p>
                 </div>
 
                 <button
@@ -304,8 +341,8 @@ export function Header() {
                 <BookOpen className="w-5 h-5" />
                 <h3 className="font-headline-sm text-headline-sm text-on-surface">Tiêu chuẩn Liêm chính Học thuật</h3>
               </div>
-              <button 
-                onClick={() => setHelpOpen(false)} 
+              <button
+                onClick={() => setHelpOpen(false)}
                 className="p-1 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
