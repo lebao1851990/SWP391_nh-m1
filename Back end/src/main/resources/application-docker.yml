@@ -9,10 +9,9 @@
 
 spring:
   datasource:
-    # 'mysql' is the service hostname declared in docker-compose.yml
-    url: ${DB_URL:jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:codeassess}?useSSL=${DB_USE_SSL:false}&sslMode=${DB_SSL_MODE:PREFERRED}&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=${DB_ALLOW_PUBLIC_KEY_RETRIEVAL:true}}
-    username: ${DB_USERNAME:appuser}
-    password: ${DB_PASSWORD:apppassword}
+    url: ${DB_URL:jdbc:mysql://${DB_HOST:gateway01.ap-southeast-1.prod.aws.tidbcloud.com}:${DB_PORT:4000}/${DB_NAME:codeassess}?useSSL=${DB_USE_SSL:true}&sslMode=${DB_SSL_MODE:VERIFY_IDENTITY}&serverSslCert=${DB_SSL_CERT:/app/config/isrgrootx1.pem}&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=${DB_ALLOW_PUBLIC_KEY_RETRIEVAL:true}}
+    username: ${DB_USERNAME:4WbnHmzerwdcXcw.root}
+    password: ${DB_PASSWORD:3ng7Nysmy271V9iC}
     hikari:
       pool-name: CodeAssessDockerHikariPool
       maximum-pool-size: 10
@@ -35,11 +34,16 @@ spring:
       ddl-auto: validate
     show-sql: false
 
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT_MS:2000}ms
+
 server:
   port: ${PORT:8081}
 
 app:
   cors:
-    # In Docker, the frontend container name or host machine IP/domain is allowed.
-    # Override with actual frontend URL at runtime if needed.
-    allowed-origins: ${ALLOWED_ORIGINS:http://localhost:3000}
+    allowed-origins: ${ALLOWED_ORIGINS:${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,https://*.vercel.app}}
