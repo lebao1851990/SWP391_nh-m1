@@ -10,14 +10,24 @@
 spring:
   datasource:
     # 'mysql' is the service hostname declared in docker-compose.yml
-    url: ${DB_URL:jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:codeassess}?useSSL=${DB_USE_SSL:false}&sslMode=${DB_SSL_MODE:PREFERRED}&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=${DB_ALLOW_PUBLIC_KEY_RETRIEVAL:true}&createDatabaseIfNotExist=true}
+    url: ${DB_URL:jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:codeassess}?useSSL=${DB_USE_SSL:false}&sslMode=${DB_SSL_MODE:PREFERRED}&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=${DB_ALLOW_PUBLIC_KEY_RETRIEVAL:true}}
     username: ${DB_USERNAME:appuser}
     password: ${DB_PASSWORD:apppassword}
+    hikari:
+      pool-name: CodeAssessDockerHikariPool
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 10000
+      validation-timeout: 3000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      initialization-fail-timeout: 10000
 
   flyway:
     enabled: true
     baseline-on-migrate: true
     baseline-version: 0
+    validate-on-migrate: false
     locations: classpath:db/migration
 
   jpa:

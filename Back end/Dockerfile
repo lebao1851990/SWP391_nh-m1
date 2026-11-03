@@ -15,7 +15,7 @@ COPY .mvn ./.mvn
 COPY pom.xml ./pom.xml
 
 # Give mvnw execute permission (needed after COPY on Linux)
-RUN chmod +x mvnw
+RUN sed -i 's/\r$//' ./mvnw && chmod +x ./mvnw
 
 # Pre-download all dependencies (cached layer)
 RUN ./mvnw dependency:go-offline -B --no-transfer-progress
