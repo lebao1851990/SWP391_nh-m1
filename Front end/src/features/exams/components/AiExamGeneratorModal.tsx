@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { AxiosError } from 'axios';
 import {
   Sparkles,
@@ -80,21 +80,15 @@ export function AiExamGeneratorModal({
   const [draft, setDraft] = useState<AiDocumentExamGenerateResponse | null>(null);
 
   // Save Settings
-  const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id || '');
-  const [examDate, setExamDate] = useState<string>(
+  const [selectedClassId, setSelectedClassId] = useState<string>('');
+  const effectiveClassId = (selectedClassId && classes.some((c) => c.id === selectedClassId))
+    ? selectedClassId
+    : (classes[0]?.id || '');
+  const [examDate, setExamDate] = useState<string>(() =>
     new Date(Date.now() + 86400000 * 2).toISOString().slice(0, 16)
   );
   const [durationMinutes, setDurationMinutes] = useState<number>(90);
   const [isSaving, setIsSaving] = useState(false);
-
-  // Synchronize selectedClassId whenever classes list loads or updates
-  useEffect(() => {
-    if (classes && classes.length > 0) {
-      if (!selectedClassId || !classes.some((c) => c.id === selectedClassId)) {
-        setSelectedClassId(classes[0].id);
-      }
-    }
-  }, [classes, selectedClassId]);
 
   if (!isOpen) return null;
 
@@ -303,7 +297,11 @@ export function AiExamGeneratorModal({
   };
 
   // Test Case Editing
-  const handleUpdateTestCase = (index: number, field: keyof AiTestCaseDraft, value: any) => {
+  const handleUpdateTestCase = <K extends keyof AiTestCaseDraft>(
+    index: number,
+    field: K,
+    value: AiTestCaseDraft[K]
+  ) => {
     if (!draft || !draft.testCases) return;
     const updated = [...draft.testCases];
     updated[index] = { ...updated[index], [field]: value };
@@ -332,7 +330,7 @@ export function AiExamGeneratorModal({
   // Final Confirmation & Persistence
   const handleSaveConfirmed = async () => {
     if (!draft) return;
-    const classIdToSave = selectedClassId || (classes.length > 0 ? classes[0].id : '');
+    const classIdToSave = effectiveClassId;
     if (!classIdToSave) {
       setError('Vui lòng chọn lớp học áp dụng bài thi.');
       return;
@@ -1012,7 +1010,7 @@ export function AiExamGeneratorModal({
                     <label className="text-[11px] font-semibold text-on-surface">Lớp học áp dụng:</label>
                     <select
                       id="select-exam-class"
-                      value={selectedClassId}
+                      value={effectiveClassId}
                       onChange={(e) => {
                         setSelectedClassId(e.target.value);
                         setError(null);
