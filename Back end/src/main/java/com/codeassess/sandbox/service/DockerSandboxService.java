@@ -197,14 +197,14 @@ public class DockerSandboxService {
         List<TestCaseExecutionItemResult> items = new ArrayList<>();
         if (testCases != null) {
             for (TestCaseBatchItem tc : testCases) {
-                BigDecimal pts = tc.points() != null ? tc.points() : BigDecimal.valueOf(10.0 / Math.max(1, testCases.size()));
+                BigDecimal pts = tc.getPoints() != null ? tc.getPoints() : BigDecimal.valueOf(10.0 / Math.max(1, testCases.size()));
                 items.add(TestCaseExecutionItemResult.builder()
-                        .testCaseId(tc.id())
-                        .testCaseName(tc.name())
-                        .isHidden(tc.isHidden())
+                        .testCaseId(tc.getId())
+                        .testCaseName(tc.getName())
+                        .isHidden(tc.getIsHidden())
                         .status("PASSED")
-                        .actualOutput(tc.expectedOutput())
-                        .expectedOutput(tc.expectedOutput())
+                        .actualOutput(tc.getExpectedOutput())
+                        .expectedOutput(tc.getExpectedOutput())
                         .pointsAwarded(pts)
                         .maxPoints(pts)
                         .executionTimeMs(10L)
