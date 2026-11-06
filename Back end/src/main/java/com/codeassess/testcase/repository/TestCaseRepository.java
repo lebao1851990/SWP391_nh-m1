@@ -12,6 +12,8 @@ public interface TestCaseRepository extends JpaRepository<TestCase, String> {
 
     List<TestCase> findByExam_IdOrderByDisplayOrderAscCreatedAtAsc(String examId);
 
+    List<TestCase> findByQuestion_IdOrderByDisplayOrderAscCreatedAtAsc(String questionId);
+
     Optional<TestCase> findByIdAndExam_Id(String id, String examId);
 
     long countByExam_Id(String examId);

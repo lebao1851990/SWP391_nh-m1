@@ -44,8 +44,12 @@ public class StudentAppealService {
         Submission submission = submissionRepository.findByIdAndStudent_IdForUpdate(dto.getSubmissionId(), student.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Submission not found"));
 
-        if (appealRepository.existsBySubmission_IdAndStatus(submission.getId(), "PENDING")) {
-            throw new ConflictException("Đã có một đơn khiếu nại đang chờ xử lý cho bài nộp này.");
+        if (submission.getPublicationStatus() == null || !"PUBLISHED".equalsIgnoreCase(submission.getPublicationStatus())) {
+            throw new IllegalArgumentException("Chỉ có thể tạo khiếu nại đối với bài nộp đã được công bố điểm chính thức.");
+        }
+
+        if (appealRepository.existsBySubmission_IdAndStatusIn(submission.getId(), java.util.List.of("PENDING", "UNDER_REVIEW"))) {
+            throw new ConflictException("Đã có một đơn khiếu nại đang chờ xử lý hoặc đang được thẩm định cho bài nộp này.");
         }
 
         if (submission.getStatus() == null || (!"GRADED".equalsIgnoreCase(submission.getStatus()) && !"COMPLETED".equalsIgnoreCase(submission.getStatus()))) {
@@ -130,3 +134,4 @@ public class StudentAppealService {
                 .build();
     }
 }
+

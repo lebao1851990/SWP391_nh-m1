@@ -26,6 +26,9 @@ export interface ScoringDetail {
   studentName: string;
   examName: string;
   className: string;
+  questionId?: string;
+  questionTitle?: string;
+  questionMaxScore?: number;
   evaluatedAt?: string;
   evaluators: string[];
   status: ScoringStatus;
@@ -77,6 +80,9 @@ export interface SubmissionTestResultDto {
 export interface StudentSubmissionResult {
   submissionId: string;
   examName: string;
+  questionId?: string;
+  questionTitle?: string;
+  questionMaxScore?: number;
   status: ScoringStatus;
   executionStatus?: string;
   compileOutput?: string;

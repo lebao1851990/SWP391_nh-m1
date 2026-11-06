@@ -47,11 +47,12 @@ public class ExamMapper {
         String primaryCourseName = !classNames.isEmpty() ? String.join(", ", classNames) : (exam.getCourseClass() != null ? exam.getCourseClass().getName() : null);
         String primaryCourseCode = !classCodes.isEmpty() ? String.join(", ", classCodes) : (exam.getCourseClass() != null ? exam.getCourseClass().getCode() : null);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(Exam.APP_ZONE);
         LocalDateTime endTime = exam.getExamDate() != null && exam.getDuration() != null && exam.getDuration() > 0
                 ? exam.getExamDate().plusMinutes(exam.getDuration())
                 : null;
-        boolean isExpired = endTime != null && now.isAfter(endTime);
+        boolean isExpired = exam.isConcluded(now);
+        String runtimeStatus = exam.getRuntimeStatus(now);
 
         return ExamResponse.builder()
                 .id(exam.getId())
@@ -59,7 +60,7 @@ public class ExamMapper {
                 .title(exam.getTitle())
                 .examDate(exam.getExamDate())
                 .duration(exam.getDuration())
-                .status(exam.getStatus())
+                .status(runtimeStatus)
                 .createdAt(exam.getCreatedAt())
                 .courseName(primaryCourseName)
                 .courseCode(primaryCourseCode)

@@ -16,5 +16,13 @@ public record GeminiGenerateContentRequest(
 
     public record Part(String text) {}
 
-    public record GenerationConfig(Double temperature, Integer maxOutputTokens) {}
+    public record GenerationConfig(
+            Double temperature,
+            Integer maxOutputTokens,
+            String responseMimeType
+    ) {
+        public GenerationConfig(Double temperature, Integer maxOutputTokens) {
+            this(temperature, maxOutputTokens, null);
+        }
+    }
 }

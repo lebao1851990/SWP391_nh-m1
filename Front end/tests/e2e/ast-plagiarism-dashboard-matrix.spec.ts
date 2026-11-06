@@ -65,21 +65,20 @@ test.describe('AST Plagiarism Dashboard, Similarity Matrix & Comparison E2E', ()
     await page.goto('/teacher/plagiarism');
 
     // 1. Verify telemetry metric cards
-    await expect(page.locator('text=Pairwise Comparisons')).toBeVisible();
-    await expect(page.locator('text=Critical Flagged (≥70%)')).toBeVisible();
-    await expect(page.locator('text=Moderate (40–69%)')).toBeVisible();
-    await expect(page.locator('text=Normal (<40%)')).toBeVisible();
+    await expect(page.locator('text=/Cặp bài so sánh|Pairwise Comparisons/')).toBeVisible();
+    await expect(page.locator('text=/Cảnh báo nghiêm trọng|Critical Flagged/')).toBeVisible();
+    await expect(page.locator('text=/Mức độ trung bình|Moderate/')).toBeVisible();
+    await expect(page.locator('text=/Bình thường|Normal/')).toBeVisible();
 
     // 2. Verify Neutral Evidentiary Notice
-    await expect(page.locator('text=Academic Rigor & Neutral Interpretation Notice')).toBeVisible();
-    await expect(page.locator('text=Similarity indicates structural or textual overlap between submissions. It is a review signal, not proof of plagiarism.')).toBeVisible();
-    await expect(page.locator('text=Độ tương đồng phản ánh sự trùng lặp cấu trúc')).toBeVisible();
+    await expect(page.locator('text=/Lưu ý về Tính nghiêm cẩn học thuật|Academic Rigor & Neutral Interpretation Notice/')).toBeVisible();
+    await expect(page.locator('text=/Độ tương đồng phản ánh sự trùng lặp cấu trúc|Similarity indicates structural/')).toBeVisible();
 
     // 3. Verify Table Rows
     await expect(page.locator('text=Alice Nguyen').first()).toBeVisible();
     await expect(page.locator('text=Bob Tran').first()).toBeVisible();
     await expect(page.locator('text=88.5%').first()).toBeVisible();
-    await expect(page.locator('text=CRITICAL FLAG').first()).toBeVisible();
+    await expect(page.locator('text=/CẢNH BÁO CAO|Cảnh báo cao|CRITICAL FLAG/').first()).toBeVisible();
   });
 
   test('2. Toggles to Similarity Matrix Heatmap view and allows cell inspection', async ({ page }) => {
@@ -96,13 +95,13 @@ test.describe('AST Plagiarism Dashboard, Similarity Matrix & Comparison E2E', ()
     await page.goto('/teacher/plagiarism');
 
     // Click Matrix Heatmap toggle
-    const matrixBtn = page.locator('button:has-text("Matrix Heatmap")');
+    const matrixBtn = page.locator('button:has-text("Bản đồ nhiệt ma trận"), button:has-text("Matrix Heatmap")');
     await matrixBtn.click();
 
     // Verify Matrix Grid Header & Legend
-    await expect(page.locator('text=All-Pairs AST Similarity Matrix (3 × 3)')).toBeVisible();
+    await expect(page.locator('text=/All-Pairs AST Similarity Matrix|Ma trận tương đồng/')).toBeVisible();
     await expect(page.locator('text=Similarity Heatmap:')).toBeVisible();
-    await expect(page.locator('text=≥ 70% Critical (Review Flagged)')).toBeVisible();
+    await expect(page.locator('text=/≥ 70% Critical|Nguy cơ cao/')).toBeVisible();
 
     // Verify matrix cells contain similarity rates
     const cell88 = page.locator('td a:has-text("88.5%")').first();
@@ -199,23 +198,23 @@ test.describe('AST Plagiarism Dashboard, Similarity Matrix & Comparison E2E', ()
     await page.goto(`/teacher/plagiarism/${pairId}/compare`);
 
     // 1. Verify Neutral Evidentiary Notice
-    await expect(page.locator('text=Evidentiary Standard Notice (Thông báo Tham vấn Học thuật)')).toBeVisible();
+    await expect(page.locator('text=/Thông báo Tham vấn Học thuật|Evidentiary Standard Notice/')).toBeVisible();
 
     // 2. Verify Matching Sub-tree Evidence
     await expect(page.locator('text=ForLoopSubtreeCongruence')).toBeVisible();
-    await expect(page.locator('text=Student A: Lines 4–4')).toBeVisible();
-    await expect(page.locator('text=Student B: Lines 4–4')).toBeVisible();
+    await expect(page.locator('text=/Sinh viên A: Dòng 4–4|Student A: Lines 4–4/')).toBeVisible();
+    await expect(page.locator('text=/Sinh viên B: Dòng 4–4|Student B: Lines 4–4/')).toBeVisible();
 
     // 3. Verify Dual Code Viewer Windows
     await expect(page.locator('text=StudentA_Main.java')).toBeVisible();
     await expect(page.locator('text=StudentB_Main.java')).toBeVisible();
 
     // 4. Verify Faculty Adjudication Protocol
-    await expect(page.locator('text=Faculty Adjudication Protocol')).toBeVisible();
-    const notesInput = page.locator('input[placeholder*="Scrutinized loop structures"]');
+    await expect(page.locator('text=/Quy trình Phân xử của Giảng viên|Faculty Adjudication Protocol/')).toBeVisible();
+    const notesInput = page.locator('input[placeholder*="Đã đối soát cấu trúc vòng lặp"], input[placeholder*="Scrutinized loop structures"]');
     await notesInput.fill('Reviewed: isomorphic loop is standard course accumulator pattern.');
-    await page.locator('button:has-text("Record Review")').click();
-    await expect(page.locator('text=Adjudication Recorded')).toBeVisible();
+    await page.locator('button:has-text("Lưu đánh giá"), button:has-text("Lưu kết luận"), button:has-text("Record Review")').click();
+    await expect(page.locator('text=/Đã ghi nhận kết luận|Adjudication Recorded/')).toBeVisible();
   });
 
   test('5. Student Academic Integrity Audit preserves peer confidentiality and shows neutral notice', async ({ page }) => {
@@ -245,16 +244,16 @@ test.describe('AST Plagiarism Dashboard, Similarity Matrix & Comparison E2E', ()
     await page.goto(`/student/plagiarism/${subId}`);
 
     // Verify Title & Status
-    await expect(page.locator('text=Academic Integrity Audit')).toBeVisible();
-    await expect(page.locator('text=High Similarity Flagged')).toBeVisible();
+    await expect(page.locator('text=/Kiểm tra Liêm chính Học thuật|Academic Integrity Audit/')).toBeVisible();
+    await expect(page.locator('text=/Phát hiện tương đồng cao|High Similarity Flagged/')).toBeVisible();
     await expect(page.locator('text=75%')).toBeVisible();
 
     // Verify Neutral Notice
-    await expect(page.locator('text=Academic Rigor Notice (Thông báo Tham vấn Học thuật)')).toBeVisible();
-    await expect(page.locator('text=Similarity indicates structural or textual overlap')).toBeVisible();
+    await expect(page.locator('text=/Thông báo Tham vấn Học thuật|Academic Rigor Notice/')).toBeVisible();
+    await expect(page.locator('text=/Độ tương đồng phản ánh sự trùng lặp cấu trúc|Similarity indicates structural/')).toBeVisible();
 
     // Verify Student Dispute Button
-    await expect(page.locator('text=Dispute with Appeal Ticket')).toBeVisible();
+    await expect(page.locator('text=/Tạo đơn khiếu nại bài nộp này|Dispute with Appeal Ticket/')).toBeVisible();
 
     // Verify PEER CONFIDENTIALITY: no peer name or raw peer submission ID shown
     await expect(page.locator('text=Bob Tran')).not.toBeVisible();
@@ -307,18 +306,18 @@ test.describe('AST Plagiarism Dashboard, Similarity Matrix & Comparison E2E', ()
 
     await page.goto(`/teacher/plagiarism/${pairId}/compare`);
 
-    const notesInput = page.locator('input[placeholder*="Scrutinized loop structures"]');
+    const notesInput = page.locator('input[placeholder*="Đã đối soát cấu trúc vòng lặp"], input[placeholder*="Scrutinized loop structures"]');
     await notesInput.fill('Notes entered by instructor during network instability');
     
     // Select status
-    const statusSelect = page.locator('select').filter({ hasText: 'Under Faculty Review' });
+    const statusSelect = page.locator('select').filter({ hasText: /Đang chờ giảng viên|Under Faculty Review/ });
     await statusSelect.selectOption('FALSE_POSITIVE');
 
     // Click Record Review
-    await page.locator('button:has-text("Record Review")').click();
+    await page.locator('button:has-text("Lưu đánh giá"), button:has-text("Lưu kết luận"), button:has-text("Record Review")').click();
 
     // 1. Must NOT display fake recorded state
-    await expect(page.locator('text=Adjudication Recorded')).not.toBeVisible();
+    await expect(page.locator('text=/Đã ghi nhận kết luận|Adjudication Recorded/')).not.toBeVisible();
 
     // 2. Must RETAIN entered text and selection in input
     await expect(notesInput).toHaveValue('Notes entered by instructor during network instability');

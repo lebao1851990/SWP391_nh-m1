@@ -41,4 +41,5 @@ public class SaveAiExamRequest {
 
     private List<AiTestCaseDraftDto> testCases;
     private List<AiRubricItemDto> rubricCriteria;
+    private List<AiDocumentExamGenerateResponse> questions;
 }

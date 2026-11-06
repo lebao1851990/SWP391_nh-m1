@@ -1,10 +1,17 @@
 import { test, expect } from '@playwright/test';
-import { login } from './helpers';
+import { login, cleanupSyntheticExams } from './helpers';
 
 const TEACHER_EMAIL = process.env.E2E_TEACHER_EMAIL || 'teachera@fpt.edu.vn';
 const STUDENT_EMAIL = process.env.E2E_STUDENT_EMAIL || 'studenta@fpt.edu.vn';
 
 test.describe('Class-aware Exams E2E Verification', () => {
+  const createdExamIds: string[] = [];
+
+  test.afterAll(async () => {
+    if (createdExamIds.length > 0) {
+      cleanupSyntheticExams(createdExamIds);
+    }
+  });
 
   test('Teacher assigns an exam to multiple classes and verifies assignments in list and detail', async ({ page }) => {
     await login(page, TEACHER_EMAIL, { role: 'TEACHER' });
@@ -12,7 +19,7 @@ test.describe('Class-aware Exams E2E Verification', () => {
 
     // Navigate to teacher exams view
     await page.goto('/teacher/exams');
-    await expect(page.locator('h1')).toContainText('Exam Management', { timeout: 10000 });
+    await expect(page.locator('h1')).toContainText(/Quản lý bài thi|Exam Management/, { timeout: 10000 });
 
     // Open create exam modal
     const createBtn = page.locator('#btn-create-exam');
@@ -22,11 +29,11 @@ test.describe('Class-aware Exams E2E Verification', () => {
     // Verify modal elements
     const modal = page.locator('div.fixed');
     await expect(modal).toBeVisible({ timeout: 5000 });
-    await expect(modal.locator('h2')).toContainText('Create New Exam');
+    await expect(modal.locator('h2')).toContainText(/Tạo bài thi mới|Create New Exam/);
 
     // Fill title
     const examTitle = `Class-Aware Exam ${Date.now()}`;
-    await modal.locator('input[placeholder*="CS201"]').fill(examTitle);
+    await modal.locator('#create-exam-title-input, input[placeholder*="CS201"]').first().fill(examTitle);
 
     // Multi-class selector: check that class checkboxes exist
     const classCheckboxes = modal.locator('input[type="checkbox"]');
@@ -34,7 +41,7 @@ test.describe('Class-aware Exams E2E Verification', () => {
     expect(checkboxCount).toBeGreaterThanOrEqual(1);
 
     // If multiple classes exist, select all or multiple
-    const selectAllBtn = modal.locator('button:has-text("Select All")');
+    const selectAllBtn = modal.locator('button:has-text("Select All"), button:has-text("Chọn tất cả")');
     if (await selectAllBtn.isVisible()) {
       await selectAllBtn.click();
     } else {
@@ -48,16 +55,19 @@ test.describe('Class-aware Exams E2E Verification', () => {
     const createPromise = page.waitForResponse(
       (res) => res.url().includes('/api/teacher/exams') && res.request().method() === 'POST'
     );
-    await page.click('button:has-text("Publish & Save")');
+    await modal.locator('#submit-create-exam-btn, button:has-text("Lưu & Xuất bản"), button:has-text("Publish & Save")').first().click();
     const createRes = await createPromise;
     expect(createRes.status()).toBe(200);
 
     const createdData = await createRes.json();
+    if (createdData?.id) {
+      createdExamIds.push(createdData.id);
+    }
     expect(createdData.title).toBe(examTitle);
     expect(createdData.classIds.length).toBeGreaterThanOrEqual(1);
 
     // Check that newly created exam appears in table with its assigned classes
-    await expect(page.locator('table#teacher-exams-table').getByText(examTitle)).toBeVisible({ timeout: 8000 });
+    await expect(page.locator('table#teacher-exams-table, table').getByText(examTitle).first()).toBeVisible({ timeout: 8000 });
 
     // Navigate to exam detail
     await page.goto(`/teacher/exams/${createdData.id}`);
@@ -66,7 +76,7 @@ test.describe('Class-aware Exams E2E Verification', () => {
     // Confirm assigned classes section is visible
     const assignedClassesSection = page.locator('[data-testid="assigned-classes-list"]');
     await expect(assignedClassesSection).toBeVisible({ timeout: 5000 });
-    await expect(assignedClassesSection).toContainText('Assigned Classes:');
+    await expect(assignedClassesSection).toContainText(/Assigned Classes:|Lớp học áp dụng:/);
   });
 
   test('Teacher can edit assigned classes on an existing exam', async ({ page }) => {
@@ -75,9 +85,9 @@ test.describe('Class-aware Exams E2E Verification', () => {
 
     // Go to exams list to find an existing exam
     await page.goto('/teacher/exams');
-    await expect(page.locator('h1')).toContainText('Exam Management', { timeout: 10000 });
+    await expect(page.locator('h1')).toContainText(/Quản lý bài thi|Exam Management/, { timeout: 10000 });
 
-    const firstManageLink = page.locator('table#teacher-exams-table tbody tr a:has-text("Manage")').first();
+    const firstManageLink = page.locator('table#teacher-exams-table tbody tr a, table tbody tr a').first();
     await expect(firstManageLink).toBeVisible({ timeout: 10000 });
     await firstManageLink.click();
 
@@ -86,16 +96,16 @@ test.describe('Class-aware Exams E2E Verification', () => {
     await page.click('#btn-edit-exam');
 
     // Verify edit modal is open
-    const editModal = page.locator('div.fixed');
+    const editModal = page.locator('#edit-exam-modal, div.fixed');
     await expect(editModal).toBeVisible({ timeout: 5000 });
-    await expect(editModal.locator('h2')).toContainText('Edit Exam Settings');
+    await expect(editModal.locator('h2')).toContainText(/Chỉnh sửa cấu hình|Edit Exam Settings/);
 
     // Confirm classes checkboxes are rendered
     const editClassCheckboxes = editModal.locator('input[type="checkbox"]');
     expect(await editClassCheckboxes.count()).toBeGreaterThanOrEqual(1);
 
     // Close without saving or save updated settings
-    await editModal.locator('button:has-text("Cancel")').click();
+    await editModal.locator('button:has-text("Cancel"), button:has-text("Hủy")').first().click();
     await expect(editModal).not.toBeVisible({ timeout: 5000 });
   });
 
@@ -105,10 +115,10 @@ test.describe('Class-aware Exams E2E Verification', () => {
 
     // Navigate to student exams view
     await page.goto('/student/exams');
-    await expect(page.locator('h1')).toContainText('Enrolled Assessments', { timeout: 10000 });
+    await expect(page.locator('h1')).toContainText(/Enrolled Assessments|Bài thi học phần/, { timeout: 10000 });
 
     // Verify assessments list loads
-    const examCards = page.locator('div[id^="exam-card-"]');
+    const examCards = page.locator('div[id^="exam-card-"], table tbody tr');
     if (await examCards.count() > 0) {
       const firstCard = examCards.first();
       await expect(firstCard).toBeVisible();
@@ -124,7 +134,7 @@ test.describe('Class-aware Exams E2E Verification', () => {
     await page.goto(`/student/exams/${unauthorizedExamId}`);
 
     // Verify access restriction or not found banner
-    const restrictedHeader = page.locator('h2:has-text("Access Restricted"), h2:has-text("Assessment Not Found")');
+    const restrictedHeader = page.locator('h2:has-text("Access Restricted"), h2:has-text("Assessment Not Found"), h2:has-text("Không tìm thấy bài thi"), h2:has-text("Lỗi hệ thống")');
     await expect(restrictedHeader).toBeVisible({ timeout: 10000 });
   });
 

@@ -17,6 +17,19 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.codeassess.submission.config.InternalAuthProperties;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.lang.Nullable;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.Map;
+import java.util.HashMap;
 
 import com.codeassess.submission.dto.ExtractedFile;
 import com.codeassess.submission.dto.ExtractedWorkspace;
@@ -161,9 +174,43 @@ public class DockerSandboxService {
     private final DockerClient dockerClient;
     private final SandboxProperties props;
 
-    public DockerSandboxService(DockerClient dockerClient, SandboxProperties props) {
+    @Value("${sandbox.service.url:${SANDBOX_SERVICE_URL:http://sandbox-service:8085}}")
+    private String sandboxServiceUrl = "http://sandbox-service:8085";
+
+    @Value("${internal.api.secret:${INTERNAL_API_SECRET:}}")
+    private String internalApiSecret = "";
+
+    private final InternalAuthProperties internalAuthProperties;
+
+    private final HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(5))
+            .build();
+
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+    @Autowired
+    public DockerSandboxService(
+            @Nullable DockerClient dockerClient,
+            @Nullable SandboxProperties props,
+            @Nullable InternalAuthProperties internalAuthProperties) {
         this.dockerClient = dockerClient;
-        this.props = props;
+        this.props = props != null ? props : new SandboxProperties();
+        this.internalAuthProperties = internalAuthProperties;
+    }
+
+    public DockerSandboxService(@Nullable DockerClient dockerClient, @Nullable SandboxProperties props) {
+        this(dockerClient, props, null);
+    }
+
+    private String getEffectiveInternalToken() {
+        String token = internalAuthProperties != null && internalAuthProperties.getApiSecret() != null
+                ? internalAuthProperties.getApiSecret()
+                : internalApiSecret;
+        if (token == null || token.trim().isEmpty()) {
+            throw new IllegalStateException("CRITICAL SECURITY ERROR: Internal API secret is missing or empty.");
+        }
+        return token.trim();
     }
 
     // Lazily initialised so that unit tests that mock DockerClient do not fail
@@ -191,6 +238,63 @@ public class DockerSandboxService {
      */
     public SandboxResult execute(String sourceCode) {
         validateSource(sourceCode);
+
+        if (dockerClient == null || (sandboxServiceUrl != null && !sandboxServiceUrl.isBlank())) {
+            List<TestCaseBatchItem> singleTc = List.of(
+                    TestCaseBatchItem.builder()
+                            .id("1")
+                            .name("Default")
+                            .inputData("")
+                            .expectedOutput("")
+                            .timeoutSeconds(props != null ? props.getTimeoutSeconds() : 5)
+                            .points(BigDecimal.TEN)
+                            .isHidden(false)
+                            .build()
+            );
+            TestCaseBatchSuiteResult suite = executeTestCaseSuiteViaRemoteSandbox(sourceCode, singleTc, null);
+            if (!suite.isCompiled()) {
+                return SandboxResult.builder()
+                        .status(SandboxResult.Status.COMPILE_ERROR)
+                        .stdout("")
+                        .stderr(suite.getCompileOutput())
+                        .compilerOutput(suite.getCompileOutput())
+                        .exitCode(1)
+                        .executionTimeMs(suite.getTotalDurationMs())
+                        .truncated(false)
+                        .build();
+            }
+            if (suite.getItemResults() != null && !suite.getItemResults().isEmpty()) {
+                TestCaseExecutionItemResult item = suite.getItemResults().get(0);
+                SandboxResult.Status status;
+                if ("PASSED".equals(item.getStatus()) || "FAILED".equals(item.getStatus())) {
+                    status = SandboxResult.Status.SUCCESS;
+                } else if ("TIMEOUT".equals(item.getStatus())) {
+                    status = SandboxResult.Status.TIMEOUT;
+                } else if ("RUNTIME_ERROR".equals(item.getStatus())) {
+                    status = SandboxResult.Status.RUNTIME_ERROR;
+                } else {
+                    status = SandboxResult.Status.INTERNAL_ERROR;
+                }
+                return SandboxResult.builder()
+                        .status(status)
+                        .stdout(item.getActualOutput() != null ? item.getActualOutput() : "")
+                        .stderr(item.getErrorMessage() != null ? item.getErrorMessage() : "")
+                        .compilerOutput("Compilation successful")
+                        .exitCode(item.getExitCode())
+                        .executionTimeMs(item.getExecutionTimeMs() != null ? item.getExecutionTimeMs() : suite.getTotalDurationMs())
+                        .truncated(false)
+                        .build();
+            }
+            return SandboxResult.builder()
+                    .status(SandboxResult.Status.SUCCESS)
+                    .stdout("")
+                    .stderr("")
+                    .compilerOutput("Compilation successful")
+                    .exitCode(0)
+                    .executionTimeMs(suite.getTotalDurationMs())
+                    .truncated(false)
+                    .build();
+        }
 
         if (!getSemaphore().tryAcquire()) {
             log.warn("Sandbox concurrency limit ({}) reached — rejecting request",
@@ -248,6 +352,11 @@ public class DockerSandboxService {
             }
         }
 
+        if (dockerClient == null || (sandboxServiceUrl != null && !sandboxServiceUrl.isBlank())) {
+            String sourceCode = extractSourceFromWorkspace(workspace, entryPointClass);
+            return execute(sourceCode);
+        }
+
         if (!getSemaphore().tryAcquire()) {
             log.warn("Sandbox concurrency limit ({}) reached — rejecting request",
                     props.getMaxConcurrentExecutions());
@@ -275,6 +384,10 @@ public class DockerSandboxService {
         validateSource(sourceCode);
         if (testCases == null || testCases.isEmpty()) {
             throw new IllegalArgumentException("testCases list must not be empty");
+        }
+
+        if (dockerClient == null || (sandboxServiceUrl != null && !sandboxServiceUrl.isBlank())) {
+            return executeTestCaseSuiteViaRemoteSandbox(sourceCode, testCases, null);
         }
 
         if (!getSemaphore().tryAcquire()) {
@@ -577,6 +690,11 @@ public class DockerSandboxService {
         }
         if (testCases == null || testCases.isEmpty()) {
             throw new IllegalArgumentException("testCases list must not be empty");
+        }
+
+        if (dockerClient == null || (sandboxServiceUrl != null && !sandboxServiceUrl.isBlank())) {
+            String sourceCode = extractSourceFromWorkspace(workspace, entryPointClass);
+            return executeTestCaseSuiteViaRemoteSandbox(sourceCode, testCases, entryPointClass);
         }
 
         if (!getSemaphore().tryAcquire()) {
@@ -1516,5 +1634,91 @@ public class DockerSandboxService {
                 default -> { /* RAW / other frame types ignored */ }
             }
         }
+    }
+
+    private TestCaseBatchSuiteResult executeTestCaseSuiteViaRemoteSandbox(
+            String sourceCode, List<TestCaseBatchItem> testCases, String entryPointClass) {
+        try {
+            String mainClass = (entryPointClass != null && !entryPointClass.isBlank())
+                    ? (entryPointClass.contains(".") ? entryPointClass.substring(entryPointClass.lastIndexOf('.') + 1) : entryPointClass)
+                    : extractMainClassName(sourceCode);
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("sourceCode", sourceCode);
+            payload.put("mainClassName", mainClass);
+            payload.put("timeoutSeconds", props != null ? props.getTimeoutSeconds() : 10);
+            payload.put("testCases", testCases);
+
+            String requestJson = objectMapper.writeValueAsString(payload);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(sandboxServiceUrl + "/api/v1/sandbox/run-suite"))
+                    .header("Content-Type", "application/json")
+                    .header("X-Internal-Token", getEffectiveInternalToken())
+                    .POST(HttpRequest.BodyPublishers.ofString(requestJson, StandardCharsets.UTF_8))
+                    .timeout(Duration.ofSeconds(Math.max(30, (props != null ? props.getTimeoutSeconds() : 10) + 15)))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(
+                    request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+
+            if (response.statusCode() == 200) {
+                return objectMapper.readValue(response.body(), TestCaseBatchSuiteResult.class);
+            } else {
+                log.error("Remote sandbox returned non-200 status {}: {}", response.statusCode(), response.body());
+                throw new SandboxException("Remote sandbox error: HTTP " + response.statusCode() + " - " + response.body());
+            }
+        } catch (SandboxException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to communicate with remote sandbox service at {}", sandboxServiceUrl, e);
+            throw new SandboxException("Sandbox service communication failure: " + e.getMessage(), e);
+        }
+    }
+
+    private String extractSourceFromWorkspace(ExtractedWorkspace workspace, String entryPointClass) {
+        if (workspace == null || workspace.files() == null || workspace.files().isEmpty()) {
+            throw new SandboxException("Invalid workspace: files list is empty");
+        }
+
+        // 1. Try matching entryPointClass
+        if (entryPointClass != null && !entryPointClass.isBlank()) {
+            String targetFileName = entryPointClass.contains(".")
+                    ? entryPointClass.substring(entryPointClass.lastIndexOf('.') + 1) + ".java"
+                    : entryPointClass + ".java";
+            for (ExtractedFile f : workspace.files()) {
+                if (f.isJavaSource() && (f.relativePath().endsWith(targetFileName) || f.relativePath().endsWith("/" + targetFileName))) {
+                    try {
+                        return Files.readString(f.absolutePath(), StandardCharsets.UTF_8);
+                    } catch (IOException e) {
+                        log.warn("Failed to read matched source file: {}", f.absolutePath(), e);
+                    }
+                }
+            }
+        }
+
+        // 2. Try looking for Solution.java or Main.java
+        for (ExtractedFile f : workspace.files()) {
+            if (f.isJavaSource() && (f.relativePath().endsWith("Solution.java") || f.relativePath().endsWith("Main.java"))) {
+                try {
+                    return Files.readString(f.absolutePath(), StandardCharsets.UTF_8);
+                } catch (IOException e) {
+                    log.warn("Failed to read common source file: {}", f.absolutePath(), e);
+                }
+            }
+        }
+
+        // 3. Fallback to first Java file found
+        for (ExtractedFile f : workspace.files()) {
+            if (f.isJavaSource()) {
+                try {
+                    return Files.readString(f.absolutePath(), StandardCharsets.UTF_8);
+                } catch (IOException e) {
+                    log.warn("Failed to read first java file: {}", f.absolutePath(), e);
+                }
+            }
+        }
+
+        throw new SandboxException("No Java source file found in workspace to execute");
     }
 }

@@ -369,6 +369,60 @@ public class StubAiClient implements AiClient {
             }
         }
 
+        if (com.codeassess.ai.dto.AiExamOutlineResponse.class.equals(targetClass)) {
+            int count = 1;
+            if (userPrompt != null) {
+                if (userPrompt.contains("5 câu hỏi") || userPrompt.contains("5 questions") || userPrompt.contains("EXACTLY 5") || userPrompt.contains("5 distinct")) count = 5;
+                else if (userPrompt.contains("3 câu hỏi") || userPrompt.contains("3 questions") || userPrompt.contains("EXACTLY 3") || userPrompt.contains("3 distinct")) count = 3;
+                else if (userPrompt.contains("2 câu hỏi") || userPrompt.contains("2 questions") || userPrompt.contains("EXACTLY 2") || userPrompt.contains("2 distinct")) count = 2;
+                else if (userPrompt.contains("4 câu hỏi") || userPrompt.contains("4 questions") || userPrompt.contains("EXACTLY 4") || userPrompt.contains("4 distinct")) count = 4;
+            }
+            java.util.List<com.codeassess.ai.dto.AiExamOutlineResponse.AiOutlineItemDto> questions = new java.util.ArrayList<>();
+            for (int i = 1; i <= count; i++) {
+                questions.add(com.codeassess.ai.dto.AiExamOutlineResponse.AiOutlineItemDto.builder()
+                        .questionIndex(i)
+                        .title("Bài toán " + i + ": Lập trình Thuật toán phần " + i)
+                        .targetConcept("Khái niệm trọng tâm số " + i)
+                        .shortSummary("Mô tả tóm tắt yêu cầu bài toán số " + i + " từ tài liệu học tập.")
+                        .difficulty("MEDIUM")
+                        .build());
+            }
+            return (T) com.codeassess.ai.dto.AiExamOutlineResponse.builder()
+                    .examTitle("Bài kiểm tra Lập trình Tổng hợp (Mô phỏng AI)")
+                    .overview("Dàn ý đề thi gồm " + count + " bài toán lập trình được trích xuất từ tài liệu.")
+                    .questions(questions)
+                    .build();
+        }
+
+        if (com.codeassess.ai.dto.AiTestCaseBatchResponse.class.equals(targetClass)) {
+            int tcCount = 3;
+            if (userPrompt != null) {
+                if (userPrompt.contains("EXACTLY 2") || userPrompt.contains("2 diverse")) tcCount = 2;
+                else if (userPrompt.contains("EXACTLY 4") || userPrompt.contains("4 diverse")) tcCount = 4;
+                else if (userPrompt.contains("EXACTLY 5") || userPrompt.contains("5 diverse")) tcCount = 5;
+                else if (userPrompt.contains("EXACTLY 3") || userPrompt.contains("3 diverse")) tcCount = 3;
+            }
+            java.util.List<com.codeassess.ai.dto.AiTestCaseDraftDto> tcs = new java.util.ArrayList<>();
+            java.math.BigDecimal basePts = java.math.BigDecimal.valueOf(10.00).divide(java.math.BigDecimal.valueOf(tcCount), 2, java.math.RoundingMode.HALF_UP);
+            for (int i = 1; i <= tcCount; i++) {
+                boolean isLast = (i == tcCount);
+                java.math.BigDecimal pts = isLast
+                        ? java.math.BigDecimal.valueOf(10.00).subtract(basePts.multiply(java.math.BigDecimal.valueOf(tcCount - 1)))
+                        : basePts;
+                tcs.add(com.codeassess.ai.dto.AiTestCaseDraftDto.builder()
+                        .name("Test Case " + i + (i == 1 ? " (Công khai)" : " (Ẩn)"))
+                        .description("Kiểm thử dữ liệu kịch bản " + i)
+                        .inputData("Input sample " + i)
+                        .expectedOutput("Output expected " + i)
+                        .points(pts)
+                        .isHidden(i > 1)
+                        .build());
+            }
+            return (T) com.codeassess.ai.dto.AiTestCaseBatchResponse.builder()
+                    .testCases(tcs)
+                    .build();
+        }
+
         throw new UnsupportedOperationException("StubAiClient does not support structured output for: " + targetClass.getName());
     }
 }

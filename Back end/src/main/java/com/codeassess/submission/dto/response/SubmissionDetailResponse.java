@@ -1,16 +1,22 @@
 package com.codeassess.submission.dto.response;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class SubmissionDetailResponse {
     private String id;
     private String examId;
+    private String questionId;
+    private String questionTitle;
     private String studentId;
     private String status;
     private String sourceCode;
@@ -34,4 +40,7 @@ public class SubmissionDetailResponse {
     private String stderr;
     private Long executionDurationMs;
     private String instructorFeedback;
+    private String reviewStatus;
+    private String publicationStatus;
+    private BigDecimal publishedScore;
 }

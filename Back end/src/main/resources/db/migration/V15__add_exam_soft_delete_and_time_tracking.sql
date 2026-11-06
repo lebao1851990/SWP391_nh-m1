@@ -2,6 +2,8 @@
 -- Preserves existing submissions, scores, appeals, and audit logs on deletion
 
 ALTER TABLE exams
-    ADD COLUMN deleted_at TIMESTAMP NULL,
+    ADD COLUMN deleted_at TIMESTAMP NULL;
+
+ALTER TABLE exams
     ADD INDEX idx_exams_deleted_at (deleted_at),
     ADD INDEX idx_exams_status_deleted (status, deleted_at);

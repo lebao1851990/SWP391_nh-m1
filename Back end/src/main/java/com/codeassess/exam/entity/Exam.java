@@ -83,42 +83,62 @@ public class Exam {
     );
 
     /**
-     * Determines whether the examination has concluded and AI assistance is permissible.
+     * Derives the canonical runtime status of the examination based on publication state and schedule.
+     * 
+     * Formula:
+     * endTime = startTime + durationMinutes
      * 
      * Rules:
-     * 1. Soft-deleted exams (deletedAt != null) are considered archived/closed -> concluded.
-     * 2. Null, blank or unknown statuses -> fail-safe: not concluded (keep AI locked).
-     * 3. Explicit non-concluded statuses ("draft", "upcoming", "scheduled") -> not concluded (keep AI locked).
-     * 4. Explicit concluded statuses ("completed", "closed", "archived", "ended", "cancelled", "canceled") -> concluded.
-     * 5. "active" status:
-     *    - If examDate or duration is missing / non-positive -> fail-safe: not concluded (keep AI locked).
-     *    - If now is before or exactly at deadline (now <= examDate + duration) -> not concluded (locked during live exam).
-     *    - If now is strictly after deadline (now > deadline) -> concluded (unlocked post-exam).
+     * - DRAFT: Exam has not been published (status is "draft", null, blank).
+     * - UPCOMING: Published, current time is before scheduled start (now < startTime).
+     * - ACTIVE: Published, current time is within duration (startTime <= now < endTime).
+     * - COMPLETED: Published, current time is at or after scheduled end (now >= endTime), or explicitly concluded.
      */
-    public boolean isConcluded() {
+    public String getRuntimeStatus() {
+        return getRuntimeStatus(LocalDateTime.now(APP_ZONE));
+    }
+
+    public String getRuntimeStatus(LocalDateTime now) {
         if (this.deletedAt != null) {
-            return true;
+            return "completed";
         }
 
-        if (this.status == null || this.status.isBlank()) {
-            return false;
+        if (this.status == null || this.status.isBlank() || "draft".equalsIgnoreCase(this.status.trim())) {
+            return "draft";
         }
 
         String normalizedStatus = this.status.trim().toLowerCase();
-
         if (CONCLUDED_STATUSES.contains(normalizedStatus)) {
-            return true;
+            return "completed";
         }
 
-        if ("active".equals(normalizedStatus)) {
-            if (this.examDate == null || this.duration == null || this.duration <= 0) {
-                return false;
+        if (this.examDate == null || this.duration == null || this.duration <= 0) {
+            if ("active".equalsIgnoreCase(normalizedStatus)) {
+                return "active";
             }
-            LocalDateTime now = LocalDateTime.now(APP_ZONE);
-            LocalDateTime deadline = this.examDate.plusMinutes(this.duration);
-            return now.isAfter(deadline);
+            return "draft";
         }
 
-        return false;
+        LocalDateTime startTime = this.examDate;
+        LocalDateTime endTime = startTime.plusMinutes(this.duration);
+
+        if (now.isBefore(startTime)) {
+            return "upcoming";
+        } else if (now.isBefore(endTime)) {
+            return "active";
+        } else {
+            return "completed";
+        }
+    }
+
+    /**
+     * Determines whether the examination has concluded and AI assistance is permissible.
+     */
+    public boolean isConcluded() {
+        return isConcluded(LocalDateTime.now(APP_ZONE));
+    }
+
+    public boolean isConcluded(LocalDateTime now) {
+        return "completed".equalsIgnoreCase(getRuntimeStatus(now));
     }
 }

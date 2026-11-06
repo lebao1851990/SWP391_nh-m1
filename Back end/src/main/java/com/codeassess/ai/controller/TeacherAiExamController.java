@@ -63,6 +63,8 @@ public class TeacherAiExamController {
             @RequestParam(value = "difficulty", required = false, defaultValue = "MEDIUM") String difficulty,
             @RequestParam(value = "programmingLanguage", required = false, defaultValue = "Java") String programmingLanguage,
             @RequestParam(value = "criteriaCount", required = false, defaultValue = "4") Integer criteriaCount,
+            @RequestParam(value = "questionCount", required = false, defaultValue = "1") Integer questionCount,
+            @RequestParam(value = "testCasesPerQuestion", required = false, defaultValue = "3") Integer testCasesPerQuestion,
             @RequestParam(value = "additionalRequirements", required = false) String additionalRequirements) {
         log.info("Teacher requested AI Document Exam Generation for file '{}', difficulty='{}', lang='{}'",
                 file.getOriginalFilename(), difficulty, programmingLanguage);
@@ -71,6 +73,8 @@ public class TeacherAiExamController {
                 file,
                 difficulty,
                 programmingLanguage,
+                questionCount,
+                testCasesPerQuestion,
                 criteriaCount,
                 additionalRequirements
         );

@@ -16,6 +16,7 @@ public class TestCaseResponse {
 
     private String id;
     private String examId;
+    private String questionId;
     private String name;
     private String description;
     private String inputData;

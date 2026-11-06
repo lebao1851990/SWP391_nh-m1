@@ -12,7 +12,9 @@ ALTER TABLE submissions
     ADD COLUMN compile_output TEXT NULL,
     ADD COLUMN stdout TEXT NULL,
     ADD COLUMN stderr TEXT NULL,
-    ADD COLUMN execution_duration_ms BIGINT NULL,
+    ADD COLUMN execution_duration_ms BIGINT NULL;
+
+ALTER TABLE submissions
     ADD INDEX idx_submissions_archive_hash (archive_hash),
     ADD INDEX idx_submissions_source_tree_hash (source_tree_hash);
 

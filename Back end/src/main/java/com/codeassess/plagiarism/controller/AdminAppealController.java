@@ -47,6 +47,14 @@ public class AdminAppealController {
         return ResponseEntity.ok(adminAppealService.getAdminAppeal(opaqueId));
     }
 
+    @PostMapping("/{id}/start-review")
+    public ResponseEntity<AppealResponseDto> startReview(
+            @PathVariable("id") String opaqueId,
+            @AuthenticationPrincipal User currentUser) {
+        User admin = getAuthenticatedAdmin(currentUser);
+        return ResponseEntity.ok(adminAppealService.startReview(opaqueId, admin));
+    }
+
     @PutMapping("/{id}/resolve")
     public ResponseEntity<AppealResponseDto> resolveAppealPut(
             @PathVariable("id") String opaqueId,
@@ -101,3 +109,4 @@ public class AdminAppealController {
                 .body(zipBytes);
     }
 }
+

@@ -7,6 +7,17 @@ export interface ClassSummary {
   semester?: string;
 }
 
+export interface ExamQuestionResponse {
+  id: string;
+  examId: string;
+  title: string;
+  description: string;
+  maxScore: number;
+  displayOrder: number;
+  status: string;
+  testCases?: TestCaseResponse[];
+}
+
 export interface ExamResponse {
   id: string;
   classId: string;
@@ -24,6 +35,11 @@ export interface ExamResponse {
   courseCode: string;
   enrolledCount: number;
   submittedCount: number;
+
+  // Multi-Question Support
+  questions?: ExamQuestionResponse[];
+  totalQuestions?: number;
+  totalAllocatedPoints?: number;
 
   // AI Problem Specifications
   problemStatement?: string;
@@ -43,6 +59,7 @@ export interface ExamResponse {
 
 export interface TeacherSubmissionListResponse {
   id: string;
+  studentId?: string;
   studentName: string;
   studentEmail: string;
   examTitle: string;
@@ -50,6 +67,8 @@ export interface TeacherSubmissionListResponse {
   status: string;
   totalScore: number;
   submittedAt: string;
+  questionId?: string;
+  questionTitle?: string;
   originalFilename?: string;
   executionStatus?: string;
   autoScore?: number;
@@ -77,10 +96,15 @@ export interface SubmissionDetailResponse {
   overrideScore: number;
   evaluatedAt: string;
   createdAt: string;
+  questionId?: string;
+  questionTitle?: string;
   originalFilename?: string;
   submissionType?: string;
   archiveHash?: string;
+  sourceTreeHash?: string;
+  entryPointClass?: string;
   executionStatus?: string;
+  executionDurationMs?: number;
   autoScore?: number;
   testCasesPassed?: number;
   testCasesTotal?: number;
@@ -95,6 +119,27 @@ export interface TeacherClassResponse {
   studentCount?: number;
 }
 
+export interface TestCaseDraftPayload {
+  id?: string;
+  name: string;
+  description?: string;
+  inputData?: string;
+  expectedOutput?: string;
+  points: number;
+  isHidden?: boolean;
+  displayOrder?: number;
+}
+
+export interface ExamQuestionDraftPayload {
+  id?: string;
+  title: string;
+  description?: string;
+  maxScore: number;
+  displayOrder?: number;
+  status?: string;
+  testCases?: TestCaseDraftPayload[];
+}
+
 export interface CreateExamPayload {
   title: string;
   classId?: string;
@@ -104,6 +149,7 @@ export interface CreateExamPayload {
   semester?: string;
   date: string;
   durationMinutes: number;
+  questions?: ExamQuestionDraftPayload[];
 }
 
 export interface UpdateExamPayload {
@@ -113,6 +159,7 @@ export interface UpdateExamPayload {
   date?: string;
   durationMinutes?: number;
   status?: string;
+  questions?: ExamQuestionDraftPayload[];
 }
 
 export const teacherExamsApi = {
@@ -210,8 +257,79 @@ export const teacherExamsApi = {
 
   deleteTestCase: async (examId: string, id: string): Promise<void> => {
     await apiClient.delete(`/teacher/exams/${examId}/test-cases/${id}`);
+  },
+
+  // Multi-Question Exam Score Aggregation & Question-Level Overrides (TeacherExamScoringController)
+  getStudentExamScores: async (examId: string, studentId: string): Promise<ExamScoreAggregationDto> => {
+    const response = await apiClient.get(`/teacher/exams/${examId}/students/${studentId}/scores`);
+    return response.data;
+  },
+
+  setQuestionOverride: async (examId: string, questionId: string, studentId: string, payload: QuestionOverrideRequestDto): Promise<QuestionScoreDetailDto> => {
+    const response = await apiClient.put(`/teacher/exams/${examId}/questions/${questionId}/students/${studentId}/override`, payload);
+    return response.data;
+  },
+
+  clearQuestionOverride: async (examId: string, questionId: string, studentId: string): Promise<QuestionScoreDetailDto> => {
+    const response = await apiClient.delete(`/teacher/exams/${examId}/questions/${questionId}/students/${studentId}/override`);
+    return response.data;
+  },
+
+  downloadSubmissionZip: async (submissionId: string): Promise<{ blob: Blob; filename: string }> => {
+    const response = await apiClient.get<Blob>(`/teacher/submissions/${submissionId}/download`, {
+      responseType: 'blob',
+    });
+    let filename = `submission-${submissionId}.zip`;
+    const disposition = response.headers?.['content-disposition'];
+    if (disposition) {
+      const match = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/);
+      if (match) {
+        filename = decodeURIComponent(match[1] || match[2]);
+      }
+    }
+    return { blob: response.data, filename };
   }
 };
+
+export interface QuestionScoreDetailDto {
+  questionId: string;
+  questionTitle: string;
+  displayOrder?: number;
+  maxScore: number;
+  autoScore?: number;
+  overrideScore?: number | null;
+  effectiveScore: number;
+  overrideReason?: string | null;
+  overriddenBy?: string | null;
+  overriddenAt?: string | null;
+  status?: string;
+  isOverridden: boolean;
+  latestSubmissionId?: string | null;
+  submissionCount: number;
+  lastSubmittedAt?: string | null;
+}
+
+export interface ExamScoreAggregationDto {
+  examId: string;
+  examTitle: string;
+  studentId: string;
+  studentName?: string;
+  examScore10: number;
+  totalPointsEarned: number;
+  totalMaxPoints: number;
+  status: string;
+  isProvisional: boolean;
+  totalQuestions: number;
+  submittedQuestions: number;
+  completedQuestions: number;
+  pendingQuestions: number;
+  questionScores: QuestionScoreDetailDto[];
+}
+
+export interface QuestionOverrideRequestDto {
+  overrideScore: number;
+  rationale?: string;
+}
 
 export interface TestCaseResponse {
   id: string;

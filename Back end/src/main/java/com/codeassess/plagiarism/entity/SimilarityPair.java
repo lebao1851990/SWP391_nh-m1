@@ -28,6 +28,10 @@ public class SimilarityPair {
     private Exam exam;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "question_id")
+    private com.codeassess.exam.entity.ExamQuestion question;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "submission_a_id", nullable = false)
     private Submission submissionA;
 

@@ -13,3 +13,19 @@ Back end/classpath.txt
 # Runtime data & uploads
 Back end/data/
 /Back end/data/
+
+# Local database backups and dumps
+backups/
+/backups/
+database/backups/
+*.sql.gz
+
+# Local logs & runtime temp artifacts
+*.log
+scratch/
+node_modules/
+brain/
+test-results/
+playwright-report/
+verify_score_allocation.js
+verify_task_03a.js

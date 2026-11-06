@@ -15,4 +15,14 @@ public class SubmissionCreateRequest {
     @NotBlank(message = "Source code cannot be empty")
     private String sourceCode;
 
+    /**
+     * Optional questionId for multi-question submission.
+     * If null, resolves to the exam's default/first question.
+     */
+    private String questionId;
+
+    public SubmissionCreateRequest(String sourceCode) {
+        this.sourceCode = sourceCode;
+        this.questionId = null;
+    }
 }

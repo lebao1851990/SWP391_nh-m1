@@ -35,6 +35,12 @@ public class StudentScoringService {
         Submission submission = submissionRepository.findByIdAndStudent_Id(submissionId, studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Submission not found or access denied"));
 
+        // Guard: Students MUST NOT access provisional scores before official publication
+        if (submission.getPublicationStatus() == null || !"PUBLISHED".equalsIgnoreCase(submission.getPublicationStatus())) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Kết quả đánh giá của bài nộp này chưa được công bố. Vui lòng đợi giảng viên phê duyệt và công bố chính thức.");
+        }
+
         List<RuleScore> ruleScores = ruleScoreRepository.findBySubmission_Id(submissionId);
 
         List<CriterionScoreDto> criteriaDtos = ruleScores.stream().map(rs -> CriterionScoreDto.builder()
@@ -76,7 +82,9 @@ public class StudentScoringService {
                 .filter(java.util.Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         if (maxTotalScore.compareTo(BigDecimal.ZERO) == 0) {
-            maxTotalScore = BigDecimal.valueOf(10);
+            maxTotalScore = submission.getQuestion() != null && submission.getQuestion().getMaxScore() != null
+                    ? submission.getQuestion().getMaxScore()
+                    : BigDecimal.valueOf(10);
         }
 
         boolean isDone = "COMPLETED".equalsIgnoreCase(submission.getStatus())
@@ -85,6 +93,9 @@ public class StudentScoringService {
         return StudentSubmissionResult.builder()
                 .submissionId(submission.getId())
                 .examName(submission.getExam().getTitle())
+                .questionId(submission.getQuestion() != null ? submission.getQuestion().getId() : null)
+                .questionTitle(submission.getQuestion() != null ? submission.getQuestion().getTitle() : null)
+                .questionMaxScore(submission.getQuestion() != null ? submission.getQuestion().getMaxScore() : null)
                 .status(submission.getStatus())
                 .executionStatus(submission.getExecutionStatus())
                 .compileOutput(submission.getCompileOutput())

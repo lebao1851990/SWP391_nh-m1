@@ -15,3 +15,11 @@ export const useStudentSubmissions = () => {
     queryFn: () => submissionApi.getStudentSubmissions(),
   });
 };
+
+export const useStudentSubmissionFiles = (id: string) => {
+  return useQuery({
+    queryKey: ['student-submission-files', id],
+    queryFn: () => submissionApi.getSubmissionFiles(id),
+    enabled: !!id,
+  });
+};

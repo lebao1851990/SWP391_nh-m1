@@ -23,6 +23,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.codeassess.websocket.service.WebSocketBroadcaster;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -44,26 +46,39 @@ public class SimilarityMatrixService {
     private final ExamMatrixCoordinationRepository coordinationRepository;
     private final PlatformTransactionManager transactionManager;
 
+    @Autowired(required = false)
+    private WebSocketBroadcaster webSocketBroadcaster;
+
     public record LeaseGrant(String examId, Long lockedGeneration, String leaseToken) {}
 
     public record PairUpdatePlan(
             Long pairId,
+            com.codeassess.exam.entity.ExamQuestion question,
             BigDecimal similarityRate,
             Integer sharedHashesCount,
             Boolean isFlagged,
             List<AstFingerprint> fpA,
             List<AstFingerprint> fpB
-    ) {}
+    ) {
+        public PairUpdatePlan(Long pairId, BigDecimal similarityRate, Integer sharedHashesCount, Boolean isFlagged, List<AstFingerprint> fpA, List<AstFingerprint> fpB) {
+            this(pairId, null, similarityRate, sharedHashesCount, isFlagged, fpA, fpB);
+        }
+    }
 
     public record PairInsertPlan(
             Submission subA,
             Submission subB,
+            com.codeassess.exam.entity.ExamQuestion question,
             BigDecimal similarityRate,
             Integer sharedHashesCount,
             Boolean isFlagged,
             List<AstFingerprint> fpA,
             List<AstFingerprint> fpB
-    ) {}
+    ) {
+        public PairInsertPlan(Submission subA, Submission subB, BigDecimal similarityRate, Integer sharedHashesCount, Boolean isFlagged, List<AstFingerprint> fpA, List<AstFingerprint> fpB) {
+            this(subA, subB, subA != null ? subA.getQuestion() : null, similarityRate, sharedHashesCount, isFlagged, fpA, fpB);
+        }
+    }
 
     public record MatrixCalculationPlan(
             Exam exam,
@@ -219,51 +234,66 @@ public class SimilarityMatrixService {
         List<PairUpdatePlan> updates = new ArrayList<>();
         List<PairInsertPlan> inserts = new ArrayList<>();
 
-        for (int i = 0; i < submissions.size(); i++) {
-            for (int j = i + 1; j < submissions.size(); j++) {
-                Submission sub1 = submissions.get(i);
-                Submission sub2 = submissions.get(j);
+        // Group submissions by question_id (using sentinel for legacy null question)
+        Map<String, List<Submission>> submissionsByQuestion = new LinkedHashMap<>();
+        for (Submission sub : submissions) {
+            String qId = (sub.getQuestion() != null && sub.getQuestion().getId() != null)
+                    ? sub.getQuestion().getId()
+                    : "__LEGACY_NULL_QUESTION__";
+            submissionsByQuestion.computeIfAbsent(qId, k -> new ArrayList<>()).add(sub);
+        }
 
-                // Exclude self-comparison if student resubmitted multiple times
-                if (sub1.getStudent() != null && sub2.getStudent() != null
-                        && sub1.getStudent().getId().equals(sub2.getStudent().getId())) {
-                    continue;
-                }
+        for (Map.Entry<String, List<Submission>> entry : submissionsByQuestion.entrySet()) {
+            List<Submission> questionSubmissions = entry.getValue();
+            for (int i = 0; i < questionSubmissions.size(); i++) {
+                for (int j = i + 1; j < questionSubmissions.size(); j++) {
+                    Submission sub1 = questionSubmissions.get(i);
+                    Submission sub2 = questionSubmissions.get(j);
 
-                Submission subA = sub1.getId().compareTo(sub2.getId()) < 0 ? sub1 : sub2;
-                Submission subB = sub1.getId().compareTo(sub2.getId()) < 0 ? sub2 : sub1;
+                    // Exclude self-comparison if student resubmitted multiple times
+                    if (sub1.getStudent() != null && sub2.getStudent() != null
+                            && sub1.getStudent().getId().equals(sub2.getStudent().getId())) {
+                        continue;
+                    }
 
-                String key = subA.getId() + ":" + subB.getId();
-                computedKeys.add(key);
+                    Submission subA = sub1.getId().compareTo(sub2.getId()) < 0 ? sub1 : sub2;
+                    Submission subB = sub1.getId().compareTo(sub2.getId()) < 0 ? sub2 : sub1;
 
-                List<AstFingerprint> fpA = fingerprintsBySub.getOrDefault(subA.getId(), Collections.emptyList());
-                List<AstFingerprint> fpB = fingerprintsBySub.getOrDefault(subB.getId(), Collections.emptyList());
+                    String key = subA.getId() + ":" + subB.getId();
+                    computedKeys.add(key);
 
-                Set<Long> hashesA = fpA.stream().map(AstFingerprint::getHashValue).collect(Collectors.toSet());
-                Set<Long> hashesB = fpB.stream().map(AstFingerprint::getHashValue).collect(Collectors.toSet());
+                    List<AstFingerprint> fpA = fingerprintsBySub.getOrDefault(subA.getId(), Collections.emptyList());
+                    List<AstFingerprint> fpB = fingerprintsBySub.getOrDefault(subB.getId(), Collections.emptyList());
 
-                SimilarityResult result = similarityCalculator.calculate(hashesA, hashesB);
+                    Set<Long> hashesA = fpA.stream().map(AstFingerprint::getHashValue).collect(Collectors.toSet());
+                    Set<Long> hashesB = fpB.stream().map(AstFingerprint::getHashValue).collect(Collectors.toSet());
 
-                SimilarityPair existing = existingMap.get(key);
-                if (existing != null) {
-                    updates.add(new PairUpdatePlan(
-                            existing.getId(),
-                            result.getSimilarityRate(),
-                            result.getSharedHashesCount(),
-                            result.isFlagged(),
-                            fpA,
-                            fpB
-                    ));
-                } else {
-                    inserts.add(new PairInsertPlan(
-                            subA,
-                            subB,
-                            result.getSimilarityRate(),
-                            result.getSharedHashesCount(),
-                            result.isFlagged(),
-                            fpA,
-                            fpB
-                    ));
+                    SimilarityResult result = similarityCalculator.calculate(hashesA, hashesB);
+                    com.codeassess.exam.entity.ExamQuestion question = subA.getQuestion();
+
+                    SimilarityPair existing = existingMap.get(key);
+                    if (existing != null) {
+                        updates.add(new PairUpdatePlan(
+                                existing.getId(),
+                                question,
+                                result.getSimilarityRate(),
+                                result.getSharedHashesCount(),
+                                result.isFlagged(),
+                                fpA,
+                                fpB
+                        ));
+                    } else {
+                        inserts.add(new PairInsertPlan(
+                                subA,
+                                subB,
+                                question,
+                                result.getSimilarityRate(),
+                                result.getSharedHashesCount(),
+                                result.isFlagged(),
+                                fpA,
+                                fpB
+                        ));
+                    }
                 }
             }
         }
@@ -303,12 +333,22 @@ public class SimilarityMatrixService {
 
             // 1. Update existing pairs in place (preserving primary keys and adjudication fields)
             for (PairUpdatePlan update : plan.updates()) {
-                similarityPairRepository.updateCalculatedMetrics(
-                        update.pairId(),
-                        update.similarityRate(),
-                        update.sharedHashesCount(),
-                        update.isFlagged()
-                );
+                if (update.question() != null) {
+                    similarityPairRepository.updateCalculatedMetricsWithQuestion(
+                            update.pairId(),
+                            update.question(),
+                            update.similarityRate(),
+                            update.sharedHashesCount(),
+                            update.isFlagged()
+                    );
+                } else {
+                    similarityPairRepository.updateCalculatedMetrics(
+                            update.pairId(),
+                            update.similarityRate(),
+                            update.sharedHashesCount(),
+                            update.isFlagged()
+                    );
+                }
 
                 evidenceRepository.deleteBySimilarityPair_Id(update.pairId());
                 evidenceRepository.flush();
@@ -322,8 +362,13 @@ public class SimilarityMatrixService {
 
             // 2. Insert new pairs
             for (PairInsertPlan insert : plan.inserts()) {
+                com.codeassess.exam.entity.ExamQuestion q = insert.question() != null
+                        ? insert.question()
+                        : (insert.subA() != null ? insert.subA().getQuestion() : null);
+
                 SimilarityPair newPair = SimilarityPair.builder()
                         .exam(plan.exam())
+                        .question(q)
                         .submissionA(insert.subA())
                         .submissionB(insert.subB())
                         .similarityRate(insert.similarityRate())
@@ -459,6 +504,16 @@ public class SimilarityMatrixService {
         try (LeaseHeartbeat heartbeat = startLeaseHeartbeat(examId, lease.leaseToken(), 30, 120)) {
             MatrixCalculationPlan plan = computeCalculation(examId);
             commitReconciliation(examId, lease.lockedGeneration(), lease.leaseToken(), plan);
+            if (webSocketBroadcaster != null) {
+                try {
+                    int count = (plan != null)
+                            ? ((plan.updates() != null ? plan.updates().size() : 0) + (plan.inserts() != null ? plan.inserts().size() : 0))
+                            : 0;
+                    webSocketBroadcaster.broadcastPlagiarismMatrixUpdated(examId, count);
+                } catch (Exception wsEx) {
+                    log.debug("WebSocket broadcast error for plagiarism matrix: {}", wsEx.getMessage());
+                }
+            }
         } catch (StaleWorkerGenerationException e) {
             log.warn("Matrix calculation for exam {} rejected by fencing: {}", examId, e.getMessage());
         } catch (Exception e) {

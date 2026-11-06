@@ -67,6 +67,12 @@ class TeacherExamServiceTest {
     @Mock
     private ExamRubricCriteriaRepository examRubricCriteriaRepository;
 
+    @Mock
+    private com.codeassess.exam.repository.ExamQuestionRepository examQuestionRepository;
+
+    @Mock
+    private com.codeassess.testcase.repository.TestCaseRepository testCaseRepository;
+
     private TeacherExamService teacherExamService;
 
     private User teacher;
@@ -768,6 +774,95 @@ class TeacherExamServiceTest {
 
             verify(examRepository, never()).save(any());
         }
+
+        @Test
+        @DisplayName("FE-VAL-01C: createExam with empty or whitespace title throws IllegalArgumentException")
+        void testCreateExam_WhitespaceTitle_ThrowsIllegalArgumentException() {
+            CreateExamDto dto = new CreateExamDto();
+            dto.setTitle("   ");
+            dto.setClassIds(List.of("class-1"));
+            dto.setDate(LocalDateTime.now().plusDays(2));
+            dto.setDurationMinutes(60);
+
+            assertThatThrownBy(() -> teacherExamService.createExam(dto, "teacher-1"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Tiêu đề bài thi không được để trống");
+
+            verify(examRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("FE-VAL-01C: createExam with title exceeding 255 chars throws IllegalArgumentException")
+        void testCreateExam_TitleExceeds255_ThrowsIllegalArgumentException() {
+            CreateExamDto dto = new CreateExamDto();
+            dto.setTitle("A".repeat(256));
+            dto.setClassIds(List.of("class-1"));
+            dto.setDate(LocalDateTime.now().plusDays(2));
+            dto.setDurationMinutes(60);
+
+            assertThatThrownBy(() -> teacherExamService.createExam(dto, "teacher-1"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("vượt quá 255 ký tự");
+
+            verify(examRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("FE-VAL-01C: createExam with invalid duration throws IllegalArgumentException")
+        void testCreateExam_InvalidDuration_ThrowsIllegalArgumentException() {
+            CreateExamDto dto = new CreateExamDto();
+            dto.setTitle("Duration Test Exam");
+            dto.setClassIds(List.of("class-1"));
+            dto.setDate(LocalDateTime.now().plusDays(2));
+            dto.setDurationMinutes(0);
+
+            assertThatThrownBy(() -> teacherExamService.createExam(dto, "teacher-1"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Thời lượng bài thi phải từ 1 đến 1440 phút");
+
+            verify(examRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("FE-VAL-01C: createExam with invalid programming language throws IllegalArgumentException")
+        void testCreateExam_InvalidProgrammingLanguage_ThrowsIllegalArgumentException() {
+            CreateExamDto dto = new CreateExamDto();
+            dto.setTitle("Invalid Lang Exam");
+            dto.setClassIds(List.of("class-1"));
+            dto.setDate(LocalDateTime.now().plusDays(2));
+            dto.setDurationMinutes(60);
+            dto.setProgrammingLanguage("Ruby");
+
+            assertThatThrownBy(() -> teacherExamService.createExam(dto, "teacher-1"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Ngôn ngữ lập trình không hợp lệ");
+
+            verify(examRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("FE-VAL-01C: createExam with valid programming language and draft status succeeds")
+        void testCreateExam_ValidProgrammingLanguageAndStatus_Succeeds() {
+            CreateExamDto dto = new CreateExamDto();
+            dto.setTitle("Python Final Exam");
+            dto.setClassIds(List.of("class-1"));
+            dto.setDate(LocalDateTime.now().plusDays(2));
+            dto.setDurationMinutes(90);
+            dto.setProgrammingLanguage("Python");
+            dto.setStatus("draft");
+
+            when(courseClassRepository.findAllById(List.of("class-1"))).thenReturn(List.of(courseClass));
+            when(examRepository.save(any(Exam.class))).thenAnswer(inv -> {
+                Exam e = inv.getArgument(0);
+                e.setId("exam-py");
+                return e;
+            });
+
+            ExamResponse response = teacherExamService.createExam(dto, "teacher-1");
+
+            assertThat(response).isNotNull();
+            assertThat(response.getTitle()).isEqualTo("Python Final Exam");
+        }
     }
 
     // =========================================================================
@@ -969,6 +1064,162 @@ class TeacherExamServiceTest {
             verify(examRepository).save(exam);
         }
 
+
+        @Test
+        @DisplayName("FE-VAL-01B: publishExam without questions throws IllegalStateException")
+        void testPublishExam_NoQuestions_ThrowsIllegalStateException() {
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "examQuestionRepository", examQuestionRepository);
+            when(examRepository.findByIdAndCourseClass_Teacher_Id("exam-1", "teacher-1")).thenReturn(Optional.of(exam));
+            when(examQuestionRepository.findByExam_IdOrderByDisplayOrderAscCreatedAtAsc("exam-1")).thenReturn(Collections.emptyList());
+
+            assertThatThrownBy(() -> teacherExamService.publishExam("exam-1", "teacher-1"))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("chưa có câu hỏi nào");
+
+            verify(examRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("FE-VAL-01B: publishExam with question sum not 10.00 throws IllegalStateException")
+        void testPublishExam_QuestionSumNot10_ThrowsIllegalStateException() {
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "examQuestionRepository", examQuestionRepository);
+            when(examRepository.findByIdAndCourseClass_Teacher_Id("exam-1", "teacher-1")).thenReturn(Optional.of(exam));
+
+            com.codeassess.exam.entity.ExamQuestion q1 = com.codeassess.exam.entity.ExamQuestion.builder()
+                    .id("q-1").title("Q1").description("Problem 1").maxScore(BigDecimal.valueOf(8.00)).build();
+            when(examQuestionRepository.findByExam_IdOrderByDisplayOrderAscCreatedAtAsc("exam-1")).thenReturn(List.of(q1));
+
+            assertThatThrownBy(() -> teacherExamService.publishExam("exam-1", "teacher-1"))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("phải bằng chính xác 10.00 điểm");
+
+            verify(examRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("FE-VAL-01B: publishExam with question missing public test case throws IllegalStateException")
+        void testPublishExam_MissingPublicTestCase_ThrowsIllegalStateException() {
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "examQuestionRepository", examQuestionRepository);
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "testCaseRepository", testCaseRepository);
+
+            when(examRepository.findByIdAndCourseClass_Teacher_Id("exam-1", "teacher-1")).thenReturn(Optional.of(exam));
+
+            com.codeassess.exam.entity.ExamQuestion q1 = com.codeassess.exam.entity.ExamQuestion.builder()
+                    .id("q-1").title("Q1").description("Problem 1").maxScore(BigDecimal.valueOf(10.00)).build();
+            when(examQuestionRepository.findByExam_IdOrderByDisplayOrderAscCreatedAtAsc("exam-1")).thenReturn(List.of(q1));
+
+            // Only hidden test cases
+            com.codeassess.testcase.entity.TestCase tc1 = com.codeassess.testcase.entity.TestCase.builder()
+                    .id("tc-1").name("TC Hidden").expectedOutput("42").points(BigDecimal.valueOf(10.00)).isHidden(true).build();
+            when(testCaseRepository.findByQuestion_IdOrderByDisplayOrderAscCreatedAtAsc("q-1")).thenReturn(List.of(tc1));
+
+            assertThatThrownBy(() -> teacherExamService.publishExam("exam-1", "teacher-1"))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("tối thiểu 1 test case công khai");
+
+            verify(examRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("FE-VAL-01B: publishExam with missing expectedOutput in test case throws IllegalStateException")
+        void testPublishExam_MissingExpectedOutput_ThrowsIllegalStateException() {
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "examQuestionRepository", examQuestionRepository);
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "testCaseRepository", testCaseRepository);
+
+            when(examRepository.findByIdAndCourseClass_Teacher_Id("exam-1", "teacher-1")).thenReturn(Optional.of(exam));
+
+            com.codeassess.exam.entity.ExamQuestion q1 = com.codeassess.exam.entity.ExamQuestion.builder()
+                    .id("q-1").title("Q1").description("Problem 1").maxScore(BigDecimal.valueOf(10.00)).build();
+            when(examQuestionRepository.findByExam_IdOrderByDisplayOrderAscCreatedAtAsc("exam-1")).thenReturn(List.of(q1));
+
+            com.codeassess.testcase.entity.TestCase tc1 = com.codeassess.testcase.entity.TestCase.builder()
+                    .id("tc-1").name("TC Public").expectedOutput("   ").points(BigDecimal.valueOf(10.00)).isHidden(false).build();
+            when(testCaseRepository.findByQuestion_IdOrderByDisplayOrderAscCreatedAtAsc("q-1")).thenReturn(List.of(tc1));
+
+            assertThatThrownBy(() -> teacherExamService.publishExam("exam-1", "teacher-1"))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("chưa có kết quả mong đợi (Expected Output)");
+
+            verify(examRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("FE-VAL-01B: publishExam with whitespace-only inputData throws IllegalStateException")
+        void testPublishExam_WhitespaceInput_ThrowsIllegalStateException() {
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "examQuestionRepository", examQuestionRepository);
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "testCaseRepository", testCaseRepository);
+
+            when(examRepository.findByIdAndCourseClass_Teacher_Id("exam-1", "teacher-1")).thenReturn(Optional.of(exam));
+
+            com.codeassess.exam.entity.ExamQuestion q1 = com.codeassess.exam.entity.ExamQuestion.builder()
+                    .id("q-1").title("Q1").description("Problem 1").maxScore(BigDecimal.valueOf(10.00)).build();
+            when(examQuestionRepository.findByExam_IdOrderByDisplayOrderAscCreatedAtAsc("exam-1")).thenReturn(List.of(q1));
+
+            com.codeassess.testcase.entity.TestCase tc1 = com.codeassess.testcase.entity.TestCase.builder()
+                    .id("tc-1").name("TC Public").inputData(" \t\n ").expectedOutput("42").points(BigDecimal.valueOf(10.00)).isHidden(false).build();
+            when(testCaseRepository.findByQuestion_IdOrderByDisplayOrderAscCreatedAtAsc("q-1")).thenReturn(List.of(tc1));
+
+            assertThatThrownBy(() -> teacherExamService.publishExam("exam-1", "teacher-1"))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("dữ liệu đầu vào chỉ chứa khoảng trắng");
+
+            verify(examRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("FE-VAL-01B: publishExam with complete valid questions and test cases succeeds and serializes with locks")
+        void testPublishExam_ValidCompleteExam_PublishesSuccessfully() {
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "examQuestionRepository", examQuestionRepository);
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "testCaseRepository", testCaseRepository);
+
+            exam.setStatus("draft");
+            exam.setExamDate(LocalDateTime.now().plusDays(2));
+            when(examRepository.findByIdAndCourseClass_Teacher_Id("exam-1", "teacher-1")).thenReturn(Optional.of(exam));
+            when(examRepository.findByIdForUpdate("exam-1")).thenReturn(Optional.of(exam));
+            when(examRepository.save(any(Exam.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            com.codeassess.exam.entity.ExamQuestion q1 = com.codeassess.exam.entity.ExamQuestion.builder()
+                    .id("q-1").title("Two Sum").description("Problem description").maxScore(BigDecimal.valueOf(10.00)).build();
+            when(examQuestionRepository.findByExam_IdOrderByDisplayOrderAscCreatedAtAsc("exam-1")).thenReturn(List.of(q1));
+            when(examQuestionRepository.findByIdAndExam_IdForUpdate("q-1", "exam-1")).thenReturn(Optional.of(q1));
+
+            com.codeassess.testcase.entity.TestCase tc1 = com.codeassess.testcase.entity.TestCase.builder()
+                    .id("tc-1").name("Sample 1").inputData("2 7 11 15\n9").expectedOutput("0 1").points(BigDecimal.valueOf(5.00)).isHidden(false).build();
+            com.codeassess.testcase.entity.TestCase tc2 = com.codeassess.testcase.entity.TestCase.builder()
+                    .id("tc-2").name("Hidden 1").inputData("3 2 4\n6").expectedOutput("1 2").points(BigDecimal.valueOf(5.00)).isHidden(true).build();
+            when(testCaseRepository.findByQuestion_IdOrderByDisplayOrderAscCreatedAtAsc("q-1")).thenReturn(List.of(tc1, tc2));
+
+            ExamResponse response = teacherExamService.publishExam("exam-1", "teacher-1");
+
+            assertThat(response).isNotNull();
+            assertThat(exam.getStatus()).isEqualTo("upcoming");
+            verify(examRepository).findByIdForUpdate("exam-1");
+            verify(examQuestionRepository).findByIdAndExam_IdForUpdate("q-1", "exam-1");
+            verify(examRepository).save(exam);
+        }
+
+        @Test
+        @DisplayName("FE-VAL-01B: publishExam validation failure leaves exam status unchanged as draft")
+        void testPublishExam_ValidationFailure_LeavesExamStatusUnchanged() {
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "examQuestionRepository", examQuestionRepository);
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "testCaseRepository", testCaseRepository);
+
+            exam.setStatus("draft");
+            when(examRepository.findByIdAndCourseClass_Teacher_Id("exam-1", "teacher-1")).thenReturn(Optional.of(exam));
+            when(examRepository.findByIdForUpdate("exam-1")).thenReturn(Optional.of(exam));
+
+            com.codeassess.exam.entity.ExamQuestion q1 = com.codeassess.exam.entity.ExamQuestion.builder()
+                    .id("q-1").title("Q1").description("Problem 1").maxScore(BigDecimal.valueOf(7.50)).build();
+            when(examQuestionRepository.findByExam_IdOrderByDisplayOrderAscCreatedAtAsc("exam-1")).thenReturn(List.of(q1));
+
+            assertThatThrownBy(() -> teacherExamService.publishExam("exam-1", "teacher-1"))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("phải bằng chính xác 10.00 điểm");
+
+            assertThat(exam.getStatus()).isEqualTo("draft");
+            verify(examRepository, never()).save(any());
+        }
+
         @Test
         @DisplayName("publishExam throws ResourceNotFoundException when exam not found")
         void testPublishExam_notOwned_throwsResourceNotFoundException() {
@@ -980,7 +1231,230 @@ class TeacherExamServiceTest {
 
             verify(examRepository, never()).save(any());
         }
+
+        @Test
+        @DisplayName("FE-VAL-01C: updateExam with whitespace-only title throws IllegalArgumentException")
+        void testUpdateExam_WhitespaceTitle_ThrowsIllegalArgumentException() {
+            UpdateExamDto dto = new UpdateExamDto();
+            dto.setTitle("   ");
+
+            when(examRepository.findByIdAndCourseClass_Teacher_Id("exam-1", "teacher-1")).thenReturn(Optional.of(exam));
+
+            assertThatThrownBy(() -> teacherExamService.updateExam("exam-1", dto, "teacher-1"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Tiêu đề bài thi không được để trống");
+
+            verify(examRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("FE-VAL-01C: updateExam with title exceeding 255 chars throws IllegalArgumentException")
+        void testUpdateExam_TitleExceeds255_ThrowsIllegalArgumentException() {
+            UpdateExamDto dto = new UpdateExamDto();
+            dto.setTitle("X".repeat(256));
+
+            when(examRepository.findByIdAndCourseClass_Teacher_Id("exam-1", "teacher-1")).thenReturn(Optional.of(exam));
+
+            assertThatThrownBy(() -> teacherExamService.updateExam("exam-1", dto, "teacher-1"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("vượt quá 255 ký tự");
+
+            verify(examRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("FE-VAL-01C: updateExam with invalid duration throws IllegalArgumentException")
+        void testUpdateExam_InvalidDuration_ThrowsIllegalArgumentException() {
+            UpdateExamDto dto = new UpdateExamDto();
+            dto.setDurationMinutes(0);
+
+            when(examRepository.findByIdAndCourseClass_Teacher_Id("exam-1", "teacher-1")).thenReturn(Optional.of(exam));
+
+            assertThatThrownBy(() -> teacherExamService.updateExam("exam-1", dto, "teacher-1"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Thời lượng bài thi phải từ 1 đến 1440 phút");
+
+            verify(examRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("FE-VAL-01C: updateExam with invalid programming language throws IllegalArgumentException")
+        void testUpdateExam_InvalidProgrammingLanguage_ThrowsIllegalArgumentException() {
+            UpdateExamDto dto = new UpdateExamDto();
+            dto.setProgrammingLanguage("Rust");
+
+            when(examRepository.findByIdAndCourseClass_Teacher_Id("exam-1", "teacher-1")).thenReturn(Optional.of(exam));
+
+            assertThatThrownBy(() -> teacherExamService.updateExam("exam-1", dto, "teacher-1"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Ngôn ngữ lập trình không hợp lệ");
+
+            verify(examRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("FE-VAL-01C: updateExam with status published runs full publish validation and blocks API bypass")
+        void testUpdateExam_StatusPublishedDirectBypass_TriggersPublishValidation() {
+            UpdateExamDto dto = new UpdateExamDto();
+            dto.setStatus("published");
+
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "examQuestionRepository", examQuestionRepository);
+            when(examRepository.findByIdAndCourseClass_Teacher_Id("exam-1", "teacher-1")).thenReturn(Optional.of(exam));
+            when(examRepository.findByIdForUpdate("exam-1")).thenReturn(Optional.of(exam));
+            when(examQuestionRepository.findByExam_IdOrderByDisplayOrderAscCreatedAtAsc("exam-1")).thenReturn(Collections.emptyList());
+
+            assertThatThrownBy(() -> teacherExamService.updateExam("exam-1", dto, "teacher-1"))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("chưa có câu hỏi nào");
+
+            verify(examRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("FE-VAL-01C: publishExam with question title exceeding 255 chars throws IllegalStateException")
+        void testPublishExam_QuestionTitleExceeds255_ThrowsIllegalStateException() {
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "examQuestionRepository", examQuestionRepository);
+            when(examRepository.findByIdAndCourseClass_Teacher_Id("exam-1", "teacher-1")).thenReturn(Optional.of(exam));
+            when(examRepository.findByIdForUpdate("exam-1")).thenReturn(Optional.of(exam));
+
+            com.codeassess.exam.entity.ExamQuestion q1 = com.codeassess.exam.entity.ExamQuestion.builder()
+                    .id("q-1").title("T".repeat(256)).description("Valid Problem Statement").maxScore(BigDecimal.valueOf(10.00)).build();
+            when(examQuestionRepository.findByExam_IdOrderByDisplayOrderAscCreatedAtAsc("exam-1")).thenReturn(List.of(q1));
+
+            assertThatThrownBy(() -> teacherExamService.publishExam("exam-1", "teacher-1"))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("vượt quá giới hạn 255 ký tự");
+
+            verify(examRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("FE-VAL-01C: publishExam with whitespace problem statement throws IllegalStateException")
+        void testPublishExam_QuestionProblemStatementWhitespace_ThrowsIllegalStateException() {
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "examQuestionRepository", examQuestionRepository);
+            when(examRepository.findByIdAndCourseClass_Teacher_Id("exam-1", "teacher-1")).thenReturn(Optional.of(exam));
+            when(examRepository.findByIdForUpdate("exam-1")).thenReturn(Optional.of(exam));
+
+            com.codeassess.exam.entity.ExamQuestion q1 = com.codeassess.exam.entity.ExamQuestion.builder()
+                    .id("q-1").title("Valid Title").description("     ").maxScore(BigDecimal.valueOf(10.00)).build();
+            when(examQuestionRepository.findByExam_IdOrderByDisplayOrderAscCreatedAtAsc("exam-1")).thenReturn(List.of(q1));
+
+            assertThatThrownBy(() -> teacherExamService.publishExam("exam-1", "teacher-1"))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("chưa có nội dung đề bài");
+
+            verify(examRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("FE-VAL-01C: publishExam with valid rich Markdown problem statement succeeds and preserves content")
+        void testPublishExam_ValidMarkdownProblemStatement_PreservedAndPublishesSuccessfully() {
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "examQuestionRepository", examQuestionRepository);
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "testCaseRepository", testCaseRepository);
+
+            exam.setStatus("draft");
+            exam.setExamDate(LocalDateTime.now().plusDays(2));
+            when(examRepository.findByIdAndCourseClass_Teacher_Id("exam-1", "teacher-1")).thenReturn(Optional.of(exam));
+            when(examRepository.findByIdForUpdate("exam-1")).thenReturn(Optional.of(exam));
+            when(examRepository.save(any(Exam.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            String richMarkdown = "# Bài toán Ba Lan ngược (RPN)\n\nCho biểu thức dạng Postfix...\n\n```java\npublic int evalRPN(String[] tokens) {\n    return 0;\n}\n```";
+            com.codeassess.exam.entity.ExamQuestion q1 = com.codeassess.exam.entity.ExamQuestion.builder()
+                    .id("q-1").title("Evaluate RPN").description(richMarkdown).maxScore(BigDecimal.valueOf(10.00)).build();
+            when(examQuestionRepository.findByExam_IdOrderByDisplayOrderAscCreatedAtAsc("exam-1")).thenReturn(List.of(q1));
+            when(examQuestionRepository.findByIdAndExam_IdForUpdate("q-1", "exam-1")).thenReturn(Optional.of(q1));
+
+            com.codeassess.testcase.entity.TestCase tc1 = com.codeassess.testcase.entity.TestCase.builder()
+                    .id("tc-1").name("Sample TC").inputData("2 1 + 3 *").expectedOutput("9").points(BigDecimal.valueOf(10.00)).isHidden(false).build();
+            when(testCaseRepository.findByQuestion_IdOrderByDisplayOrderAscCreatedAtAsc("q-1")).thenReturn(List.of(tc1));
+
+            ExamResponse response = teacherExamService.publishExam("exam-1", "teacher-1");
+
+            assertThat(response).isNotNull();
+            assertThat(exam.getStatus()).isEqualTo("upcoming");
+            assertThat(q1.getDescription()).isEqualTo(richMarkdown); // Markdown verified strictly unchanged
+            verify(examRepository).save(exam);
+        }
+
+        @Test
+        @DisplayName("FE-VAL-01C: publishExam with question maxScore scale > 2 throws IllegalStateException")
+        void testPublishExam_QuestionMaxScoreExcessDecimals_ThrowsIllegalStateException() {
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "examQuestionRepository", examQuestionRepository);
+            when(examRepository.findByIdAndCourseClass_Teacher_Id("exam-1", "teacher-1")).thenReturn(Optional.of(exam));
+            when(examRepository.findByIdForUpdate("exam-1")).thenReturn(Optional.of(exam));
+
+            com.codeassess.exam.entity.ExamQuestion q1 = com.codeassess.exam.entity.ExamQuestion.builder()
+                    .id("q-1").title("Excess Decimals").description("Description").maxScore(new BigDecimal("10.000")).build();
+            when(examQuestionRepository.findByExam_IdOrderByDisplayOrderAscCreatedAtAsc("exam-1")).thenReturn(List.of(q1));
+
+            assertThatThrownBy(() -> teacherExamService.publishExam("exam-1", "teacher-1"))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("vượt quá 2 chữ số thập phân");
+
+            verify(examRepository, never()).save(any());
+        }
+        @Test
+        @DisplayName("TASK-FE-VALIDATION-01D: updateExam allows saving draft with incomplete question/testcase content")
+        void testSaveDraft_incompleteQuestionAllowed_preservesDraftStatus() {
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "examQuestionRepository", examQuestionRepository);
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "testCaseRepository", testCaseRepository);
+
+            exam.setStatus("draft");
+            when(examRepository.findByIdAndCourseClass_Teacher_Id("exam-1", "teacher-1")).thenReturn(Optional.of(exam));
+            when(examRepository.save(any(Exam.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            // Draft update does not query or validate question content
+            exam.setStatus("draft");
+
+            UpdateExamDto dto = UpdateExamDto.builder()
+                    .title("Draft Exam With Incomplete Questions")
+                    .status("draft")
+                    .build();
+
+            ExamResponse response = teacherExamService.updateExam("exam-1", dto, "teacher-1");
+
+            assertThat(response).isNotNull();
+            assertThat(exam.getStatus()).isEqualTo("draft");
+            assertThat(exam.getTitle()).isEqualTo("Draft Exam With Incomplete Questions");
+            verify(examRepository).save(exam);
+        }
+
+        @Test
+        @DisplayName("TASK-FE-VALIDATION-01D: publishExam leaves exam status unchanged when validation fails")
+        void testPublishExam_failedValidationLeavesExamStatusUnchanged() {
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "examQuestionRepository", examQuestionRepository);
+            org.springframework.test.util.ReflectionTestUtils.setField(teacherExamService, "testCaseRepository", testCaseRepository);
+
+            exam.setStatus("draft");
+            when(examRepository.findByIdAndCourseClass_Teacher_Id("exam-1", "teacher-1")).thenReturn(Optional.of(exam));
+            when(examRepository.findByIdForUpdate("exam-1")).thenReturn(Optional.of(exam));
+
+            // Question sum is 7.00 != 10.00
+            com.codeassess.exam.entity.ExamQuestion q1 = com.codeassess.exam.entity.ExamQuestion.builder()
+                    .id("q-1").title("Q1").description("Problem 1").maxScore(BigDecimal.valueOf(7.00)).build();
+            when(examQuestionRepository.findByExam_IdOrderByDisplayOrderAscCreatedAtAsc("exam-1")).thenReturn(List.of(q1));
+
+            assertThatThrownBy(() -> teacherExamService.publishExam("exam-1", "teacher-1"))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Tổng điểm các câu hỏi phải bằng chính xác 10.00 điểm");
+
+            assertThat(exam.getStatus()).isEqualTo("draft"); // Status must remain draft!
+            verify(examRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("TASK-FE-VALIDATION-01D: publishExam throws ResourceNotFoundException for unauthorized teacher")
+        void testPublishExam_unauthorizedTeacher_throwsResourceNotFoundException() {
+            when(examRepository.findByIdAndCourseClass_Teacher_Id("exam-1", "teacher-other")).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> teacherExamService.publishExam("exam-1", "teacher-other"))
+                    .isInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Exam not found or access denied");
+
+            verify(examRepository, never()).save(any());
+        }
     }
+
 
     // =========================================================================
     // 6. deleteTeacherExam (Case A, B, C)

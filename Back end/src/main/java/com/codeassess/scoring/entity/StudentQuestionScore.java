@@ -78,6 +78,16 @@ public class StudentQuestionScore {
     @Column(name = "last_submitted_at")
     private LocalDateTime lastSubmittedAt;
 
+    @Builder.Default
+    @Column(name = "publication_status", length = 20, nullable = false)
+    private String publicationStatus = "UNPUBLISHED";
+
+    @Column(name = "published_score", precision = 5, scale = 2)
+    private BigDecimal publishedScore;
+
+    @Column(name = "published_at")
+    private LocalDateTime publishedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

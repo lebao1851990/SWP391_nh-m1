@@ -7,6 +7,7 @@ import {
   getTeacherAppealDetail,
   getAdminAppeals,
   getAdminAppealDetail,
+  startAdminAppealReview,
   resolveAdminAppeal
 } from '../api';
 import { AppealFormData } from '../schemas';
@@ -72,6 +73,19 @@ export function useAdminAppeal(id: string) {
     queryFn: () => getAdminAppealDetail(id),
     retry: false,
     enabled: !!id,
+  });
+}
+
+export function useStartAdminAppealReview(appealId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation<Appeal, AxiosError, void>({
+    mutationFn: () => startAdminAppealReview(appealId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appeals', 'admin'] });
+      queryClient.invalidateQueries({ queryKey: ['appeals', 'teacher'] });
+      queryClient.invalidateQueries({ queryKey: ['appeals', 'student'] });
+    },
   });
 }
 

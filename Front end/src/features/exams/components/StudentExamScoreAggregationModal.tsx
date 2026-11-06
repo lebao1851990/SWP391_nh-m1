@@ -211,7 +211,7 @@ export function StudentExamScoreAggregationModal({
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
                             <span className="w-5 h-5 rounded bg-primary/10 text-primary font-mono text-[11px] font-bold flex items-center justify-center">
-                              {q.displayOrder || idx + 1}
+                              {idx + 1}
                             </span>
                             <span className="font-semibold text-xs text-on-surface">
                               {q.questionTitle || `Câu hỏi ${idx + 1}`}

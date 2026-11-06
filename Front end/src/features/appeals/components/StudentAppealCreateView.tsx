@@ -37,7 +37,9 @@ export function StudentAppealCreateView() {
   const displayExamName = studentResult?.examName || examTitleParam || `Bài thi liên quan`;
   const displayScore = studentResult?.effectiveScore ?? (studentResult?.overrideTotalScore != null ? studentResult.overrideTotalScore : (studentResult?.totalScore != null ? studentResult.totalScore : (scoreParam ? Number(scoreParam) : '—')));
 
-  const existingPendingAppeal = appeals?.find(a => a.submissionId === submissionId && a.status === 'PENDING');
+  const existingActiveAppeal = Array.isArray(appeals) ? appeals.find(
+    (a) => a.submissionId === submissionId && (a.status === 'PENDING' || a.status === 'UNDER_REVIEW')
+  ) : undefined;
 
   const [showConfirm, setShowConfirm] = useState(false);
   const [formData, setFormData] = useState<AppealFormData | null>(null);
@@ -137,12 +139,12 @@ export function StudentAppealCreateView() {
         )}
 
         {/* Existing Pending Warning */}
-        {existingPendingAppeal && (
+        {existingActiveAppeal && (
           <div className="bg-amber-50 p-space-md rounded-2xl border border-amber-200 text-amber-800 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
             <div className="text-xs space-y-1">
               <p className="font-semibold text-amber-900">Đã có đơn khiếu nại đang chờ xử lý</p>
-              <p>Bạn đã có một đơn khiếu nại đang chờ duyệt cho bài nộp này (#{existingPendingAppeal.id.substring(0, 8)}). Theo quy định, mỗi bài nộp chỉ được xử lý một đơn khiếu nại tại một thời điểm.</p>
+              <p>Bạn đã có một đơn khiếu nại đang chờ duyệt cho bài nộp này (#{existingActiveAppeal.id.substring(0, 8)}). Theo quy định, mỗi bài nộp chỉ được xử lý một đơn khiếu nại tại một thời điểm.</p>
               <Link href="/student/appeals" className="inline-block mt-1 font-semibold underline text-amber-900">
                 Xem đơn khiếu nại hiện tại &rarr;
               </Link>
@@ -275,7 +277,7 @@ export function StudentAppealCreateView() {
                   Hủy
                 </Link>
                 <button 
-                  disabled={createAppeal.isPending || !!existingPendingAppeal || isStudentResultError} 
+                  disabled={createAppeal.isPending || !!existingActiveAppeal || isStudentResultError} 
                   className="px-6 py-2 rounded-lg bg-primary text-on-primary text-xs font-semibold hover:bg-primary/90 transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer" 
                   type="submit"
                 >
@@ -339,3 +341,4 @@ export function StudentAppealCreateView() {
     </div>
   );
 }
+

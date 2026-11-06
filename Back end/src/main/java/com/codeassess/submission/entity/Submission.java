@@ -1,6 +1,7 @@
 package com.codeassess.submission.entity;
 
 import com.codeassess.exam.entity.Exam;
+import com.codeassess.exam.entity.ExamQuestion;
 import com.codeassess.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -25,6 +26,10 @@ public class Submission {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "exam_id", nullable = false)
     private Exam exam;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "question_id")
+    private ExamQuestion question;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "student_id", nullable = false)
@@ -103,6 +108,41 @@ public class Submission {
 
     @Column(name = "instructor_feedback", columnDefinition = "TEXT")
     private String instructorFeedback;
+
+    @Builder.Default
+    @Column(name = "review_status", length = 30, nullable = false)
+    private String reviewStatus = "PENDING_REVIEW";
+
+    @Builder.Default
+    @Column(name = "publication_status", length = 20, nullable = false)
+    private String publicationStatus = "UNPUBLISHED";
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reviewed_by")
+    private User reviewedBy;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
+    @Column(name = "review_notes", columnDefinition = "TEXT")
+    private String reviewNotes;
+
+    @Column(name = "approved_score", precision = 5, scale = 2)
+    private BigDecimal approvedScore;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "published_by")
+    private User publishedBy;
+
+    @Column(name = "published_at")
+    private LocalDateTime publishedAt;
+
+    @Column(name = "published_score", precision = 5, scale = 2)
+    private BigDecimal publishedScore;
+
+    @Builder.Default
+    @Column(name = "score_version", nullable = false)
+    private Integer scoreVersion = 1;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

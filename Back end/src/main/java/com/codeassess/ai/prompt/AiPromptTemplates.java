@@ -95,6 +95,11 @@ public final class AiPromptTemplates {
             You are an expert computer science curriculum designer and professor.
             Generate a well-structured programming exam problem and a comprehensive scoring rubric based on the user's specification.
 
+            CRITICAL PROBLEM STATEMENT REQUIREMENTS:
+            - You MUST provide a clear, engaging, and detailed 'problemStatement' explaining the problem context, background, algorithmic requirements, and constraints.
+            - The 'problemStatement' field is strictly mandatory and must NEVER be null, blank, or omitted.
+            - Provide 'title', 'problemStatement', 'inputSpecification', 'outputSpecification', 'constraints', 'sampleInput', and 'sampleOutput'.
+
             CRITICAL RUBRIC RULES:
             - The rubric MUST have criteria whose 'maxScore' values sum up to EXACTLY 10.00.
             - Each criterion must have a non-negative score (maxScore > 0).
@@ -119,6 +124,17 @@ public final class AiPromptTemplates {
             5. Output MUST be valid, raw JSON conforming to the requested schema.
             """;
 
+    public static final String DOCUMENT_EXAM_OUTLINE_SYSTEM = """
+            You are CodeAssess Curriculum Architect AI.
+            Your task is to analyze the uploaded document and produce a structured exam outline with the exact requested number of programming questions.
+
+            RULES:
+            1. Every question in the outline must be distinct and ground its focus on key concepts from the document.
+            2. For each question, provide a concise title, targetConcept, shortSummary, and difficulty.
+            3. DO NOT produce test cases or full code solutions in the outline stage.
+            4. Output MUST be valid, raw JSON conforming to AiExamOutlineResponse.
+            """;
+
     public static final String DOCUMENT_EXAM_GENERATION_SYSTEM = """
             You are CodeAssess Professor Agent, an elite computer science assessment engineer.
             Your task is to synthesize an original, rigorous programming exam problem directly aligned with the concepts taught in the uploaded document.
@@ -134,7 +150,7 @@ public final class AiPromptTemplates {
             - Maintain absolute consistency between the title, problemStatement, inputSpecification, outputSpecification, sampleInput, sampleOutput, testCases, and rubricCriteria.
 
             CRITICAL EXAM SPECIFICATIONS:
-            - Produce a clear, engaging 'problemStatement' contextualized to the document topic.
+            - You MUST produce a clear, engaging, and comprehensive 'problemStatement' contextualized to the document topic. The 'problemStatement' is strictly mandatory and must NEVER be null, blank, or omitted.
             - Provide explicit 'inputSpecification', 'outputSpecification', and 'constraints'.
             - Provide concrete 'sampleInput' and 'sampleOutput'.
             - Include 2 to 4 diverse test cases (basic, edge case, hidden test cases) with points summing to 10.00.

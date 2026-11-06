@@ -29,6 +29,10 @@ public class PlagiarismMapper {
                 .isFlagged(pair.getIsFlagged())
                 .examId(pair.getExam() != null ? pair.getExam().getId() : null)
                 .examTitle(pair.getExam() != null ? pair.getExam().getTitle() : null)
+                .questionId(pair.getQuestion() != null ? pair.getQuestion().getId() :
+                        (pair.getSubmissionA() != null && pair.getSubmissionA().getQuestion() != null ? pair.getSubmissionA().getQuestion().getId() : null))
+                .questionTitle(pair.getQuestion() != null ? pair.getQuestion().getTitle() :
+                        (pair.getSubmissionA() != null && pair.getSubmissionA().getQuestion() != null ? pair.getSubmissionA().getQuestion().getTitle() : null))
                 .className(pair.getExam() != null && pair.getExam().getCourseClass() != null ? pair.getExam().getCourseClass().getName() : null)
                 .adjudicationStatus(pair.getAdjudicationStatus() != null ? pair.getAdjudicationStatus() : "PENDING")
                 .adjudicationNotes(pair.getAdjudicationNotes())

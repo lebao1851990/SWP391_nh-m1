@@ -1,7 +1,9 @@
 package com.codeassess.scoring.dto.response;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -9,9 +11,14 @@ import java.util.List;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class StudentSubmissionResult {
     private String submissionId;
     private String examName;
+    private String questionId;
+    private String questionTitle;
+    private BigDecimal questionMaxScore;
     private String status;
     private String executionStatus;
     private String compileOutput;

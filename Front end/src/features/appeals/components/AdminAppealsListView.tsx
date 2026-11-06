@@ -10,16 +10,17 @@ import {
   XCircle, 
   ExternalLink, 
   Scale, 
-  AlertCircle,
-  FileText,
-  X,
-  RotateCcw,
-  ShieldCheck,
-  Award
+  AlertCircle, 
+  FileText, 
+  X, 
+  RotateCcw, 
+  ShieldCheck, 
+  Award,
+  HelpCircle
 } from 'lucide-react';
 
 export function AdminAppealsListView() {
-  const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
+  const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED'>('ALL');
   const { data: appeals, isLoading, isError, refetch } = useAdminAppeals(filter);
   const [search, setSearch] = useState('');
 
@@ -66,6 +67,7 @@ export function AdminAppealsListView() {
   });
 
   const pendingCount = allAppeals.filter(a => a.status === 'PENDING').length;
+  const underReviewCount = allAppeals.filter(a => a.status === 'UNDER_REVIEW').length;
   const approvedCount = allAppeals.filter(a => a.status === 'APPROVED').length;
   const rejectedCount = allAppeals.filter(a => a.status === 'REJECTED').length;
 
@@ -110,8 +112,10 @@ export function AdminAppealsListView() {
 
         <div className="bg-surface-container-lowest p-space-md rounded-2xl border border-outline-variant/40 shadow-xs flex items-center justify-between">
           <div>
-            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">Chờ Admin xử lý</span>
-            <div className="font-display-lg font-bold text-amber-600 mt-1">{pendingCount}</div>
+            <span className="font-label-xs uppercase tracking-wider text-outline font-semibold">Chờ / Đang xem xét</span>
+            <div className="font-display-lg font-bold text-amber-600 mt-1">
+              {pendingCount} {underReviewCount > 0 && <span className="text-xs text-sky-600 font-normal">({underReviewCount} đang xử lý)</span>}
+            </div>
           </div>
           <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600">
             <Clock className="w-5 h-5" />
@@ -142,7 +146,7 @@ export function AdminAppealsListView() {
       {/* Filter Tabs & Search */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-space-md">
         <div className="flex items-center gap-1.5 overflow-x-auto text-xs w-full sm:w-auto">
-          {(['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const).map(tab => (
+          {(['ALL', 'PENDING', 'UNDER_REVIEW', 'APPROVED', 'REJECTED'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setFilter(tab)}
@@ -152,7 +156,11 @@ export function AdminAppealsListView() {
                   : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
               }`}
             >
-              {tab === 'ALL' ? 'Tất cả đơn' : tab === 'PENDING' ? 'Chờ xem xét' : tab === 'APPROVED' ? 'Đã chấp thuận' : 'Đã từ chối'}
+              {tab === 'ALL' && 'Tất cả đơn'}
+              {tab === 'PENDING' && 'Chờ tiếp nhận'}
+              {tab === 'UNDER_REVIEW' && 'Đang thẩm định'}
+              {tab === 'APPROVED' && 'Đã chấp thuận'}
+              {tab === 'REJECTED' && 'Đã từ chối'}
             </button>
           ))}
         </div>
@@ -228,6 +236,12 @@ export function AdminAppealsListView() {
                           <span>Chờ Admin</span>
                         </span>
                       )}
+                      {appeal.status === 'UNDER_REVIEW' && (
+                        <span className="px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 font-semibold text-[10px] inline-flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse" />
+                          <span>Đang thẩm định</span>
+                        </span>
+                      )}
                       {appeal.status === 'APPROVED' && (
                         <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold text-[10px] inline-flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3 text-emerald-600" />
@@ -252,7 +266,7 @@ export function AdminAppealsListView() {
                         href={`/admin/appeals/${appeal.id}`}
                         className="px-3 py-1 bg-surface-container hover:bg-surface-container-high text-primary rounded-lg text-xs font-medium transition-colors inline-flex items-center gap-1 cursor-pointer"
                       >
-                        <span>{appeal.status === 'PENDING' ? 'Xử lý' : 'Chi tiết'}</span>
+                        <span>{appeal.status === 'PENDING' || appeal.status === 'UNDER_REVIEW' ? 'Xử lý' : 'Chi tiết'}</span>
                         <ExternalLink className="w-3 h-3" />
                       </Link>
                     </td>

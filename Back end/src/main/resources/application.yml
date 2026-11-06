@@ -72,12 +72,12 @@ app:
     provider: ${AI_PROVIDER:none}
     api-key: ${AI_API_KEY:}
     model: ${AI_MODEL:gpt-4o-mini}
-    timeout-seconds: ${AI_TIMEOUT_SECONDS:30}
+    timeout-seconds: ${AI_TIMEOUT_SECONDS:90}
     base-url: ${AI_BASE_URL:https://api.openai.com/v1}
     gemini:
       api-key: ${GEMINI_API_KEY:}
-      model: ${GEMINI_MODEL:gemini-2.5-flash}
-      timeout-seconds: ${GEMINI_TIMEOUT_SECONDS:30}
+      model: ${GEMINI_MODEL:gemini-3.5-flash-lite}
+      timeout-seconds: ${GEMINI_TIMEOUT_SECONDS:90}
       base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta}
 
 sandbox:

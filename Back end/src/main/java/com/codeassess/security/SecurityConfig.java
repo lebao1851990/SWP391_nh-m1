@@ -65,6 +65,7 @@ public class SecurityConfig {
                     .requestMatchers("/api/health").permitAll()
                     .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/auth/logout").permitAll()
                     .requestMatchers("/api/internal/**").permitAll()
+                    .requestMatchers("/api/ws", "/api/ws/**").permitAll()
                     .requestMatchers("/api/**").authenticated()
                     .anyRequest().denyAll()
             );

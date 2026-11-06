@@ -1,5 +1,27 @@
 import { apiClient } from '@/lib/api-client';
 
+export interface StudentTestCaseResponse {
+  id: string;
+  name: string;
+  description?: string;
+  inputData?: string;
+  expectedOutput?: string;
+  points: number;
+  isHidden: boolean;
+  displayOrder: number;
+}
+
+export interface ExamQuestionResponse {
+  id: string;
+  examId: string;
+  title: string;
+  description: string;
+  maxScore: number;
+  displayOrder: number;
+  status: string;
+  testCases?: StudentTestCaseResponse[];
+}
+
 export interface ExamResponse {
   id: string;
   title: string;
@@ -19,6 +41,12 @@ export interface ExamResponse {
   classCodes?: string[];
   status: 'upcoming' | 'active' | 'completed' | 'missed';
   score?: number;
+
+  // Multi-Question Support
+  questions?: ExamQuestionResponse[];
+  totalQuestions?: number;
+  totalAllocatedPoints?: number;
+
   problemStatement?: string;
   inputSpecification?: string;
   outputSpecification?: string;
@@ -44,13 +72,18 @@ function normalizeExam(data: Record<string, unknown>): ExamResponse {
   const isExpired = Boolean(data.isExpired) || (endTime ? new Date(serverTime).getTime() >= new Date(endTime).getTime() : false);
   const courseCode = (data.courseCode as string) || (data.courseClassCode as string) || 'PRJ301';
   const statusStr = String(data.status || 'active').toLowerCase();
-  let validStatus: ExamResponse['status'] = isExpired
-    ? 'completed'
-    : ['upcoming', 'active', 'completed', 'missed'].includes(statusStr)
-    ? (statusStr as ExamResponse['status'])
-    : 'active';
 
-  if (validStatus !== 'completed') {
+  // If backend authoritative status is active, prioritize backend over local clock differences
+  let validStatus: ExamResponse['status'] = 'active';
+  if (isExpired || statusStr === 'completed') {
+    validStatus = 'completed';
+  } else if (statusStr === 'active') {
+    validStatus = 'active';
+  } else if (statusStr === 'upcoming') {
+    validStatus = 'upcoming';
+  } else if (statusStr === 'missed') {
+    validStatus = 'missed';
+  } else {
     const nowMs = Date.now();
     const startMs = startTime ? new Date(startTime).getTime() : 0;
     const endMs = endTime ? new Date(endTime).getTime() : 0;
@@ -62,6 +95,8 @@ function normalizeExam(data: Record<string, unknown>): ExamResponse {
       validStatus = 'active';
     }
   }
+
+  const rawQuestions = Array.isArray(data.questions) ? (data.questions as ExamQuestionResponse[]) : undefined;
 
   return {
     id: String(data.id || ''),
@@ -82,6 +117,9 @@ function normalizeExam(data: Record<string, unknown>): ExamResponse {
     classCodes: Array.isArray(data.classCodes) ? (data.classCodes as string[]) : [],
     status: validStatus,
     score: data.score !== undefined ? Number(data.score) : undefined,
+    questions: rawQuestions,
+    totalQuestions: data.totalQuestions !== undefined ? Number(data.totalQuestions) : (rawQuestions ? rawQuestions.length : undefined),
+    totalAllocatedPoints: data.totalAllocatedPoints !== undefined ? Number(data.totalAllocatedPoints) : undefined,
     problemStatement: (data.problemStatement as string) || undefined,
     inputSpecification: (data.inputSpecification as string) || undefined,
     outputSpecification: (data.outputSpecification as string) || undefined,
@@ -98,6 +136,9 @@ export interface SubmissionResultResponse {
   id: string;
   examId?: string;
   studentId?: string;
+  questionId?: string;
+  questionTitle?: string;
+  questionMaxScore?: number;
   status?: string;
   sourceCode?: string;
   totalScore?: number;
@@ -134,6 +175,11 @@ export const studentExamsApi = {
     return normalizeExam(response.data as Record<string, unknown>);
   },
 
+  getStudentExamSubmissions: async (examId: string): Promise<SubmissionResultResponse[]> => {
+    const response = await apiClient.get(`/student/exams/${examId}/submissions`);
+    return Array.isArray(response.data) ? response.data : [];
+  },
+
   submitExam: async (examId: string, sourceCode: string): Promise<SubmissionResultResponse> => {
     const response = await apiClient.post(`/student/exams/${examId}/submissions`, { sourceCode });
     return response.data;
@@ -142,12 +188,40 @@ export const studentExamsApi = {
   submitExamZip: async (
     examId: string,
     file: File,
+    questionId?: string,
     onUploadProgress?: (progress: number) => void
   ): Promise<SubmissionResultResponse> => {
     const formData = new FormData();
     formData.append('file', file);
+    if (questionId) {
+      formData.append('questionId', questionId);
+    }
 
     const response = await apiClient.post(`/student/exams/${examId}/submissions`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        if (onUploadProgress && progressEvent.total) {
+          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onUploadProgress(percent);
+        }
+      },
+    });
+    return response.data;
+  },
+
+  submitExamBatchZip: async (
+    examId: string,
+    questionIds: string[],
+    files: File[],
+    onUploadProgress?: (progress: number) => void
+  ): Promise<SubmissionResultResponse[]> => {
+    const formData = new FormData();
+    questionIds.forEach((qId) => formData.append('questionIds', qId));
+    files.forEach((file) => formData.append('files', file));
+
+    const response = await apiClient.post(`/student/exams/${examId}/submissions/batch`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

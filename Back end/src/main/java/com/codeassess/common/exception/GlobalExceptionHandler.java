@@ -1,6 +1,7 @@
 package com.codeassess.common.exception;
 
 import com.codeassess.common.response.ErrorResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -13,6 +14,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @Value("${spring.servlet.multipart.max-file-size:10MB}")
+    private String maxFileSize = "10MB";
 
     @ExceptionHandler({AccessDeniedException.class, org.springframework.security.authorization.AuthorizationDeniedException.class})
     public ResponseEntity<ErrorResponse> handleAccessDeniedException(RuntimeException ex) {
@@ -66,6 +70,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<com.codeassess.classes.dto.response.ExcelImportResultDto> handleExcelBatchImportException(ExcelBatchImportException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ex.getResult());
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSizeExceededException(org.springframework.web.multipart.MaxUploadSizeExceededException ex) {
+        log.warn("Uploaded file exceeds multipart limit: {}", ex.getMessage());
+        String limit = (maxFileSize != null && !maxFileSize.isBlank()) ? maxFileSize : "10MB";
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(new ErrorResponse(413, "PAYLOAD_TOO_LARGE", "Dung lượng file tải lên vượt quá giới hạn tối đa cho phép (" + limit + ")."));
     }
 
     @ExceptionHandler(com.codeassess.submission.exception.ZipValidationException.class)

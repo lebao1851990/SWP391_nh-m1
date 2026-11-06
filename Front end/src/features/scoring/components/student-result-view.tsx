@@ -1,10 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useStudentResult } from '../hooks';
+import { useStudentSubmissionFiles } from '@/features/submissions/hooks';
+import { submissionApi } from '@/features/submissions/api';
 import { AxiosError } from 'axios';
 import { AppLink as Link } from '@/components/ui/app-link';
 import { StudentAiAssistantCard, SemanticCodeReviewView } from '@/features/submissions/components';
+import { ConnectionStatusIndicator, useSubmissionRealtime } from '@/features/websocket';
 import { 
   ArrowLeft, 
   Award, 
@@ -14,7 +17,9 @@ import {
   Calendar, 
   Lock, 
   FileCode2,
-  ExternalLink
+  FileCode,
+  Download,
+  Code2
 } from 'lucide-react';
 
 interface StudentResultViewProps {
@@ -22,7 +27,32 @@ interface StudentResultViewProps {
 }
 
 export function StudentResultView({ submissionId }: StudentResultViewProps) {
+  useSubmissionRealtime(submissionId);
   const { data, isLoading, isError, error } = useStudentResult(submissionId);
+  const { data: files } = useStudentSubmissionFiles(submissionId);
+
+  const [selectedFileIdx, setSelectedFileIdx] = useState<number>(0);
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
+
+  const handleDownloadZip = async () => {
+    try {
+      setIsDownloading(true);
+      const { blob, filename } = await submissionApi.downloadSubmissionZip(submissionId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || `submission-${submissionId}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Download failed:', err);
+      alert('Không thể tải file ZIP bài nộp. Vui lòng thử lại.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -35,17 +65,18 @@ export function StudentResultView({ submissionId }: StudentResultViewProps) {
 
   if (isError) {
     const status = (error as AxiosError)?.response?.status;
+    const isUnpublished = status === 403;
     return (
       <div className="max-w-xl mx-auto my-12 p-8 rounded-2xl bg-surface-container-lowest border border-outline-variant/40 shadow-lg text-center flex flex-col items-center gap-3">
-        <div className="p-3 rounded-full bg-rose-50 text-rose-600">
-          {status === 403 ? <Lock className="w-8 h-8" /> : <AlertCircle className="w-8 h-8" />}
+        <div className={`p-3 rounded-full ${isUnpublished ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'}`}>
+          {isUnpublished ? <Lock className="w-8 h-8" /> : <AlertCircle className="w-8 h-8" />}
         </div>
         <h2 className="font-headline-md text-headline-md text-on-surface">
-          {status === 403 ? 'Chưa công bố kết quả' : status === 404 ? 'Không tìm thấy bài nộp' : 'Lỗi hệ thống'}
+          {isUnpublished ? 'Kết quả đang chờ Phê duyệt & Công bố' : status === 404 ? 'Không tìm thấy bài nộp' : 'Lỗi hệ thống'}
         </h2>
-        <p className="font-body-md text-on-surface-variant text-xs">
-          {status === 403 
-            ? 'Kết quả bài thi của bạn chưa được công bố hoặc bạn không có quyền xem.'
+        <p className="font-body-md text-on-surface-variant text-xs max-w-md leading-relaxed">
+          {isUnpublished
+            ? 'Bài thi của bạn đã được tiếp nhận và chấm tự động trong Sandbox. Điểm số hiện được bảo lưu ở trạng thái tạm tính nội bộ và sẽ hiển thị ngay khi Giảng viên phê duyệt và công bố chính thức.'
             : (error as Error).message}
         </p>
         <Link href="/student/submissions" className="mt-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-medium">
@@ -56,6 +87,9 @@ export function StudentResultView({ submissionId }: StudentResultViewProps) {
   }
 
   if (!data) return null;
+
+  const fileList = files || [];
+  const activeFile = fileList[selectedFileIdx];
 
   return (
     <div className="max-w-7xl mx-auto px-space-lg py-space-lg flex flex-col w-full gap-space-lg">
@@ -74,14 +108,29 @@ export function StudentResultView({ submissionId }: StudentResultViewProps) {
             <h1 className="font-display-lg text-display-lg text-on-surface tracking-tight">
               {data.examName} — Kết quả Chính thức
             </h1>
+            {data.questionTitle && (
+              <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 text-xs font-semibold">
+                Câu hỏi: {data.questionTitle}
+              </span>
+            )}
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold inline-flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>{data.status.toUpperCase()}</span>
+              <span>{(data.status || 'COMPLETED').toUpperCase()}</span>
             </span>
+            <ConnectionStatusIndicator />
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-start md:self-auto">
+        <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
+          <button
+            onClick={handleDownloadZip}
+            disabled={isDownloading}
+            className="px-3.5 py-2 bg-surface-container hover:bg-surface-container-high text-on-surface border border-outline-variant/40 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+          >
+            <Download className="w-3.5 h-3.5 text-primary" />
+            <span>{isDownloading ? 'Đang tải...' : 'Tải mã nguồn ZIP'}</span>
+          </button>
+
           <Link 
             href={`/student/appeals/new?submissionId=${submissionId}&examTitle=${encodeURIComponent(data.examName || '')}&score=${data.effectiveScore ?? (data.overrideTotalScore != null ? data.overrideTotalScore : data.totalScore)}`} 
             className="px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shadow-xs"
@@ -95,7 +144,7 @@ export function StudentResultView({ submissionId }: StudentResultViewProps) {
       {/* Main Score Banner Card */}
       {(() => {
         const effectiveScore = data.effectiveScore ?? (data.overrideTotalScore != null ? data.overrideTotalScore : data.totalScore);
-        const maxScore = data.maxTotalScore ?? (data.criteria?.length ? data.criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0) : 10);
+        const maxScore = data.questionMaxScore ?? data.maxTotalScore ?? (data.criteria?.length ? data.criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0) : 10);
         const isOverridden = data.overrideTotalScore != null;
 
         return (
@@ -230,6 +279,52 @@ export function StudentResultView({ submissionId }: StudentResultViewProps) {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Submitted Source Code Multi-File Explorer */}
+      {fileList.length > 0 && (
+        <div className="flex flex-col gap-space-sm">
+          <h2 className="font-headline-sm text-headline-sm text-on-surface tracking-tight flex items-center gap-2">
+            <Code2 className="w-5 h-5 text-primary" />
+            <span>Mã nguồn bài làm đã nộp ({fileList.length} tệp)</span>
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 rounded-xl border border-outline-variant/40 overflow-hidden bg-surface-container-lowest shadow-xs">
+            {/* File List */}
+            <div className="md:col-span-4 border-r border-outline-variant/30 bg-surface-container-low/40 p-2 overflow-y-auto max-h-[400px]">
+              <div className="text-xs font-semibold text-outline uppercase tracking-wider px-2 py-1 mb-1">
+                Tệp trong gói nộp
+              </div>
+              <div className="space-y-1">
+                {fileList.map((f, idx) => (
+                  <button
+                    key={f.filename || idx}
+                    onClick={() => setSelectedFileIdx(idx)}
+                    className={`w-full text-left px-2.5 py-1.5 rounded text-xs font-mono flex items-center gap-2 transition-colors truncate ${
+                      selectedFileIdx === idx 
+                        ? 'bg-primary/10 text-primary font-semibold border border-primary/20' 
+                        : 'text-on-surface-variant hover:bg-surface-container'
+                    }`}
+                  >
+                    <FileCode className="w-3.5 h-3.5 shrink-0 opacity-70" />
+                    <span className="truncate">{f.filename}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Code Content */}
+            <div className="md:col-span-8 flex flex-col bg-surface-container-lowest overflow-hidden">
+              <div className="flex items-center justify-between px-space-md py-2 bg-surface-container-low border-b border-outline-variant/30 font-label-sm text-label-sm text-on-surface-variant font-mono">
+                <span className="font-semibold text-on-surface">{activeFile?.filename || 'main.java'}</span>
+                <span className="text-xs text-outline">{activeFile?.size ? `${activeFile.size} bytes` : ''}</span>
+              </div>
+              <pre className="p-space-md font-code-body text-code-body text-on-surface overflow-x-auto whitespace-pre-wrap max-h-[400px] bg-slate-950 text-slate-100 font-mono text-xs">
+                {activeFile?.content || 'Tệp trống hoặc không thể đọc nội dung.'}
+              </pre>
+            </div>
           </div>
         </div>
       )}

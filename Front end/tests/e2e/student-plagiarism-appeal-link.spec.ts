@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { login } from './helpers';
 
-const studentEmail = process.env.E2E_STUDENT_EMAIL || 'student.test@codeassess.edu.vn';
+const studentEmail = process.env.E2E_STUDENT_EMAIL || 'studenta@fpt.edu.vn';
 
 test.describe('Student Plagiarism Appeal Navigation ID Contract Tests', () => {
 

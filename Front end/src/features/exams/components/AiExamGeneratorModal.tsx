@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
+import { useModalA11y } from '@/hooks/use-modal-a11y';
 import { AxiosError } from 'axios';
 import {
   Sparkles,
@@ -72,6 +74,7 @@ export function AiExamGeneratorModal({
   const [phase, setPhase] = useState<GenerationPhase>('IDLE');
   const [progressMessage, setProgressMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const isSubmittingRef = useRef<boolean>(false);
 
   // Stage 1 Analysis Insight
   const [analysisResult, setAnalysisResult] = useState<DocumentAnalysisResponse | null>(null);
@@ -80,23 +83,35 @@ export function AiExamGeneratorModal({
   const [draft, setDraft] = useState<AiDocumentExamGenerateResponse | null>(null);
 
   // Save Settings
-  const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id || '');
-  const [examDate, setExamDate] = useState<string>(
+  const [selectedClassId, setSelectedClassId] = useState<string>('');
+  const [examDate, setExamDate] = useState<string>(() =>
     new Date(Date.now() + 86400000 * 2).toISOString().slice(0, 16)
   );
   const [durationMinutes, setDurationMinutes] = useState<number>(90);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Synchronize selectedClassId whenever classes list loads or updates
-  useEffect(() => {
-    if (classes && classes.length > 0) {
-      if (!selectedClassId || !classes.some((c) => c.id === selectedClassId)) {
-        setSelectedClassId(classes[0].id);
-      }
-    }
-  }, [classes, selectedClassId]);
+  // Compute effective class ID (falls back to first available class if not selected or invalid)
+  const activeClassId =
+    selectedClassId && classes.some((c) => c.id === selectedClassId)
+      ? selectedClassId
+      : classes[0]?.id || '';
 
-  if (!isOpen) return null;
+  // Client mount status for SSR-safe portal rendering
+  const isMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+
+  const modalCardRef = useRef<HTMLDivElement>(null);
+
+  useModalA11y({
+    isOpen,
+    onClose,
+    modalRef: modalCardRef,
+  });
+
+  if (!isOpen || !isMounted) return null;
 
   // File Selection & Drag-and-Drop Handlers
   const handleFileDrop = (e: React.DragEvent) => {
@@ -169,9 +184,140 @@ export function AiExamGeneratorModal({
     }
   };
 
+  function mapAiErrorMessage(rawMessage?: string, statusCode?: number): string {
+    if (!rawMessage && !statusCode) {
+      return 'AI chưa thể hoàn thành dữ liệu đề thi. Vui lòng thử lại hoặc giảm số lượng câu hỏi.';
+    }
+
+    const msgLower = (rawMessage || '').toLowerCase();
+
+    if (
+      rawMessage &&
+      (rawMessage.includes('AI đã tạo') ||
+       rawMessage.includes('chưa hoàn thành') ||
+       rawMessage.includes('thiếu nội dung đề bài') ||
+       rawMessage.includes('có test case không hợp lệ') ||
+       rawMessage.includes('chỉ có') ||
+       rawMessage.includes('Không thể hoàn thành câu') ||
+       rawMessage.includes('không thể hoàn thành') ||
+       msgLower.includes('test cases') ||
+       msgLower.includes('testcases') ||
+       rawMessage.includes('dàn ý') ||
+       rawMessage.includes('đáp ứng đủ') ||
+       rawMessage.includes('trùng lặp') ||
+       rawMessage.includes('Cấu trúc danh sách') ||
+       rawMessage.includes('cấu trúc testCases'))
+    ) {
+      return rawMessage;
+    }
+
+    const isJacksonSyntaxError =
+      msgLower.includes('unexpected') ||
+      msgLower.includes('reference chain') ||
+      msgLower.includes('syntax') ||
+      msgLower.includes('invalid structured json') ||
+      msgLower.includes('end-of-input') ||
+      msgLower.includes('jsonparseexception') ||
+      msgLower.includes('jsonmappingexception');
+
+    if (
+      !isJacksonSyntaxError &&
+      (msgLower.includes('thiếu trường problemstatement') ||
+       msgLower.includes('missing or empty problem statement') ||
+       (msgLower.includes('problemstatement') && !msgLower.includes('json')))
+    ) {
+      return 'AI trả về dữ liệu thiếu trường problemStatement.';
+    }
+
+    if (
+      msgLower.includes('truncated') ||
+      msgLower.includes('max_tokens') ||
+      msgLower.includes('output limit') ||
+      msgLower.includes('bị cắt') ||
+      msgLower.includes('giới hạn độ dài') ||
+      rawMessage?.includes('chạm giới hạn đầu ra') ||
+      rawMessage?.includes('chưa hoàn chỉnh')
+    ) {
+      return 'AI trả về dữ liệu chưa hoàn chỉnh. Vui lòng giảm số câu hỏi hoặc thử lại.';
+    }
+
+    if (
+      statusCode === 504 ||
+      msgLower.includes('timed out') ||
+      msgLower.includes('timeout') ||
+      msgLower.includes('connection') ||
+      msgLower.includes('mất kết nối') ||
+      msgLower.includes('quá hạn')
+    ) {
+      return 'Kết nối tới dịch vụ AI bị quá hạn hoặc gián đoạn. Vui lòng kiểm tra đường truyền và thử lại.';
+    }
+
+    if (
+      statusCode === 429 ||
+      msgLower.includes('rate limit') ||
+      msgLower.includes('429') ||
+      msgLower.includes('quota') ||
+      msgLower.includes('resource_exhausted') ||
+      msgLower.includes('vượt hạn mức')
+    ) {
+      return 'Hệ thống AI đang tạm thời quá tải hoặc vượt hạn mức yêu cầu. Vui lòng đợi trong giây lát và thử lại.';
+    }
+
+    if (
+      statusCode === 503 ||
+      statusCode === 502 ||
+      msgLower.includes('503') ||
+      msgLower.includes('service unavailable') ||
+      msgLower.includes('service is currently unavailable') ||
+      msgLower.includes('server unavailable') ||
+      msgLower.includes('tạm thời không khả dụng')
+    ) {
+      if (rawMessage && rawMessage.includes('AI provider service is currently unavailable')) {
+        return rawMessage;
+      }
+      return 'Hệ thống AI đang tạm thời quá tải hoặc vượt hạn mức yêu cầu. Vui lòng đợi trong giây lát và thử lại.';
+    }
+
+    if (
+      msgLower.includes('invalid structured json') ||
+      msgLower.includes('json') ||
+      isJacksonSyntaxError
+    ) {
+      if (msgLower.includes('testcase') || msgLower.includes('test_case')) {
+        return 'AI trả về cấu trúc testCases không hợp lệ.';
+      }
+      return 'AI trả về dữ liệu không đúng cấu trúc. Vui lòng thử lại.';
+    }
+
+    if (
+      statusCode === 401 ||
+      statusCode === 403 ||
+      msgLower.includes('authentication') ||
+      msgLower.includes('api key') ||
+      msgLower.includes('unauthorized') ||
+      msgLower.includes('401') ||
+      msgLower.includes('403')
+    ) {
+      return 'Xác thực dịch vụ AI thất bại. Vui lòng kiểm tra khóa API cấu hình trên hệ thống.';
+    }
+
+    if (
+      statusCode === 500 ||
+      msgLower.includes('500') ||
+      msgLower.includes('internal_server_error') ||
+      msgLower.includes('an unexpected error occurred')
+    ) {
+      return 'Hệ thống AI gặp sự cố khi xử lý dữ liệu đề thi. Vui lòng thử lại hoặc giảm số lượng câu hỏi.';
+    }
+
+    return rawMessage || 'AI chưa thể hoàn thành dữ liệu đề thi. Vui lòng thử lại hoặc giảm số lượng câu hỏi.';
+  }
+
   // Full Agent Generation Pipeline
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current || phase === 'EXTRACTING' || phase === 'ANALYZING' || phase === 'GENERATING') return;
+    isSubmittingRef.current = true;
     setError(null);
 
     if (mode === 'DOCUMENT_UPLOAD') {
@@ -203,10 +349,11 @@ export function AiExamGeneratorModal({
       } catch (err: unknown) {
         setPhase('ERROR');
         const axiosErr = err as AxiosError<{ message?: string }>;
-        setError(
-          axiosErr.response?.data?.message ||
-          'Không thể sinh đề từ tài liệu. Vui lòng kiểm tra lại định dạng tệp hoặc thử lại sau.'
-        );
+        const statusCode = axiosErr.response?.status;
+        const rawMessage = axiosErr.response?.data?.message || (err instanceof Error ? err.message : '');
+        setError(mapAiErrorMessage(rawMessage, statusCode));
+      } finally {
+        isSubmittingRef.current = false;
       }
     } else {
       // Manual Topic Mode
@@ -236,10 +383,11 @@ export function AiExamGeneratorModal({
       } catch (err: unknown) {
         setPhase('ERROR');
         const axiosErr = err as AxiosError<{ message?: string }>;
-        setError(
-          axiosErr.response?.data?.message ||
-          'Không thể sinh bản nháp đề thi. Vui lòng thử lại sau.'
-        );
+        const statusCode = axiosErr.response?.status;
+        const rawMessage = axiosErr.response?.data?.message || (err instanceof Error ? err.message : '');
+        setError(mapAiErrorMessage(rawMessage, statusCode));
+      } finally {
+        isSubmittingRef.current = false;
       }
     }
   };
@@ -303,7 +451,11 @@ export function AiExamGeneratorModal({
   };
 
   // Test Case Editing
-  const handleUpdateTestCase = (index: number, field: keyof AiTestCaseDraft, value: any) => {
+  const handleUpdateTestCase = <K extends keyof AiTestCaseDraft>(
+    index: number,
+    field: K,
+    value: AiTestCaseDraft[K]
+  ) => {
     if (!draft || !draft.testCases) return;
     const updated = [...draft.testCases];
     updated[index] = { ...updated[index], [field]: value };
@@ -332,7 +484,7 @@ export function AiExamGeneratorModal({
   // Final Confirmation & Persistence
   const handleSaveConfirmed = async () => {
     if (!draft) return;
-    const classIdToSave = selectedClassId || (classes.length > 0 ? classes[0].id : '');
+    const classIdToSave = activeClassId;
     if (!classIdToSave) {
       setError('Vui lòng chọn lớp học áp dụng bài thi.');
       return;
@@ -369,6 +521,7 @@ export function AiExamGeneratorModal({
         sourceDocumentName: draft.sourceDocumentName || selectedFile?.name,
         testCases: draft.testCases,
         rubricCriteria: draft.rubricCriteria,
+        questions: draft.questions,
       };
 
       await teacherAiExamApi.confirmAndSaveExam(payload);
@@ -385,18 +538,25 @@ export function AiExamGeneratorModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim/60 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in">
-      <div className="bg-surface-container-lowest w-full max-w-4xl rounded-3xl shadow-2xl border border-outline-variant/60 flex flex-col my-8 overflow-hidden max-h-[92vh]">
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+      <div
+        ref={modalCardRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ai-exam-generator-modal-title"
+        tabIndex={-1}
+        className="bg-surface-container-lowest w-full max-w-4xl rounded-2xl shadow-2xl border border-outline-variant/40 flex flex-col max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] overflow-hidden animate-in zoom-in-95 duration-150 focus:outline-none"
+      >
         {/* Modal Header */}
         <div className="flex items-center justify-between p-5 bg-surface-container-low border-b border-outline-variant/40 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-purple-600 text-white shadow-sm shadow-purple-600/30">
+            <div className="p-2.5 rounded-xl bg-purple-600 text-white shadow-sm shadow-purple-600/30">
               <Sparkles className="w-5 h-5 animate-pulse" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="font-headline-sm font-bold text-on-surface text-base">
+                <h2 id="ai-exam-generator-modal-title" className="font-headline-sm font-bold text-on-surface text-base">
                   AI Agent Sinh Đề Bài & Rubric Chấm Điểm
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-800 border border-purple-300">
@@ -409,15 +569,17 @@ export function AiExamGeneratorModal({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
+            aria-label="Đóng hộp thoại sinh đề bài"
+            className="p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Body Container with Scroll */}
-        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
+        <div className="flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 space-y-6">
           {/* Error Banner */}
           {error && (
             <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start gap-3 text-xs animate-in slide-in-from-top-1">
@@ -426,7 +588,7 @@ export function AiExamGeneratorModal({
                 <span className="font-semibold block mb-0.5">Lưu ý hoặc lỗi xử lý:</span>
                 <p>{error}</p>
               </div>
-              <button onClick={() => setError(null)} className="text-rose-500 hover:text-rose-700">
+              <button type="button" onClick={() => setError(null)} aria-label="Đóng thông báo lỗi" className="text-rose-500 hover:text-rose-700 cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -465,7 +627,7 @@ export function AiExamGeneratorModal({
 
               {/* Mode 1: Document Upload Zone */}
               {mode === 'DOCUMENT_UPLOAD' && (
-                <div className="space-y-3">
+                <div className="space-y-3 min-h-[188px] flex flex-col justify-center animate-in fade-in duration-150">
                   <label className="text-xs font-semibold text-on-surface flex items-center gap-1.5">
                     <span>Tài liệu nguồn (PDF có văn bản, DOCX, TXT):</span>
                     <span className="text-rose-600 font-bold">*</span>
@@ -535,6 +697,7 @@ export function AiExamGeneratorModal({
                           onClick={handleRemoveFile}
                           className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
                           title="Hủy chọn tệp"
+                          aria-label="Hủy chọn tệp tài liệu"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -586,18 +749,22 @@ export function AiExamGeneratorModal({
 
               {/* Mode 2: Manual Topic Field */}
               {mode === 'MANUAL_TOPIC' && (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-on-surface flex items-center gap-1.5">
+                <div className="min-h-[188px] flex flex-col justify-center space-y-2 p-4 rounded-2xl bg-surface-container-low/50 border border-outline-variant/40 animate-in fade-in duration-150">
+                  <label htmlFor="ai-manual-topic-input" className="text-xs font-semibold text-on-surface flex items-center gap-1.5">
                     <span>Chủ đề bài thi:</span>
                     <span className="text-rose-600 font-bold">*</span>
                   </label>
                   <input
+                    id="ai-manual-topic-input"
                     type="text"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                     placeholder="VD: Tìm kiếm theo chiều rộng BFS và đường đi ngắn nhất trên đồ thị..."
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant/60 bg-surface-container-low text-on-surface text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant/60 bg-surface-container-lowest text-on-surface text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                   />
+                  <p className="text-[11px] text-on-surface-variant">
+                    Nhập chủ đề chuyên môn, thuật toán hoặc kỹ năng lập trình cụ thể để AI Agent thiết kế đề bài và barem điểm phù hợp.
+                  </p>
                 </div>
               )}
 
@@ -1012,7 +1179,7 @@ export function AiExamGeneratorModal({
                     <label className="text-[11px] font-semibold text-on-surface">Lớp học áp dụng:</label>
                     <select
                       id="select-exam-class"
-                      value={selectedClassId}
+                      value={activeClassId}
                       onChange={(e) => {
                         setSelectedClassId(e.target.value);
                         setError(null);
@@ -1094,6 +1261,7 @@ export function AiExamGeneratorModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

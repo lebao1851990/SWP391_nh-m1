@@ -3,6 +3,8 @@ package com.codeassess.submission.service;
 import com.codeassess.common.exception.ExamTimeExpiredException;
 import com.codeassess.common.exception.ResourceNotFoundException;
 import com.codeassess.exam.entity.Exam;
+import com.codeassess.exam.entity.ExamQuestion;
+import com.codeassess.exam.repository.ExamQuestionRepository;
 import com.codeassess.exam.repository.ExamRepository;
 import com.codeassess.plagiarism.entity.AstFingerprint;
 import com.codeassess.plagiarism.entity.PlagiarismEvidence;
@@ -66,6 +68,7 @@ class StudentSubmissionServiceTest {
 
     private StudentSubmissionService service;
 
+    private ExamQuestionRepository examQuestionRepository;
     private Exam testExam;
     private User testStudent;
 
@@ -82,6 +85,7 @@ class StudentSubmissionServiceTest {
         dockerSandboxService = mock(DockerSandboxService.class);
         astPlagiarismService = mock(AstPlagiarismService.class);
         zipProperties = new ZipSubmissionProperties();
+        examQuestionRepository = mock(ExamQuestionRepository.class);
         submissionPersistenceService = spy(new SubmissionPersistenceService(submissionRepository, astPlagiarismService, eventPublisher));
 
         service = new StudentSubmissionService(
@@ -98,6 +102,7 @@ class StudentSubmissionServiceTest {
                 zipProperties,
                 submissionPersistenceService
         );
+        ReflectionTestUtils.setField(service, "examQuestionRepository", examQuestionRepository);
 
         testExam = Exam.builder()
                 .id("exam-100")
@@ -113,6 +118,7 @@ class StudentSubmissionServiceTest {
                 .build();
 
         Map<String, Submission> mockDb = new java.util.concurrent.ConcurrentHashMap<>();
+        when(examRepository.findByIdForShare("exam-100")).thenReturn(Optional.of(testExam));
         when(examRepository.findByIdAndStudentId("exam-100", "student-100")).thenReturn(Optional.of(testExam));
         when(userRepository.findById("student-100")).thenReturn(Optional.of(testStudent));
         when(submissionRepository.save(any(Submission.class))).thenAnswer(invocation -> {
@@ -764,5 +770,90 @@ class StudentSubmissionServiceTest {
         assertThat(response).isNotNull();
         verify(testRunner).runAndGrade(any());
         verify(workspace).close();
+    }
+
+    @Test
+    @DisplayName("submitBatchZip: Successful submission for all questions")
+    void submitBatchZip_success_submitsAllQuestions() throws Exception {
+        ExamQuestion q1 = ExamQuestion.builder().id("q-1").title("Question 1").build();
+        ExamQuestion q2 = ExamQuestion.builder().id("q-2").title("Question 2").build();
+        when(examQuestionRepository.findByExam_IdOrderByDisplayOrderAscCreatedAtAsc("exam-100"))
+                .thenReturn(List.of(q1, q2));
+
+        Path tempDir1 = Files.createTempDirectory("test-batch-1-");
+        ExtractedWorkspace ws1 = spy(createMockWorkspace(tempDir1));
+        Path tempDir2 = Files.createTempDirectory("test-batch-2-");
+        ExtractedWorkspace ws2 = spy(createMockWorkspace(tempDir2));
+
+        byte[] b1 = "zip1".getBytes();
+        byte[] b2 = "zip2".getBytes();
+        MockMultipartFile f1 = new MockMultipartFile("files", "q1.zip", "application/zip", b1);
+        MockMultipartFile f2 = new MockMultipartFile("files", "q2.zip", "application/zip", b2);
+
+        when(sourceHasherService.calculateArchiveSha256(b1)).thenReturn("hash1");
+        when(sourceHasherService.calculateArchiveSha256(b2)).thenReturn("hash2");
+        when(zipExtractionService.extract(b1)).thenReturn(ws1);
+        when(zipExtractionService.extract(b2)).thenReturn(ws2);
+        when(sourceHasherService.calculateSourceTreeSha256(ws1.files())).thenReturn("tree1");
+        when(sourceHasherService.calculateSourceTreeSha256(ws2.files())).thenReturn("tree2");
+        when(entryPointDiscoveryService.discoverEntryPoint(ws1)).thenReturn(EntryPointResult.found("Main", List.of("Main")));
+        when(entryPointDiscoveryService.discoverEntryPoint(ws2)).thenReturn(EntryPointResult.found("Main", List.of("Main")));
+
+        Submission s1 = Submission.builder().id("sub-1").exam(testExam).question(q1).student(testStudent).status("PENDING").build();
+        Submission s2 = Submission.builder().id("sub-2").exam(testExam).question(q2).student(testStudent).status("PENDING").build();
+        when(submissionPersistenceService.createInitialZipSubmission(eq("exam-100"), eq("q-1"), any(), eq(q1), any(), any(), any(), any(), anyInt(), any()))
+                .thenReturn(s1);
+        when(submissionPersistenceService.createInitialZipSubmission(eq("exam-100"), eq("q-2"), any(), eq(q2), any(), any(), any(), any(), anyInt(), any()))
+                .thenReturn(s2);
+
+        when(submissionRepository.findById("sub-1")).thenReturn(Optional.of(s1));
+        when(submissionRepository.findById("sub-2")).thenReturn(Optional.of(s2));
+
+        List<SubmissionDetailResponse> result = service.submitBatchZip(
+                "exam-100", "student-100", List.of("q-1", "q-2"), List.of(f1, f2));
+
+        assertThat(result).hasSize(2);
+        verify(submissionPersistenceService, times(1)).createInitialZipSubmission(eq("exam-100"), eq("q-1"), any(), eq(q1), any(), any(), any(), any(), anyInt(), any());
+        verify(submissionPersistenceService, times(1)).createInitialZipSubmission(eq("exam-100"), eq("q-2"), any(), eq(q2), any(), any(), any(), any(), anyInt(), any());
+        verify(ws1).close();
+        verify(ws2).close();
+    }
+
+    @Test
+    @DisplayName("submitBatchZip: Missing question ZIP throws IllegalArgumentException without partial submit")
+    void submitBatchZip_missingQuestion_throwsIllegalArgument() {
+        ExamQuestion q1 = ExamQuestion.builder().id("q-1").title("Question 1").build();
+        ExamQuestion q2 = ExamQuestion.builder().id("q-2").title("Question 2").build();
+        when(examQuestionRepository.findByExam_IdOrderByDisplayOrderAscCreatedAtAsc("exam-100"))
+                .thenReturn(List.of(q1, q2));
+
+        MockMultipartFile f1 = new MockMultipartFile("files", "q1.zip", "application/zip", "bytes".getBytes());
+
+        assertThatThrownBy(() -> service.submitBatchZip(
+                "exam-100", "student-100", List.of("q-1"), List.of(f1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Thiếu tệp ZIP bài làm");
+
+        verifyNoInteractions(submissionPersistenceService);
+        verifyNoInteractions(zipExtractionService);
+    }
+
+    @Test
+    @DisplayName("submitBatchZip: Non-zip file for second question rejects entire batch")
+    void submitBatchZip_invalidFileFormat_rejectsEntireBatch() {
+        ExamQuestion q1 = ExamQuestion.builder().id("q-1").title("Question 1").build();
+        ExamQuestion q2 = ExamQuestion.builder().id("q-2").title("Question 2").build();
+        when(examQuestionRepository.findByExam_IdOrderByDisplayOrderAscCreatedAtAsc("exam-100"))
+                .thenReturn(List.of(q1, q2));
+
+        MockMultipartFile f1 = new MockMultipartFile("files", "q1.zip", "application/zip", "bytes".getBytes());
+        MockMultipartFile f2 = new MockMultipartFile("files", "q2.rar", "application/octet-stream", "bytes".getBytes());
+
+        assertThatThrownBy(() -> service.submitBatchZip(
+                "exam-100", "student-100", List.of("q-1", "q-2"), List.of(f1, f2)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Chỉ chấp nhận tệp nén .zip");
+
+        verifyNoInteractions(submissionPersistenceService);
     }
 }

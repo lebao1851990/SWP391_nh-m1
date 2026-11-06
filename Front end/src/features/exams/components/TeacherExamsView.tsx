@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useSyncExternalStore, useRef } from 'react';
+import { useModalA11y } from '@/hooks/use-modal-a11y';
+import { createPortal } from 'react-dom';
 import { useTeacherExams, useTeacherClasses, useCreateExam, useCreateTeacherClass, useDeleteExam } from '../hooks/use-teacher-exams';
 import { ExamResponse } from '../api/teacher-exams.api';
 import { AppLink as Link } from '@/components/ui/app-link';
@@ -47,6 +49,13 @@ export function TeacherExamsView() {
   });
   const [classFilter, setClassFilter] = useState('all');
 
+  // Client mount status for SSR-safe portal rendering
+  const isMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+
   // Modal State
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(() => {
@@ -60,6 +69,21 @@ export function TeacherExamsView() {
   const [examDate, setExamDate] = useState('');
   const [durationMinutes, setDurationMinutes] = useState(90);
   const [formError, setFormError] = useState('');
+
+  const createModalRef = useRef<HTMLDivElement>(null);
+  const deleteModalRef = useRef<HTMLDivElement>(null);
+
+  useModalA11y({
+    isOpen: isCreateModalOpen,
+    onClose: () => setIsCreateModalOpen(false),
+    modalRef: createModalRef,
+  });
+
+  useModalA11y({
+    isOpen: Boolean(examToDelete),
+    onClose: () => setExamToDelete(null),
+    modalRef: deleteModalRef,
+  });
   const [successMessage, setSuccessMessage] = useState('');
 
   // Quick class creation state
@@ -297,13 +321,21 @@ export function TeacherExamsView() {
             </p>
           </div>
           <div className="flex items-center gap-2 self-start md:self-auto">
-            <button
-              onClick={() => setIsAiModalOpen(true)}
+            <Link
+              href="/teacher/exams/builder"
               className="inline-flex items-center gap-2 px-3.5 py-2 bg-purple-600 text-white rounded-lg font-label-md text-xs hover:bg-purple-700 transition-colors shadow-sm cursor-pointer font-medium"
-              id="btn-ai-generate-exam"
+              id="btn-open-exam-builder"
             >
               <Sparkles className="w-4 h-4 animate-pulse" />
-              <span>Sinh đề bằng AI</span>
+              <span>Trình soạn đề thi AI</span>
+            </Link>
+            <button
+              onClick={() => setIsAiModalOpen(true)}
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface border border-outline-variant/40 rounded-lg font-label-md text-xs transition-colors shadow-xs cursor-pointer font-medium"
+              id="btn-ai-generate-exam"
+            >
+              <Sparkles className="w-4 h-4 text-purple-600" />
+              <span>Sinh nhanh (Modal)</span>
             </button>
             <button
               onClick={handleOpenCreateModal}
@@ -441,6 +473,7 @@ export function TeacherExamsView() {
                           <button
                             type="button"
                             onClick={() => handleOpenDeleteModal(exam)}
+                            id={`btn-delete-exam-${exam.id}`}
                             className="inline-flex items-center justify-center p-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-rose-200"
                             title={t('teacherExams.deleteButton')}
                             aria-label={t('teacherExams.deleteButton')}
@@ -463,24 +496,32 @@ export function TeacherExamsView() {
         </div>
 
         {/* Create Exam Modal */}
-        {isCreateModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-            <div className="bg-surface-container-lowest rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-outline-variant/40 flex flex-col gap-4 animate-in zoom-in-95 duration-150">
-              <div className="flex items-center justify-between border-b border-outline-variant/30 pb-3">
+        {isMounted && isCreateModalOpen && createPortal(
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+            <div
+              ref={createModalRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="create-exam-modal-title"
+              tabIndex={-1}
+              className="bg-surface-container-lowest rounded-2xl max-w-lg w-full shadow-2xl border border-outline-variant/40 flex flex-col max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] overflow-hidden animate-in zoom-in-95 duration-150 focus:outline-none"
+            >
+              <div className="flex items-center justify-between border-b border-outline-variant/30 p-5 sm:p-6 shrink-0">
                 <div className="flex items-center gap-2">
                   <PlusCircle className="w-5 h-5 text-primary" />
-                  <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold">Tạo bài thi mới</h2>
+                  <h2 id="create-exam-modal-title" className="font-headline-sm text-headline-sm text-on-surface font-semibold">Tạo bài thi mới</h2>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="text-outline hover:text-on-surface transition-colors p-1 rounded-lg cursor-pointer"
+                  aria-label="Đóng hộp thoại tạo bài thi"
+                  className="text-outline hover:text-on-surface transition-colors p-1.5 rounded-lg cursor-pointer hover:bg-surface-container"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <form onSubmit={handleCreateSubmit} className="flex flex-col gap-4">
+              <form onSubmit={handleCreateSubmit} className="flex flex-col flex-1 min-h-0 overflow-y-auto p-5 sm:p-6 gap-4">
                 {formError && (
                   <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2 text-xs">
                     <AlertCircle className="w-4 h-4 shrink-0" />
@@ -489,8 +530,9 @@ export function TeacherExamsView() {
                 )}
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-on-surface">Tiêu đề bài thi *</label>
+                  <label htmlFor="create-exam-title-input" className="text-xs font-semibold text-on-surface">Tiêu đề bài thi *</label>
                   <input
+                    id="create-exam-title-input"
                     type="text"
                     required
                     placeholder="Ví dụ: Thi thực hành giữa kỳ Lập trình Java CS201"
@@ -615,8 +657,9 @@ export function TeacherExamsView() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-semibold text-on-surface">Thời gian bắt đầu *</label>
+                    <label htmlFor="create-exam-date-input" className="text-xs font-semibold text-on-surface">Thời gian bắt đầu *</label>
                     <input
+                      id="create-exam-date-input"
                       type="datetime-local"
                       required
                       value={examDate}
@@ -627,10 +670,11 @@ export function TeacherExamsView() {
 
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-on-surface">Thời lượng (Phút) *</label>
+                      <label htmlFor="create-exam-duration-input" className="text-xs font-semibold text-on-surface">Thời lượng (Phút) *</label>
                       <span className="text-[11px] text-outline">Đơn vị: phút</span>
                     </div>
                     <input
+                      id="create-exam-duration-input"
                       type="number"
                       required
                       min={1}
@@ -659,7 +703,7 @@ export function TeacherExamsView() {
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-3 mt-2 pt-3 border-t border-outline-variant/30">
+                <div className="flex justify-end gap-3 pt-3 border-t border-outline-variant/30 shrink-0">
                   <button
                     type="button"
                     onClick={() => setIsCreateModalOpen(false)}
@@ -689,19 +733,27 @@ export function TeacherExamsView() {
                 </div>
               </form>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* Delete Exam Confirmation Modal */}
-        {examToDelete && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-            <div className="bg-surface-container-lowest rounded-2xl max-w-md w-full p-6 shadow-2xl border border-rose-200/60 flex flex-col gap-4 animate-in zoom-in-95 duration-150">
+        {isMounted && examToDelete && createPortal(
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+            <div
+              ref={deleteModalRef}
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="delete-exam-modal-title"
+              tabIndex={-1}
+              className="bg-surface-container-lowest rounded-2xl max-w-md w-full p-6 shadow-2xl border border-rose-200/60 flex flex-col gap-4 animate-in zoom-in-95 duration-150 focus:outline-none"
+            >
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-full bg-rose-50 text-rose-600 shrink-0">
                   <Trash2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-headline-sm text-headline-sm font-semibold text-on-surface">
+                  <h3 id="delete-exam-modal-title" className="font-headline-sm text-headline-sm font-semibold text-on-surface">
                     {t('teacherExams.deleteModalTitle')}
                   </h3>
                   <p className="text-xs text-on-surface-variant font-medium truncate max-w-[280px]">
@@ -756,7 +808,8 @@ export function TeacherExamsView() {
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* AI Exam Generator Modal */}

@@ -35,6 +35,8 @@ export interface AiExamGenerateRequest {
   programmingLanguage: string;
   additionalRequirements?: string;
   criteriaCount?: number;
+  questionCount?: number;
+  testCasesPerQuestion?: number;
 }
 
 export interface AiDocumentExamGenerateResponse {
@@ -48,6 +50,7 @@ export interface AiDocumentExamGenerateResponse {
   programmingLanguage?: string;
   difficulty?: string;
   sourceDocumentName?: string;
+  maxScore?: number;
   learningObjectives?: string[];
   sourceReferences?: string[];
   documentTopicSummary?: string;
@@ -55,6 +58,11 @@ export interface AiDocumentExamGenerateResponse {
   rubricCriteria: AiRubricItem[];
   totalRubricScore: number;
   isSimulation?: boolean;
+  requestedQuestionCount?: number;
+  generatedQuestionCount?: number;
+  requestedTestCasesPerQuestion?: number;
+  generatedTestCasesPerQuestion?: number;
+  questions?: AiDocumentExamGenerateResponse[];
 }
 
 export interface AiExamGenerateResponse {
@@ -65,9 +73,15 @@ export interface AiExamGenerateResponse {
   constraints?: string;
   sampleInput?: string;
   sampleOutput?: string;
+  maxScore?: number;
   testCases: AiTestCaseDraft[];
   rubricCriteria: AiRubricItem[];
   totalRubricScore: number;
+  requestedQuestionCount?: number;
+  generatedQuestionCount?: number;
+  requestedTestCasesPerQuestion?: number;
+  generatedTestCasesPerQuestion?: number;
+  questions?: AiExamGenerateResponse[];
 }
 
 export interface SaveAiExamRequest {
@@ -85,6 +99,7 @@ export interface SaveAiExamRequest {
   sourceDocumentName?: string;
   testCases?: AiTestCaseDraft[];
   rubricCriteria?: AiRubricItem[];
+  questions?: AiExamGenerateResponse[];
 }
 
 export const teacherAiExamApi = {
@@ -109,6 +124,8 @@ export const teacherAiExamApi = {
     difficulty: string;
     programmingLanguage: string;
     criteriaCount?: number;
+    questionCount?: number;
+    testCasesPerQuestion?: number;
     additionalRequirements?: string;
   }): Promise<AiDocumentExamGenerateResponse> => {
     const formData = new FormData();
@@ -117,6 +134,12 @@ export const teacherAiExamApi = {
     formData.append('programmingLanguage', params.programmingLanguage);
     if (params.criteriaCount) {
       formData.append('criteriaCount', params.criteriaCount.toString());
+    }
+    if (params.questionCount) {
+      formData.append('questionCount', params.questionCount.toString());
+    }
+    if (params.testCasesPerQuestion) {
+      formData.append('testCasesPerQuestion', params.testCasesPerQuestion.toString());
     }
     if (params.additionalRequirements) {
       formData.append('additionalRequirements', params.additionalRequirements);

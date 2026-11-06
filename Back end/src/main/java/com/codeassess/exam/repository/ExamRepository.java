@@ -1,7 +1,9 @@
 package com.codeassess.exam.repository;
 
 import com.codeassess.exam.entity.Exam;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -14,6 +16,14 @@ public interface ExamRepository extends JpaRepository<Exam, String> {
 
     @Query("SELECT DISTINCT e FROM Exam e LEFT JOIN e.classes c WHERE e.deletedAt IS NULL AND (e.courseClass.teacher.id = :teacherId OR c.teacher.id = :teacherId) ORDER BY e.createdAt DESC")
     List<Exam> findByCourseClass_Teacher_Id(@Param("teacherId") String teacherId);
+
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("SELECT e FROM Exam e WHERE e.id = :id AND e.deletedAt IS NULL")
+    Optional<Exam> findByIdForShare(@Param("id") String id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT e FROM Exam e WHERE e.id = :id AND e.deletedAt IS NULL")
+    Optional<Exam> findByIdForUpdate(@Param("id") String id);
 
     @Query("SELECT DISTINCT e FROM Exam e LEFT JOIN e.classes c WHERE e.id = :id AND e.deletedAt IS NULL AND (e.courseClass.teacher.id = :teacherId OR c.teacher.id = :teacherId)")
     Optional<Exam> findByIdAndCourseClass_Teacher_Id(@Param("id") String id, @Param("teacherId") String teacherId);

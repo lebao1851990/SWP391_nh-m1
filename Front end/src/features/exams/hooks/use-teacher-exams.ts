@@ -155,3 +155,79 @@ export function useDeleteTestCase() {
   });
 }
 
+export function useStudentExamScores(examId: string, studentId: string) {
+  return useQuery({
+    queryKey: ['teacher-exam-student-scores', examId, studentId] as const,
+    queryFn: () => teacherExamsApi.getStudentExamScores(examId, studentId),
+    enabled: !!examId && !!studentId,
+  });
+}
+
+export function useSetQuestionOverride() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      examId,
+      questionId,
+      studentId,
+      payload,
+    }: {
+      examId: string;
+      questionId: string;
+      studentId: string;
+      payload: import('../api/teacher-exams.api').QuestionOverrideRequestDto;
+    }) => teacherExamsApi.setQuestionOverride(examId, questionId, studentId, payload),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['teacher-exam-student-scores', variables.examId, variables.studentId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['teacher-exam-submissions', variables.examId],
+      });
+    },
+  });
+}
+
+export function useClearQuestionOverride() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      examId,
+      questionId,
+      studentId,
+    }: {
+      examId: string;
+      questionId: string;
+      studentId: string;
+    }) => teacherExamsApi.clearQuestionOverride(examId, questionId, studentId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['teacher-exam-student-scores', variables.examId, variables.studentId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['teacher-exam-submissions', variables.examId],
+      });
+    },
+  });
+}
+
+export function useTeacherSubmissionFiles(id: string) {
+  return useQuery({
+    queryKey: ['teacher-submission-files', id],
+    queryFn: () => teacherExamsApi.getSubmissionFiles(id),
+    enabled: !!id,
+  });
+}
+
+export function useUpdateInstructorFeedback() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, feedback }: { id: string; feedback: string }) =>
+      teacherExamsApi.updateInstructorFeedback(id, feedback),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['teacher-submission-detail', variables.id],
+      });
+    },
+  });
+}

@@ -7,6 +7,7 @@ export const studentExamKeys = {
   list: (filters: string) => [...studentExamKeys.lists(), { filters }] as const,
   details: () => [...studentExamKeys.all, 'detail'] as const,
   detail: (id: string) => [...studentExamKeys.details(), id] as const,
+  submissions: (id: string) => [...studentExamKeys.all, 'submissions', id] as const,
 };
 
 export function useStudentExams() {
@@ -24,6 +25,14 @@ export function useStudentExam(id: string) {
   });
 }
 
+export function useStudentExamSubmissions(examId: string) {
+  return useQuery({
+    queryKey: studentExamKeys.submissions(examId),
+    queryFn: () => studentExamsApi.getStudentExamSubmissions(examId),
+    enabled: !!examId,
+  });
+}
+
 export function useSubmitExam() {
   const queryClient = useQueryClient();
 
@@ -34,6 +43,7 @@ export function useSubmitExam() {
       // Invalidate both the list and the specific exam detail so they show as submitted
       queryClient.invalidateQueries({ queryKey: studentExamKeys.lists() });
       queryClient.invalidateQueries({ queryKey: studentExamKeys.detail(variables.examId) });
+      queryClient.invalidateQueries({ queryKey: studentExamKeys.submissions(variables.examId) });
     },
   });
 }
@@ -45,15 +55,41 @@ export function useSubmitExamZip() {
     mutationFn: ({
       examId,
       file,
+      questionId,
       onUploadProgress,
     }: {
       examId: string;
       file: File;
+      questionId?: string;
       onUploadProgress?: (progress: number) => void;
-    }) => studentExamsApi.submitExamZip(examId, file, onUploadProgress),
+    }) => studentExamsApi.submitExamZip(examId, file, questionId, onUploadProgress),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: studentExamKeys.lists() });
       queryClient.invalidateQueries({ queryKey: studentExamKeys.detail(variables.examId) });
+      queryClient.invalidateQueries({ queryKey: studentExamKeys.submissions(variables.examId) });
+    },
+  });
+}
+
+export function useSubmitExamBatchZip() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      examId,
+      questionIds,
+      files,
+      onUploadProgress,
+    }: {
+      examId: string;
+      questionIds: string[];
+      files: File[];
+      onUploadProgress?: (progress: number) => void;
+    }) => studentExamsApi.submitExamBatchZip(examId, questionIds, files, onUploadProgress),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: studentExamKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: studentExamKeys.detail(variables.examId) });
+      queryClient.invalidateQueries({ queryKey: studentExamKeys.submissions(variables.examId) });
     },
   });
 }

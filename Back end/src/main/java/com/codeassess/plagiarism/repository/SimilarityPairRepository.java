@@ -19,6 +19,7 @@ import java.util.Optional;
 public interface SimilarityPairRepository extends JpaRepository<SimilarityPair, Long> {
     List<SimilarityPair> findByExam_Id(String examId);
     List<SimilarityPair> findByExam_IdAndIsActiveTrue(String examId);
+    List<SimilarityPair> findByExam_IdAndQuestion_IdAndIsActiveTrue(String examId, String questionId);
     Optional<SimilarityPair> findBySubmissionA_IdAndSubmissionB_Id(String submissionAId, String submissionBId);
     List<SimilarityPair> findBySubmissionA_IdOrSubmissionB_Id(String submissionAId, String submissionBId);
 
@@ -54,6 +55,23 @@ public interface SimilarityPairRepository extends JpaRepository<SimilarityPair, 
            "WHERE sp.id = :id")
     int updateCalculatedMetrics(
         @Param("id") Long id,
+        @Param("rate") BigDecimal rate,
+        @Param("hashes") Integer hashes,
+        @Param("flagged") Boolean flagged
+    );
+
+    @org.springframework.transaction.annotation.Transactional
+    @Modifying(clearAutomatically = false)
+    @Query("UPDATE SimilarityPair sp SET " +
+           "sp.similarityRate = :rate, " +
+           "sp.sharedHashesCount = :hashes, " +
+           "sp.isFlagged = :flagged, " +
+           "sp.question = :question, " +
+           "sp.isActive = true " +
+           "WHERE sp.id = :id")
+    int updateCalculatedMetricsWithQuestion(
+        @Param("id") Long id,
+        @Param("question") com.codeassess.exam.entity.ExamQuestion question,
         @Param("rate") BigDecimal rate,
         @Param("hashes") Integer hashes,
         @Param("flagged") Boolean flagged

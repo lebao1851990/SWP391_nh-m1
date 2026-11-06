@@ -18,6 +18,9 @@ import {
   BookOpen,
   Activity,
   ShieldCheck,
+  Terminal,
+  FileCheck2,
+  GitBranch,
   X,
 } from 'lucide-react';
 
@@ -46,14 +49,19 @@ export function Sidebar({ role = 'STUDENT' }: SidebarProps) {
     { name: t('nav.exams'), href: '/teacher/exams', icon: FileCode2 },
     { name: t('nav.classes'), href: '/teacher/classes', icon: GraduationCap },
     { name: t('nav.submissions'), href: '/teacher/submissions', icon: Code2 },
+    { name: 'Duyệt & Phê duyệt Điểm', href: '/teacher/grading', icon: FileCheck2 },
     { name: t('nav.plagiarism'), href: '/teacher/plagiarism', icon: GitCompare, badge: { text: 'AST', type: 'AST' } },
+    { name: 'Git Analytics', href: '/teacher/analytics/git', icon: GitBranch },
     { name: t('nav.appeals'), href: '/teacher/appeals', icon: Scale },
   ];
 
   const studentNav: NavItem[] = [
     { name: t('nav.dashboard'), href: '/student/dashboard', icon: LayoutDashboard },
     { name: t('nav.myExams'), href: '/student/exams', icon: FileCode2 },
+    { name: t('nav.classes') || 'Lớp học', href: '/student/classes', icon: GraduationCap },
+    { name: t('nav.sandbox') || 'Thực thi Sandbox', href: '/student/sandbox', icon: Terminal },
     { name: t('nav.mySubmissions'), href: '/student/submissions', icon: Code2 },
+    { name: 'Git Analytics', href: '/student/analytics/git', icon: GitBranch },
     { name: t('nav.appeals'), href: '/student/appeals', icon: Scale },
   ];
 

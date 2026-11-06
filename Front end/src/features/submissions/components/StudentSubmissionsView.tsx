@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useStudentSubmissions } from '../hooks';
+import { ConnectionStatusIndicator, useSubmissionRealtime } from '@/features/websocket';
 import { AppLink as Link } from '@/components/ui/app-link';
 import { 
   Search, 
@@ -21,6 +22,7 @@ import {
 
 export function StudentSubmissionsView() {
   const { data: submissions, isLoading, isError, error, refetch } = useStudentSubmissions();
+  useSubmissionRealtime();
   const [searchQuery, setSearchQuery] = useState(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('search') || '' : ''));
   const [statusFilter, setStatusFilter] = useState(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('status') || 'all' : 'all'));
 
@@ -102,7 +104,10 @@ export function StudentSubmissionsView() {
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md">
           <div className="flex flex-col gap-0.5">
-            <h1 className="font-display-lg text-display-lg text-on-surface tracking-tight">Bài nộp của tôi</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="font-display-lg text-display-lg text-on-surface tracking-tight">Bài nộp của tôi</h1>
+              <ConnectionStatusIndicator />
+            </div>
             <p className="text-xs sm:text-sm text-on-surface-variant">
               Theo dõi mã nguồn bài làm của bạn, tiến độ chấm điểm và kết quả kiểm định AST tự động.
             </p>

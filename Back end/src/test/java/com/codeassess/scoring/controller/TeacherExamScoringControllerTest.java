@@ -30,8 +30,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
+@org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest(TeacherExamScoringController.class)
+@org.springframework.context.annotation.Import(com.codeassess.security.SecurityConfig.class)
 class TeacherExamScoringControllerTest {
 
     @Autowired
@@ -42,6 +42,12 @@ class TeacherExamScoringControllerTest {
 
     @MockBean
     private ExamScoreAggregationService examScoreAggregationService;
+
+    @MockBean
+    private com.codeassess.user.repository.UserRepository userRepository;
+
+    @MockBean
+    private com.codeassess.security.CustomUserDetailsService customUserDetailsService;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -219,4 +225,6 @@ class TeacherExamScoringControllerTest {
         );
     }
 }
+
+
 

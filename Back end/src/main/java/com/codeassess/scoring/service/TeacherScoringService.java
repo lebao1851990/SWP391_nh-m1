@@ -33,6 +33,10 @@ public class TeacherScoringService {
     private final GradeAuditLogRepository gradeAuditLogRepository;
     private final UserRepository userRepository;
     private final com.codeassess.testcase.repository.SubmissionTestResultRepository submissionTestResultRepository;
+    private final com.codeassess.scoring.repository.StudentQuestionScoreRepository studentQuestionScoreRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.codeassess.websocket.service.WebSocketBroadcaster webSocketBroadcaster;
 
     public TeacherScoringService(
             SubmissionRepository submissionRepository,
@@ -41,12 +45,25 @@ public class TeacherScoringService {
             GradeAuditLogRepository gradeAuditLogRepository,
             UserRepository userRepository,
             com.codeassess.testcase.repository.SubmissionTestResultRepository submissionTestResultRepository) {
+        this(submissionRepository, ruleScoreRepository, scoringCriteriaRepository, gradeAuditLogRepository, userRepository, submissionTestResultRepository, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public TeacherScoringService(
+            SubmissionRepository submissionRepository,
+            RuleScoreRepository ruleScoreRepository,
+            ScoringCriteriaRepository scoringCriteriaRepository,
+            GradeAuditLogRepository gradeAuditLogRepository,
+            UserRepository userRepository,
+            com.codeassess.testcase.repository.SubmissionTestResultRepository submissionTestResultRepository,
+            com.codeassess.scoring.repository.StudentQuestionScoreRepository studentQuestionScoreRepository) {
         this.submissionRepository = submissionRepository;
         this.ruleScoreRepository = ruleScoreRepository;
         this.scoringCriteriaRepository = scoringCriteriaRepository;
         this.gradeAuditLogRepository = gradeAuditLogRepository;
         this.userRepository = userRepository;
         this.submissionTestResultRepository = submissionTestResultRepository;
+        this.studentQuestionScoreRepository = studentQuestionScoreRepository;
     }
 
     @Transactional(readOnly = true)
@@ -236,7 +253,31 @@ public class TeacherScoringService {
             submission.setStatus("GRADED");
         }
 
+        // If score is modified after approval or legacy auto-backfill, invalidate previous approval and reset publication
+        if ("APPROVED".equalsIgnoreCase(submission.getReviewStatus()) || "LEGACY_AUTO".equalsIgnoreCase(submission.getReviewStatus())) {
+            submission.setReviewStatus("PENDING_REVIEW");
+            submission.setApprovedScore(null);
+            submission.setPublicationStatus("UNPUBLISHED");
+            submission.setPublishedScore(null);
+            submission.setScoreVersion(submission.getScoreVersion() != null ? submission.getScoreVersion() + 1 : 1);
+            if (studentQuestionScoreRepository != null && submission.getQuestion() != null && submission.getStudent() != null) {
+                studentQuestionScoreRepository.unpublishQuestionScore(submission.getQuestion().getId(), submission.getStudent().getId());
+            }
+        }
+
         submissionRepository.save(submission);
+
+        // Synchronize with StudentQuestionScore if question is present
+        if (submission.getQuestion() != null && submission.getStudent() != null && studentQuestionScoreRepository != null) {
+            String qId = submission.getQuestion().getId();
+            String sId = submission.getStudent().getId();
+            if (postOverrideScore != null) {
+                studentQuestionScoreRepository.setQuestionOverride(
+                        qId, sId, postOverrideScore, payload.getOverrideRationale(), teacherId);
+            } else if (preOverrideScore != null && postOverrideScore == null) {
+                studentQuestionScoreRepository.clearQuestionOverride(qId, sId);
+            }
+        }
 
         if (actionType != null) {
             GradeAuditLog auditLog = GradeAuditLog.builder()
@@ -253,6 +294,20 @@ public class TeacherScoringService {
                     .build();
 
             gradeAuditLogRepository.save(auditLog);
+        }
+
+        if (webSocketBroadcaster != null) {
+            try {
+                String examId = submission.getExam() != null ? submission.getExam().getId() : null;
+                String studentId = submission.getStudent() != null ? submission.getStudent().getId() : null;
+                Double effScore = postEffectiveScore != null ? postEffectiveScore.doubleValue() : null;
+                Double maxPts = maxScale != null && maxScale.compareTo(BigDecimal.ZERO) > 0 ? maxScale.doubleValue() : null;
+                webSocketBroadcaster.broadcastSubmissionStatus(
+                        submissionId, examId, studentId, submission.getStatus(), submission.getExecutionStatus(), effScore, maxPts
+                );
+            } catch (Exception wsEx) {
+                // Ignore WebSocket broadcast error to preserve transaction integrity
+            }
         }
 
         return getScoringDetail(submissionId, teacherId);

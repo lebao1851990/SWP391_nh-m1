@@ -135,5 +135,32 @@ public interface StudentQuestionScoreRepository extends JpaRepository<StudentQue
     int clearQuestionOverride(
             @Param("questionId") String questionId,
             @Param("studentId") String studentId);
+
+    @Modifying
+    @Query("""
+        UPDATE StudentQuestionScore sqs
+        SET sqs.publicationStatus = 'PUBLISHED',
+            sqs.publishedScore = :publishedScore,
+            sqs.publishedAt = CURRENT_TIMESTAMP,
+            sqs.updatedAt = CURRENT_TIMESTAMP
+        WHERE sqs.question.id = :questionId
+          AND sqs.student.id = :studentId
+        """)
+    int publishQuestionScore(
+            @Param("questionId") String questionId,
+            @Param("studentId") String studentId,
+            @Param("publishedScore") BigDecimal publishedScore);
+
+    @Modifying
+    @Query("""
+        UPDATE StudentQuestionScore sqs
+        SET sqs.publicationStatus = 'UNPUBLISHED',
+            sqs.updatedAt = CURRENT_TIMESTAMP
+        WHERE sqs.question.id = :questionId
+          AND sqs.student.id = :studentId
+        """)
+    int unpublishQuestionScore(
+            @Param("questionId") String questionId,
+            @Param("studentId") String studentId);
 }
 

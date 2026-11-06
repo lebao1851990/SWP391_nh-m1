@@ -41,6 +41,13 @@ public class Appeal {
     @Column(name = "reviewer_notes", columnDefinition = "TEXT")
     private String reviewerNotes;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "admin_id")
+    private User admin;
+
+    @Column(name = "resolution_action", length = 50)
+    private String resolutionAction;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

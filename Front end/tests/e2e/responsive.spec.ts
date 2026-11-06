@@ -94,7 +94,7 @@ test.describe.serial('Responsive Layout & Sidebar Regression Verification', () =
           }
           expect(overflowDetails.docWidth <= overflowDetails.winWidth + 1).toBe(true);
 
-          const hamburger = page.locator('button[aria-label="Toggle navigation menu"]');
+          const hamburger = page.locator('button[aria-label="Chuyển đổi menu điều hướng"], button[aria-label="Toggle navigation menu"]');
           if (vp.isMobile) {
             await expect(hamburger).toBeVisible();
           } else {
@@ -146,7 +146,7 @@ test.describe.serial('Responsive Layout & Sidebar Regression Verification', () =
           }
           expect(overflowDetails.docWidth <= overflowDetails.winWidth + 1).toBe(true);
 
-          const hamburger = page.locator('button[aria-label="Toggle navigation menu"]');
+          const hamburger = page.locator('button[aria-label="Chuyển đổi menu điều hướng"], button[aria-label="Toggle navigation menu"]');
           if (vp.isMobile) {
             await expect(hamburger).toBeVisible();
           } else {
@@ -162,8 +162,8 @@ test.describe.serial('Responsive Layout & Sidebar Regression Verification', () =
           await page.waitForLoadState('networkidle');
 
           const aside = page.locator('aside');
-          const hamburger = page.locator('button[aria-label="Toggle navigation menu"]');
-          const closeBtn = page.locator('button[aria-label="Close navigation"]');
+          const hamburger = page.locator('button[aria-label="Chuyển đổi menu điều hướng"], button[aria-label="Toggle navigation menu"]');
+          const closeBtn = page.locator('button[aria-label="Đóng điều hướng"], button[aria-label="Close navigation"]');
 
           // 1. Sidebar is closed by default on small viewports
           await expect(aside).toHaveClass(/-(translate-x-full)/);
@@ -200,8 +200,8 @@ test.describe.serial('Responsive Layout & Sidebar Regression Verification', () =
           await page.waitForLoadState('networkidle');
 
           const aside = page.locator('aside');
-          const hamburger = page.locator('button[aria-label="Toggle navigation menu"]');
-          const closeBtn = page.locator('button[aria-label="Close navigation"]');
+          const hamburger = page.locator('button[aria-label="Chuyển đổi menu điều hướng"], button[aria-label="Toggle navigation menu"]');
+          const closeBtn = page.locator('button[aria-label="Đóng điều hướng"], button[aria-label="Close navigation"]');
 
           // Desktop: Sidebar is visible and fixed, no hamburger or close button visible
           await expect(aside).toBeVisible();

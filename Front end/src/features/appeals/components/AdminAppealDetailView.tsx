@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { AppLink as Link } from '@/components/ui/app-link';
-import { useAdminAppeal, useResolveAdminAppeal } from '../hooks';
+import { useAdminAppeal, useResolveAdminAppeal, useStartAdminAppealReview } from '../hooks';
 import { downloadAdminAppealArchive } from '../api';
 import { GradeAuditHistory } from '@/features/scoring/components';
 import { 
@@ -39,8 +39,10 @@ function formatFileSize(bytes?: number): string {
 
 export function AdminAppealDetailView({ appealId }: { appealId: string }) {
   const { data: appeal, isLoading, isError, refetch } = useAdminAppeal(appealId);
+  const startReviewMutation = useStartAdminAppealReview(appealId);
   const resolveMutation = useResolveAdminAppeal(appealId);
   const [decision, setDecision] = useState<'APPROVED' | 'REJECTED'>('APPROVED');
+  const [resolutionAction, setResolutionAction] = useState<'DIRECT_ADJUSTMENT' | 'REGRADE' | 'FORWARD_ACADEMIC_REVIEW'>('DIRECT_ADJUSTMENT');
   const [reviewerNotes, setReviewerNotes] = useState('');
   const [adjustedScore, setAdjustedScore] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -99,8 +101,10 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
   }
 
   const isPending = appeal.status === 'PENDING';
+  const isUnderReview = appeal.status === 'UNDER_REVIEW';
   const isApproved = appeal.status === 'APPROVED';
   const isRejected = appeal.status === 'REJECTED';
+  const canDecide = isPending || isUnderReview;
 
   const validateAndPrompt = () => {
     setErrorMessage('');
@@ -111,7 +115,7 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
       return;
     }
 
-    if (decision === 'APPROVED' && adjustedScore.trim() !== '') {
+    if (decision === 'APPROVED' && resolutionAction === 'DIRECT_ADJUSTMENT' && adjustedScore.trim() !== '') {
       const num = Number(adjustedScore);
       if (isNaN(num) || num < 0 || num > 10) {
         setErrorMessage('Điểm điều chỉnh phải là số hợp lệ từ 0 đến 10.');
@@ -124,7 +128,7 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
 
   const handleConfirmResolve = () => {
     let parsedScore: number | undefined = undefined;
-    if (decision === 'APPROVED' && adjustedScore.trim() !== '') {
+    if (decision === 'APPROVED' && resolutionAction === 'DIRECT_ADJUSTMENT' && adjustedScore.trim() !== '') {
       parsedScore = Number(adjustedScore);
     }
 
@@ -132,7 +136,8 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
       { 
         decision, 
         reviewerNotes: reviewerNotes.trim(), 
-        adjustedScore: parsedScore 
+        adjustedScore: parsedScore,
+        resolutionAction: decision === 'APPROVED' ? resolutionAction : undefined
       },
       {
         onSuccess: (data) => {
@@ -172,7 +177,13 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
             {isPending && (
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-semibold flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                <span>Chờ Admin xem xét</span>
+                <span>Chờ Admin tiếp nhận</span>
+              </span>
+            )}
+            {isUnderReview && (
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 font-semibold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-ping"></span>
+                <span>Đang thẩm định (Under Review)</span>
               </span>
             )}
             {isApproved && (
@@ -194,6 +205,37 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
         </div>
 
         <div className="flex items-center gap-2 self-start lg:self-auto">
+          {isPending && (
+            <button
+              type="button"
+              onClick={() => {
+                startReviewMutation.mutate(undefined, {
+                  onSuccess: () => {
+                    toast.success('Đã tiếp nhận hồ sơ khiếu nại! Trạng thái: Đang thẩm định.');
+                    refetch();
+                  },
+                  onError: (err: unknown) => {
+                    const msg = (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message || 'Không thể bắt đầu thẩm định.';
+                    toast.error(msg);
+                  }
+                });
+              }}
+              disabled={startReviewMutation.isPending}
+              className="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold inline-flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {startReviewMutation.isPending ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Đang tiếp nhận...</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Bắt đầu thẩm định</span>
+                </>
+              )}
+            </button>
+          )}
           <Link
             href="/admin/appeals"
             className="px-4 py-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-medium border border-outline-variant/40 transition-colors"
@@ -414,7 +456,7 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
               <h2 className="font-headline-sm text-headline-sm text-on-surface font-semibold">Quyết định Phán quyết của Quản trị viên (Admin)</h2>
             </div>
 
-            {!isPending ? (
+            {!canDecide ? (
               <div className="space-y-space-md text-xs">
                 <div className={`p-4 rounded-xl flex items-center gap-2.5 ${
                   isApproved 
@@ -430,6 +472,15 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
                       <span className="text-[11px] block mt-0.5 text-on-surface-variant flex items-center gap-1">
                         <UserCheck className="w-3.5 h-3.5" />
                         <span>Người phán quyết: <strong>{appeal.reviewerName}</strong> ({appeal.reviewerEmail || 'Admin'})</span>
+                      </span>
+                    )}
+                    {appeal.resolutionAction && (
+                      <span className="text-sky-800 font-medium block mt-0.5">
+                        Hình thức giải quyết: <strong>
+                          {appeal.resolutionAction === 'DIRECT_ADJUSTMENT' && 'Điều chỉnh điểm (Chờ GV phê duyệt)'}
+                          {appeal.resolutionAction === 'REGRADE' && 'Chấm lại tự động'}
+                          {appeal.resolutionAction === 'FORWARD_ACADEMIC_REVIEW' && 'Chuyển GV chấm học thuật'}
+                        </strong>
                       </span>
                     )}
                     {appeal.updatedScore != null && (
@@ -488,12 +539,76 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
                   </div>
                 </div>
 
-                {/* Score adjustment (if approved) */}
+                {/* Resolution Action Selector (if APPROVED) */}
                 {decision === 'APPROVED' && (
+                  <div className="space-y-2 p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/30">
+                    <label className="text-xs font-semibold text-on-surface block">
+                      2. Hình thức xử lý sau chấp thuận (Resolution Action):
+                    </label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setResolutionAction('DIRECT_ADJUSTMENT')}
+                        className={`p-3 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                          resolutionAction === 'DIRECT_ADJUSTMENT'
+                            ? 'bg-emerald-50 text-emerald-900 border-emerald-300 ring-2 ring-emerald-200'
+                            : 'bg-surface-container-lowest text-on-surface-variant border-outline-variant/40 hover:bg-surface-container'
+                        }`}
+                      >
+                        <div className="font-semibold flex items-center gap-1.5 text-xs text-on-surface">
+                          <Award className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Điều chỉnh điểm trực tiếp</span>
+                        </div>
+                        <p className="text-[11px] text-on-surface-variant mt-1 leading-relaxed">
+                          Nhập điểm mới. Yêu cầu Giảng viên kiểm tra và phê duyệt trước khi công bố lại.
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setResolutionAction('REGRADE')}
+                        className={`p-3 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                          resolutionAction === 'REGRADE'
+                            ? 'bg-sky-50 text-sky-900 border-sky-300 ring-2 ring-sky-200'
+                            : 'bg-surface-container-lowest text-on-surface-variant border-outline-variant/40 hover:bg-surface-container'
+                        }`}
+                      >
+                        <div className="font-semibold flex items-center gap-1.5 text-xs text-on-surface">
+                          <Code2 className="w-3.5 h-3.5 text-sky-600" />
+                          <span>Chấm lại tự động (Regrade)</span>
+                        </div>
+                        <p className="text-[11px] text-on-surface-variant mt-1 leading-relaxed">
+                          Reset điểm, hủy công bố và chạy lại toàn bộ testcase qua sandbox grader.
+                        </p>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setResolutionAction('FORWARD_ACADEMIC_REVIEW')}
+                        className={`p-3 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                          resolutionAction === 'FORWARD_ACADEMIC_REVIEW'
+                            ? 'bg-purple-50 text-purple-900 border-purple-300 ring-2 ring-purple-200'
+                            : 'bg-surface-container-lowest text-on-surface-variant border-outline-variant/40 hover:bg-surface-container'
+                        }`}
+                      >
+                        <div className="font-semibold flex items-center gap-1.5 text-xs text-on-surface">
+                          <UserCheck className="w-3.5 h-3.5 text-purple-600" />
+                          <span>Chuyển GV chấm học thuật</span>
+                        </div>
+                        <p className="text-[11px] text-on-surface-variant mt-1 leading-relaxed">
+                          Giao việc lại cho Giảng viên xem xét lại theo rubric (REVISION_REQUIRED).
+                        </p>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Score adjustment (if approved and DIRECT_ADJUSTMENT) */}
+                {decision === 'APPROVED' && resolutionAction === 'DIRECT_ADJUSTMENT' && (
                   <div className="space-y-1.5 p-3 rounded-xl bg-emerald-50/50 border border-emerald-200/60">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-semibold text-emerald-950 block">
-                        2. Cập nhật điểm chính thức mới (Tùy chọn):
+                        3. Cập nhật điểm chính thức mới (Tùy chọn):
                       </label>
                       <span className="text-[11px] text-emerald-800">
                         Điểm hiện tại: <strong className="font-mono">{appeal.currentScore ?? appeal.originalScore ?? '—'}</strong> / 10
@@ -523,7 +638,7 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-on-surface block">
-                      {decision === 'APPROVED' ? '3.' : '2.'} Căn cứ phán quyết &amp; Giải trình của Admin * (Bắt buộc):
+                      {decision === 'APPROVED' ? (resolutionAction === 'DIRECT_ADJUSTMENT' ? '4.' : '3.') : '2.'} Căn cứ phán quyết &amp; Giải trình của Admin * (Bắt buộc):
                     </label>
                     <span className="text-[11px] text-outline font-mono">Bắt buộc</span>
                   </div>
@@ -581,7 +696,17 @@ export function AdminAppealDetailView({ appealId }: { appealId: string }) {
                   {decision === 'APPROVED' ? 'Chấp thuận (APPROVED)' : 'Từ chối (REJECTED)'}
                 </strong>
               </div>
-              {decision === 'APPROVED' && adjustedScore.trim() !== '' && (
+              {decision === 'APPROVED' && (
+                <div className="flex justify-between">
+                  <span className="text-outline">Hình thức xử lý:</span>
+                  <strong className="text-on-surface">
+                    {resolutionAction === 'DIRECT_ADJUSTMENT' && 'Điều chỉnh điểm (Chờ GV duyệt)'}
+                    {resolutionAction === 'REGRADE' && 'Chấm lại tự động (Regrade)'}
+                    {resolutionAction === 'FORWARD_ACADEMIC_REVIEW' && 'Chuyển GV chấm học thuật'}
+                  </strong>
+                </div>
+              )}
+              {decision === 'APPROVED' && resolutionAction === 'DIRECT_ADJUSTMENT' && adjustedScore.trim() !== '' && (
                 <div className="flex justify-between">
                   <span className="text-outline">Điểm số mới:</span>
                   <strong className="font-mono text-emerald-700">{adjustedScore} / 10</strong>

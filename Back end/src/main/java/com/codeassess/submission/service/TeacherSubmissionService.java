@@ -34,6 +34,7 @@ public class TeacherSubmissionService {
         return submissionRepository.findByExam_CourseClass_Teacher_Id(teacherId).stream()
                 .map(sub -> TeacherSubmissionListResponse.builder()
                         .id(sub.getId())
+                        .studentId(sub.getStudent() != null ? sub.getStudent().getId() : null)
                         .studentName(sub.getStudent() != null ? sub.getStudent().getFullName() : null)
                         .studentEmail(sub.getStudent() != null ? sub.getStudent().getEmail() : null)
                         .examTitle(sub.getExam() != null ? sub.getExam().getTitle() : null)

@@ -1,6 +1,7 @@
 package com.codeassess.testcase.entity;
 
 import com.codeassess.exam.entity.Exam;
+import com.codeassess.exam.entity.ExamQuestion;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -25,6 +26,10 @@ public class TestCase {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "exam_id", nullable = false)
     private Exam exam;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "question_id")
+    private ExamQuestion question;
 
     @Column(nullable = false)
     private String name;

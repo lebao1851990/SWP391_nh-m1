@@ -37,9 +37,20 @@ public class SubmissionMapper {
         boolean isDone = "COMPLETED".equalsIgnoreCase(submission.getStatus())
                 || "EVALUATED".equalsIgnoreCase(submission.getStatus());
 
+        String questionTitle = null;
+        if (submission.getQuestion() != null) {
+            try {
+                questionTitle = submission.getQuestion().getTitle();
+            } catch (Exception ignored) {
+                // Ignore LazyInitializationException if Hibernate session is detached
+            }
+        }
+
         return SubmissionDetailResponse.builder()
                 .id(submission.getId())
                 .examId(submission.getExam() != null ? submission.getExam().getId() : null)
+                .questionId(submission.getQuestion() != null ? submission.getQuestion().getId() : null)
+                .questionTitle(questionTitle)
                 .studentId(submission.getStudent() != null ? submission.getStudent().getId() : null)
                 .status(submission.getStatus())
                 .sourceCode(submission.getSourceCode())
@@ -63,6 +74,38 @@ public class SubmissionMapper {
                 .stderr(submission.getStderr())
                 .executionDurationMs(submission.getExecutionDurationMs())
                 .instructorFeedback(submission.getInstructorFeedback())
+                .reviewStatus(submission.getReviewStatus())
+                .publicationStatus(submission.getPublicationStatus())
+                .publishedScore(submission.getPublishedScore())
                 .build();
+    }
+
+    public SubmissionDetailResponse toStudentDetailResponse(Submission submission) {
+        if (submission == null) {
+            return null;
+        }
+        SubmissionDetailResponse dto = toDetailResponse(submission);
+        // Mask provisional scores and comments if not published
+        if (submission.getPublicationStatus() == null || !"PUBLISHED".equalsIgnoreCase(submission.getPublicationStatus())) {
+            dto.setTotalScore(null);
+            dto.setOverrideScore(null);
+            dto.setAutoScore(null);
+            dto.setPublishedScore(null);
+            dto.setInstructorFeedback(null);
+        }
+        return dto;
+    }
+
+    public SubmissionListResponse toStudentListResponse(Submission submission) {
+        if (submission == null) {
+            return null;
+        }
+        SubmissionListResponse dto = toListResponse(submission);
+        // Mask provisional scores if not published
+        if (submission.getPublicationStatus() == null || !"PUBLISHED".equalsIgnoreCase(submission.getPublicationStatus())) {
+            dto.setTotalScore(null);
+            dto.setOverrideScore(null);
+        }
+        return dto;
     }
 }

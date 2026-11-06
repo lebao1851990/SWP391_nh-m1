@@ -1,26 +1,33 @@
 import { test, expect } from '@playwright/test';
+import { setMockAuthCookies, mockUserProfile } from './helpers';
 
 test.describe('Student AI Learning Assistant UI Verification', () => {
   const submissionId = 'test-sub-12345';
 
   test.beforeEach(async ({ page }) => {
     // Set student authentication cookies to satisfy proxy/middleware
-    await page.context().addCookies([
-      { name: 'codeassess_session', value: 'mock-session-token', url: 'http://localhost:3000' },
-      { name: 'codeassess_role', value: 'STUDENT', url: 'http://localhost:3000' },
-    ]);
+    await setMockAuthCookies(page, { role: 'STUDENT' });
 
     // Mock user profile to satisfy AuthGuard on student route
-    await page.route('**/api/user/profile', async (route) => {
+    await mockUserProfile(page, {
+      id: 'student-01',
+      email: 'student@codeassess.edu.vn',
+      fullName: 'Sinh viên Kiểm thử',
+      role: 'STUDENT',
+    });
+
+    // Mock student submission files API to prevent 401 unauthenticated redirect on StudentResultView
+    await page.route(`**/api/student/submissions/${submissionId}/files`, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'student-01',
-          email: 'student@codeassess.edu.vn',
-          fullName: 'Sinh viên Kiểm thử',
-          role: 'STUDENT',
-        }),
+        body: JSON.stringify([
+          {
+            filename: 'Main.java',
+            size: 256,
+            content: 'public class Main { public static void main(String[] args) {} }',
+          },
+        ]),
       });
     });
 

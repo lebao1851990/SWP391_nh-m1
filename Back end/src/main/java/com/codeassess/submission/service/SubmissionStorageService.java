@@ -70,6 +70,19 @@ public class SubmissionStorageService {
         return targetFile.startsWith(storageDirectory) && Files.exists(targetFile);
     }
 
+    public void deleteZip(String submissionId) {
+        if (submissionId == null) return;
+        Path targetFile = storageDirectory.resolve(submissionId + ".zip").normalize();
+        if (targetFile.startsWith(storageDirectory)) {
+            try {
+                Files.deleteIfExists(targetFile);
+                log.info("Deleted submission ZIP archive for {}", submissionId);
+            } catch (IOException e) {
+                log.warn("Failed to delete submission ZIP for {}: {}", submissionId, e.getMessage());
+            }
+        }
+    }
+
     public List<SubmissionFileDto> getSubmissionFiles(String submissionId) {
         byte[] zipBytes = getZipBytes(submissionId);
         List<SubmissionFileDto> fileList = new ArrayList<>();

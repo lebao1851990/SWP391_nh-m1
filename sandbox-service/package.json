@@ -1,0 +1,14 @@
+{
+  "name": "codeassess-sandbox-service",
+  "version": "1.0.0",
+  "description": "Dedicated Secure Sandbox Execution Service for CodeAssess",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node test/runner.test.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
+

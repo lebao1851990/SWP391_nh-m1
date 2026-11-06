@@ -40,8 +40,9 @@ public class AiConfig {
             @Value("${app.ai.gemini.model:}") String geminiModel,
             @Value("${app.ai.model:}") String genericModel,
             @Value("${app.ai.gemini.timeout-seconds:0}") int geminiTimeoutSeconds,
-            @Value("${app.ai.timeout-seconds:30}") int genericTimeoutSeconds,
+            @Value("${app.ai.timeout-seconds:90}") int genericTimeoutSeconds,
             @Value("${app.ai.gemini.base-url:}") String geminiBaseUrl,
+            @Value("${app.ai.gemini.max-output-tokens:8192}") int maxOutputTokens,
             ObjectMapper objectMapper) {
 
         String apiKey = (geminiApiKey != null && !geminiApiKey.trim().isEmpty()) ? geminiApiKey.trim() : genericApiKey.trim();
@@ -49,9 +50,12 @@ public class AiConfig {
             throw new IllegalStateException("Gemini provider is enabled (app.ai.provider=gemini), but GEMINI_API_KEY (or app.ai.gemini.api-key) is missing or empty.");
         }
 
-        String model = (geminiModel != null && !geminiModel.trim().isEmpty())
+        String configured = (geminiModel != null && !geminiModel.trim().isEmpty())
                 ? geminiModel.trim()
-                : (genericModel != null && !genericModel.trim().isEmpty() ? genericModel.trim() : "gemini-2.5-flash");
+                : (genericModel != null && !genericModel.trim().isEmpty() ? genericModel.trim() : "gemini-3.5-flash-lite");
+
+        String model = ("gemini-2.5-flash".equalsIgnoreCase(configured) || "gemini-3.5-flash".equalsIgnoreCase(configured))
+                ? "gemini-3.5-flash-lite" : configured;
 
         int timeoutSeconds = (geminiTimeoutSeconds > 0) ? geminiTimeoutSeconds : genericTimeoutSeconds;
 
@@ -59,8 +63,9 @@ public class AiConfig {
                 ? geminiBaseUrl.trim()
                 : "https://generativelanguage.googleapis.com/v1beta";
 
-        log.info("Configuring GeminiAiClient bean with model '{}' and timeout {}s (baseUrl: {})", model, timeoutSeconds, baseUrl);
-        return new GeminiAiClient(apiKey, model, timeoutSeconds, baseUrl, objectMapper);
+        log.info("Configuring GeminiAiClient bean with model '{}', timeout {}s, maxOutputTokens {} (baseUrl: {})",
+                model, timeoutSeconds, maxOutputTokens, baseUrl);
+        return new GeminiAiClient(apiKey, model, timeoutSeconds, baseUrl, maxOutputTokens, objectMapper);
     }
 
     @Bean

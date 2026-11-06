@@ -13,12 +13,12 @@ test.describe('Teacher Grade Audit History UI Verification', () => {
 
     // Navigate to teacher submission detail page
     await page.goto(`/teacher/submissions/${submissionWithAuditLogs}`);
-    await expect(page.locator('h1')).toContainText('Submission #', { timeout: 10000 });
+    await expect(page.locator('h1')).toContainText(/Bài nộp #|Submission #/, { timeout: 10000 });
 
     // Confirm Grade & Audit History section is visible
     const auditSection = page.locator('section[aria-label="Grade Audit History"]');
     await expect(auditSection).toBeVisible({ timeout: 10000 });
-    await expect(auditSection.locator('h2')).toContainText('Grade & Audit History');
+    await expect(auditSection.locator('h2')).toContainText(/Nhật ký Giám định|Grade & Audit History/);
 
     // Confirm audit logs list has records
     const logsList = page.locator('[data-testid="grade-audit-logs-list"]');
@@ -34,19 +34,19 @@ test.describe('Teacher Grade Audit History UI Verification', () => {
 
     // Check for actor info and timestamp
     await expect(firstCard.locator('time')).toBeVisible();
-    await expect(firstCard.getByText('Teacher A').or(firstCard.getByText('Authorized Teacher'))).toBeVisible();
+    await expect(firstCard.getByText('Teacher A').or(firstCard.getByText('Authorized Teacher')).or(firstCard.getByText('Giảng viên phụ trách'))).toBeVisible();
 
     // Check for 3-column score grid (Rubric, Override, Effective)
-    await expect(firstCard.getByText('Rubric Score', { exact: true })).toBeVisible();
-    await expect(firstCard.getByText('Manual Override', { exact: true })).toBeVisible();
-    await expect(firstCard.getByText('Effective Score', { exact: true })).toBeVisible();
+    await expect(firstCard.getByText(/Điểm Tiêu chí|Rubric Score/)).toBeVisible();
+    await expect(firstCard.getByText(/Điều chỉnh Thủ công|Manual Override/)).toBeVisible();
+    await expect(firstCard.getByText(/Điểm Hiệu lực Cuối|Effective Score/)).toBeVisible();
 
     // Confirm "No override" pill is present on the card that cleared override
-    const noOverridePill = auditSection.locator('span:text-is("No override")');
+    const noOverridePill = auditSection.locator('span:text-is("Không điều chỉnh"), span:text-is("No override")');
     await expect(noOverridePill.first()).toBeVisible({ timeout: 5000 });
 
     // Confirm rationale/comments section is displayed if present
-    const rationaleHeader = auditSection.getByText('Instructor Justification & Comments');
+    const rationaleHeader = auditSection.getByText(/Lý do Giảng viên & Nhận xét|Instructor Justification & Comments/);
     if (await rationaleHeader.count() > 0) {
       await expect(rationaleHeader.first()).toBeVisible();
     }
@@ -57,11 +57,11 @@ test.describe('Teacher Grade Audit History UI Verification', () => {
     await expect(page).toHaveURL(/\/teacher\/dashboard/);
 
     await page.goto(`/teacher/scoring/${submissionWithAuditLogs}`);
-    await expect(page.locator('h1')).toContainText('Evaluation Rubric', { timeout: 10000 });
+    await expect(page.locator('h1')).toContainText(/Bảng điểm Đánh giá|Evaluation Rubric/, { timeout: 10000 });
 
     const auditSection = page.locator('section[aria-label="Grade Audit History"]');
     await expect(auditSection).toBeVisible({ timeout: 10000 });
-    await expect(auditSection.locator('h2')).toContainText('Grade & Audit History');
+    await expect(auditSection.locator('h2')).toContainText(/Nhật ký Giám định|Grade & Audit History/);
   });
 
   test('Renders NULL override as "No override" distinctly from numeric 0.00 pts', async ({ page }) => {
@@ -99,11 +99,11 @@ test.describe('Teacher Grade Audit History UI Verification', () => {
     await expect(auditSection).toBeVisible({ timeout: 10000 });
 
     // Pre override was null -> must display "No override"
-    const noOverrideSpan = auditSection.locator('span:text-is("No override")');
+    const noOverrideSpan = auditSection.locator('span:text-is("Không điều chỉnh"), span:text-is("No override")');
     await expect(noOverrideSpan).toBeVisible({ timeout: 5000 });
 
     // Post override was 0.0 -> must display "0.00 pts", NEVER "No override"
-    const zeroScoreSpan = auditSection.locator('span.text-amber-600, span.dark\\:text-amber-400').filter({ hasText: '0.00 pts' });
+    const zeroScoreSpan = auditSection.locator('span.text-amber-600, span.dark\\:text-amber-400').filter({ hasText: /0\.00\s*(đ|pts)/ });
     await expect(zeroScoreSpan).toBeVisible({ timeout: 5000 });
   });
 
@@ -123,8 +123,8 @@ test.describe('Teacher Grade Audit History UI Verification', () => {
     const auditSection = page.locator('section[aria-label="Grade Audit History"]');
     await expect(auditSection).toBeVisible({ timeout: 10000 });
 
-    await expect(auditSection.getByText('No grade history recorded yet')).toBeVisible({ timeout: 5000 });
-    await expect(auditSection.getByText(/This submission has not undergone any official evaluations/)).toBeVisible();
+    await expect(auditSection.getByText(/Chưa có lịch sử điểm|No grade history recorded yet/)).toBeVisible({ timeout: 5000 });
+    await expect(auditSection.getByText(/chưa trải qua đánh giá|not undergone any official evaluations/)).toBeVisible();
   });
 
   test('Displays error callout and retry button on API failure', async ({ page }) => {
@@ -143,8 +143,8 @@ test.describe('Teacher Grade Audit History UI Verification', () => {
     const auditSection = page.locator('section[aria-label="Grade Audit History"]');
     await expect(auditSection).toBeVisible({ timeout: 10000 });
 
-    await expect(auditSection.getByText('Failed to load grade history')).toBeVisible({ timeout: 5000 });
-    await expect(auditSection.getByRole('button', { name: 'Retry Request' })).toBeVisible();
+    await expect(auditSection.getByText(/Không thể tải lịch sử điểm|Failed to load grade history/)).toBeVisible({ timeout: 5000 });
+    await expect(auditSection.getByRole('button', { name: /Thử lại|Retry Request/ })).toBeVisible();
   });
 
   test('Student route does NOT expose Grade Audit History', async ({ page }) => {
@@ -153,7 +153,7 @@ test.describe('Teacher Grade Audit History UI Verification', () => {
 
     // Navigate to student submission result page
     await page.goto(`/student/submissions/${submissionWithAuditLogs}`);
-    await expect(page.locator('h1')).toContainText('Official Result', { timeout: 10000 });
+    await expect(page.locator('h1')).toContainText(/Kết quả Chính thức|Official Result/, { timeout: 10000 });
 
     // Confirm that Grade & Audit History section is completely absent
     const auditSection = page.locator('section[aria-label="Grade Audit History"]');
@@ -172,7 +172,7 @@ test.describe('Teacher Grade Audit History UI Verification', () => {
 
     // Verify header and refresh button fit without overflow
     await expect(auditSection.locator('h2')).toBeVisible();
-    await expect(auditSection.getByRole('button', { name: 'Refresh' })).toBeVisible();
+    await expect(auditSection.getByRole('button', { name: /Làm mới|Refresh/ })).toBeVisible();
 
     // Verify cards are readable
     const logsList = page.locator('[data-testid="grade-audit-logs-list"]');

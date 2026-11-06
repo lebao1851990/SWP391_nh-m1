@@ -44,7 +44,7 @@ class StudentScoringServiceTest {
         CourseClass courseClass = CourseClass.builder().name("Math 101").build();
         Exam exam = Exam.builder().title("Midterm").courseClass(courseClass).build();
         
-        submission = Submission.builder().id("sub-1").student(student).exam(exam).build();
+        submission = Submission.builder().id("sub-1").student(student).exam(exam).publicationStatus("PUBLISHED").build();
     }
 
     @Test

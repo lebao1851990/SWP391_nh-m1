@@ -29,6 +29,8 @@ public class UpdateTestCaseRequest {
     @DecimalMin(value = "0.0", inclusive = true, message = "Điểm test case phải lớn hơn hoặc bằng 0")
     private BigDecimal points;
 
+    private String questionId;
+
     private Boolean isHidden;
 
     private Integer displayOrder;

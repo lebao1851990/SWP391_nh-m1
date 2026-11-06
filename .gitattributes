@@ -1,0 +1,3 @@
+# Ensure Flyway migration scripts maintain LF line endings across all platforms to preserve checksum integrity
+*.sql text eol=lf
+

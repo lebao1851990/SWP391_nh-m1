@@ -42,6 +42,8 @@ public class SimilarityPairDto {
     }
     private String examId;
     private String examTitle;
+    private String questionId;
+    private String questionTitle;
     private String className;
     private String adjudicationStatus;
     private String adjudicationNotes;

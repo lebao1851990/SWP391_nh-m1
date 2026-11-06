@@ -36,6 +36,51 @@ services:
       timeout: 3s
       retries: 5
 
+  docker-proxy:
+    build:
+      context: ./docker-proxy
+      dockerfile: Dockerfile
+    container_name: codeassess-docker-proxy
+    restart: unless-stopped
+    environment:
+      PORT: 2375
+      DOCKER_SOCKET: /var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - codeassess-network
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://127.0.0.1:2375/_ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  sandbox-service:
+    build:
+      context: ./sandbox-service
+      dockerfile: Dockerfile
+    container_name: codeassess-sandbox-service
+    restart: unless-stopped
+    depends_on:
+      docker-proxy:
+        condition: service_healthy
+    environment:
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
+      SANDBOX_SERVICE_URL: http://sandbox-service:8085
+      PORT: 8085
+      DOCKER_HOST: http://docker-proxy:2375
+    ports:
+      - "8085:8085"
+    networks:
+      - codeassess-network
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://127.0.0.1:8085/api/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
   backend:
     build:
       context: ./Back end
@@ -46,6 +91,8 @@ services:
       mysql:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      sandbox-service:
         condition: service_healthy
     environment:
       DB_HOST: ${DB_HOST:-mysql}
@@ -59,6 +106,7 @@ services:
       REDIS_PORT: 6379
       BULLMQ_PRODUCER_URL: http://bullmq-service:3001
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
+      SANDBOX_SERVICE_URL: http://sandbox-service:8085
       PORT: 8081
       AI_PROVIDER: ${AI_PROVIDER:-gemini}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-${AI_API_KEY:-}}
@@ -66,7 +114,6 @@ services:
     ports:
       - "${PORT:-8081}:8081"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - submission_data:/app/data/submissions
     networks:
       - codeassess-network

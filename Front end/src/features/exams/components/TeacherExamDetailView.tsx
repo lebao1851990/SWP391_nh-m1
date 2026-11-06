@@ -20,6 +20,7 @@ import { AppLink as Link } from '@/components/ui/app-link';
 import { useTranslation } from '@/i18n';
 import { 
   ArrowLeft, 
+  Award, 
   Search, 
   Edit3, 
   X, 
@@ -45,9 +46,12 @@ import {
   FileText,
   Download,
   MessageSquare,
-  Send
+  Send,
+  Scale
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { StudentExamScoreAggregationModal } from './StudentExamScoreAggregationModal';
+import { formatQuestionTitle, parseDateToLocalDateTimeInput } from '@/utils/questionUtils';
 
 interface TeacherExamDetailViewProps {
   examId?: string;
@@ -111,7 +115,6 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
   const [editClassIds, setEditClassIds] = useState<string[]>([]);
   const [editDate, setEditDate] = useState('');
   const [editDuration, setEditDuration] = useState(90);
-  const [editStatus, setEditStatus] = useState('active');
   const [editError, setEditError] = useState('');
 
   // Test Case Modal State
@@ -126,9 +129,18 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
   const [tcDisplayOrder, setTcDisplayOrder] = useState(0);
   const [tcError, setTcError] = useState('');
 
+  const [questionFilter, setQuestionFilter] = useState('all');
+  const [scoresModalStudent, setScoresModalStudent] = useState<{ studentId: string; studentName?: string } | null>(null);
+
   const filteredSubmissions = useMemo(() => {
     if (!submissions) return [];
     return submissions.filter(sub => {
+      if (questionFilter !== 'all') {
+        const matchesQuestion = (sub.questionId && sub.questionId === questionFilter) ||
+                                (sub.questionTitle && sub.questionTitle === questionFilter);
+        if (!matchesQuestion) return false;
+      }
+
       if (statusFilter === 'pending') {
         const isPending = sub.status === 'PENDING' || sub.status === 'SUBMITTED' || sub.executionStatus === 'PENDING';
         if (!isPending) return false;
@@ -150,12 +162,13 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
         return (
           sub.studentName?.toLowerCase().includes(query) ||
           sub.studentEmail?.toLowerCase().includes(query) ||
-          sub.originalFilename?.toLowerCase().includes(query)
+          sub.originalFilename?.toLowerCase().includes(query) ||
+          sub.questionTitle?.toLowerCase().includes(query)
         );
       }
       return true;
     });
-  }, [submissions, searchQuery, statusFilter]);
+  }, [submissions, searchQuery, statusFilter, questionFilter]);
 
   const stats = useMemo(() => {
     if (!submissions) return { all: 0, pending: 0, processing: 0, graded: 0, failed: 0, flagged: 0 };
@@ -169,24 +182,69 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
     };
   }, [submissions]);
 
+  const hasSubmissions = (submissions && submissions.length > 0) || (exam?.submittedCount && exam.submittedCount > 0);
+  const isDraft = !exam?.status || exam.status.toLowerCase() === 'draft';
+  const runtimeStatus = (exam?.status || 'draft').toLowerCase();
+  const isExamActive = runtimeStatus === 'active';
+  const isExamCompleted = runtimeStatus === 'completed';
+  const isExamUpcoming = runtimeStatus === 'upcoming';
+  const isScheduleLocked = isExamActive || isExamCompleted;
+
+  const originallyAssignedClassIds = useMemo(() => {
+    if (!exam) return new Set<string>();
+    const ids = new Set<string>();
+    if (exam.classIds && exam.classIds.length > 0) exam.classIds.forEach((id: string) => ids.add(id));
+    if (exam.classId) ids.add(exam.classId);
+    if (exam.assignedClasses) exam.assignedClasses.forEach((c: any) => ids.add(c.id || c.classId));
+    return ids;
+  }, [exam]);
+
+  const calculatedEndTimeStr = useMemo(() => {
+    if (!editDate) return null;
+    try {
+      const d = new Date(editDate);
+      if (isNaN(d.getTime())) return null;
+      d.setMinutes(d.getMinutes() + (Number(editDuration) || 0));
+      return d.toLocaleString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    } catch {
+      return null;
+    }
+  }, [editDate, editDuration]);
+
   const handleOpenEditModal = () => {
     if (!exam) return;
-    setEditTitle(exam.title || '');
-    setEditClassIds(exam.classIds && exam.classIds.length > 0 ? exam.classIds : (exam.classId ? [exam.classId] : []));
-    if (exam.examDate) {
-      const d = new Date(exam.examDate);
-      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-      setEditDate(d.toISOString().slice(0, 16));
-    } else {
-      setEditDate('');
+    try {
+      setEditTitle(exam.title || '');
+      const assigned = exam.classIds && exam.classIds.length > 0
+        ? exam.classIds
+        : exam.classId
+        ? [exam.classId]
+        : exam.assignedClasses && exam.assignedClasses.length > 0
+        ? exam.assignedClasses.map((c: any) => c.id || c.classId)
+        : (classes && classes.length > 0 ? [classes[0].id] : []);
+      setEditClassIds(assigned.filter(Boolean));
+      setEditDate(parseDateToLocalDateTimeInput(exam.examDate || (exam as any).date || (exam as any).startTime));
+      setEditDuration(exam.duration || exam.durationMinutes || 90);
+      setEditError('');
+    } catch (err) {
+      console.error('Failed to parse exam configuration fields:', err);
+    } finally {
+      setIsEditModalOpen(true);
     }
-    setEditDuration(exam.duration || 90);
-    setEditStatus((exam.status || 'active').toLowerCase());
-    setEditError('');
-    setIsEditModalOpen(true);
   };
 
   const handleToggleClass = (classId: string) => {
+    if (isScheduleLocked) return;
+    if (hasSubmissions && originallyAssignedClassIds.has(classId)) {
+      toast.error('Không thể bỏ chọn lớp học đã có bài nộp từ sinh viên.');
+      return;
+    }
     setEditClassIds(prev => 
       prev.includes(classId) 
         ? prev.filter(id => id !== classId)
@@ -216,7 +274,6 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
           classIds: editClassIds,
           date: editDate ? new Date(editDate).toISOString() : undefined,
           durationMinutes: Number(editDuration),
-          status: editStatus,
         },
       },
       {
@@ -232,8 +289,6 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
       }
     );
   };
-
-  const hasSubmissions = (submissions && submissions.length > 0) || (exam?.submittedCount && exam.submittedCount > 0);
 
   const handleOpenCreateTestCase = () => {
     if (hasSubmissions) {
@@ -589,6 +644,20 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
               </div>
 
               <div className="flex items-center gap-2 flex-1 lg:max-w-md justify-end">
+                {exam.questions && exam.questions.length > 0 && (
+                  <select
+                    value={questionFilter}
+                    onChange={(e) => setQuestionFilter(e.target.value)}
+                    className="px-2.5 py-1.5 bg-surface-container-low rounded-lg text-on-surface text-xs border border-outline-variant/40 focus:outline-none focus:border-primary transition-all cursor-pointer"
+                  >
+                    <option value="all">Tất cả câu hỏi ({exam.questions.length})</option>
+                    {exam.questions.map((q, idx) => (
+                      <option key={q.id || idx} value={q.id}>
+                        Câu {idx + 1}: {formatQuestionTitle(q.title)}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <div className="relative w-full">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-outline w-4 h-4" />
                   <input 
@@ -614,6 +683,9 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
                   <thead>
                     <tr className="bg-surface-container-low text-on-surface-variant font-label-xs uppercase tracking-wider border-b border-outline-variant/30">
                       <th className="py-2.5 px-4 font-semibold">Sinh viên</th>
+                      {exam.questions && exam.questions.length > 0 && (
+                        <th className="py-2.5 px-4 font-semibold">Câu hỏi</th>
+                      )}
                       <th className="py-2.5 px-4 font-semibold">Tệp mã nguồn</th>
                       <th className="py-2.5 px-4 font-semibold">Thời gian nộp</th>
                       <th className="py-2.5 px-4 font-semibold">Trạng thái chấm</th>
@@ -627,7 +699,7 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
                   <tbody className="divide-y divide-outline-variant/20 text-on-surface">
                     {filteredSubmissions.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="py-12 text-center text-outline">
+                        <td colSpan={exam.questions && exam.questions.length > 0 ? 10 : 9} className="py-12 text-center text-outline">
                           Chưa có bài nộp nào phù hợp với bộ lọc tìm kiếm.
                         </td>
                       </tr>
@@ -645,6 +717,19 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
                               <p className="font-semibold text-on-surface">{sub.studentName}</p>
                               <p className="text-[11px] text-on-surface-variant">{sub.studentEmail}</p>
                             </td>
+
+                            {/* Question Title */}
+                            {exam.questions && exam.questions.length > 0 && (
+                              <td className="py-3 px-4">
+                                {sub.questionTitle ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container font-medium text-primary border border-outline-variant/30 text-[11px]">
+                                    {sub.questionTitle}
+                                  </span>
+                                ) : (
+                                  <span className="text-outline text-[11px]">-</span>
+                                )}
+                              </td>
+                            )}
 
                             {/* ZIP Archive */}
                             <td className="py-3 px-4 font-mono text-[11px]">
@@ -755,13 +840,27 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
 
                             {/* Action */}
                             <td className="py-3 px-4 text-right">
-                              <Link 
-                                href={`/teacher/submissions/${sub.id}`} 
-                                className="inline-flex items-center gap-1 px-3 py-1 bg-surface-container hover:bg-surface-container-high text-primary rounded-lg font-medium transition-colors"
-                              >
-                                <span>Xem &amp; Chấm</span>
-                                <ExternalLink className="w-3 h-3" />
-                              </Link>
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setScoresModalStudent({ 
+                                    studentId: sub.studentId || sub.studentEmail || sub.id, 
+                                    studentName: sub.studentName || sub.studentEmail || 'Sinh viên' 
+                                  })}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg font-medium transition-colors cursor-pointer"
+                                  title="Xem bảng điểm tổng hợp và ghi đè điểm câu hỏi"
+                                >
+                                  <Award className="w-3 h-3 text-purple-600" />
+                                  <span>Bảng điểm</span>
+                                </button>
+                                <Link 
+                                  href={`/teacher/submissions/${sub.id}`} 
+                                  className="inline-flex items-center gap-1 px-3 py-1 bg-surface-container hover:bg-surface-container-high text-primary rounded-lg font-medium transition-colors"
+                                >
+                                  <span>Xem &amp; Chấm</span>
+                                  <ExternalLink className="w-3 h-3" />
+                                </Link>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -793,78 +892,174 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
                     <span>Tài liệu: {exam.sourceDocumentName}</span>
                   </span>
                 )}
+                {exam.questions && exam.questions.length > 0 && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-purple-50 text-purple-700 font-medium border border-purple-200">
+                    <span>Cấu trúc: {exam.questions.length} câu hỏi tự luận</span>
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-on-surface-variant">Tổng tiêu chí rubric:</span>
-                <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-mono font-bold text-xs border border-emerald-200">
-                  {exam.rubricCriteria?.length ?? 0} tiêu chí
-                </span>
+                {exam.questions && exam.questions.length > 0 ? (
+                  <span className="px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 font-mono font-bold text-xs border border-emerald-200">
+                    Tổng điểm đề thi: {exam.totalAllocatedPoints || exam.questions.reduce((acc, q) => acc + (q.maxScore || 0), 0)} đ
+                  </span>
+                ) : (
+                  <>
+                    <span className="text-on-surface-variant">Tổng tiêu chí rubric:</span>
+                    <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-mono font-bold text-xs border border-emerald-200">
+                      {exam.rubricCriteria?.length ?? 0} tiêu chí
+                    </span>
+                  </>
+                )}
               </div>
             </div>
 
-            {/* Problem Statement Card */}
-            <div className="p-5 rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col gap-3">
-              <h2 className="font-headline-sm text-sm font-bold text-on-surface flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-primary" />
-                <span>Mô tả đề bài chi tiết</span>
-              </h2>
-              <div className="text-xs text-on-surface leading-relaxed whitespace-pre-wrap bg-surface-container-low/40 p-4 rounded-lg border border-outline-variant/20 font-sans">
-                {exam.problemStatement || 'Chưa có nội dung đề bài chi tiết.'}
-              </div>
-            </div>
+            {/* If Multi-Question Exam: Render list of questions with their problem statements & test cases */}
+            {exam.questions && exam.questions.length > 0 ? (
+              <div className="flex flex-col gap-4">
+                {exam.questions.map((question, qIdx) => (
+                  <div key={question.id || qIdx} className="p-5 rounded-2xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col gap-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-outline-variant/30 flex-wrap gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-7 h-7 rounded-lg bg-primary/10 text-primary font-mono font-bold flex items-center justify-center text-xs">
+                          {qIdx + 1}
+                        </span>
+                        <div>
+                          <h3 className="font-semibold text-sm text-on-surface">
+                            {formatQuestionTitle(question.title)}
+                          </h3>
+                          <span className="text-[11px] text-outline">
+                            Mã câu hỏi: {question.id}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="font-mono font-bold text-xs text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+                        {question.maxScore} điểm
+                      </span>
+                    </div>
 
-            {/* Input & Output Specifications */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col gap-2">
-                <h3 className="text-xs font-bold text-on-surface uppercase tracking-wide flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                  Quy chuẩn Đầu vào (Input Specification)
-                </h3>
-                <p className="text-xs text-on-surface-variant leading-relaxed whitespace-pre-wrap">
-                  {exam.inputSpecification || 'Tiêu chuẩn theo stdin.'}
-                </p>
-              </div>
+                    {/* Question Description / Problem Statement */}
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-xs font-semibold text-outline uppercase tracking-wider">Đề bài &amp; Yêu cầu kỹ thuật</span>
+                      <div className="text-xs text-on-surface leading-relaxed whitespace-pre-wrap bg-surface-container-low/40 p-4 rounded-xl border border-outline-variant/20 font-sans">
+                        {question.description || '(Chưa có nội dung mô tả cho câu hỏi này)'}
+                      </div>
+                    </div>
 
-              <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col gap-2">
-                <h3 className="text-xs font-bold text-on-surface uppercase tracking-wide flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  Quy chuẩn Đầu ra (Output Specification)
-                </h3>
-                <p className="text-xs text-on-surface-variant leading-relaxed whitespace-pre-wrap">
-                  {exam.outputSpecification || 'Tiêu chuẩn theo stdout.'}
-                </p>
-              </div>
-            </div>
+                    {/* Question-Specific Test Cases */}
+                    {question.testCases && question.testCases.length > 0 && (
+                      <div className="flex flex-col gap-2 pt-2 border-t border-outline-variant/20">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-outline uppercase tracking-wider flex items-center gap-1.5">
+                            <Code2 className="w-3.5 h-3.5 text-primary" />
+                            <span>Bộ Test Cases ({question.testCases.length})</span>
+                          </span>
+                          <span className="font-mono text-outline">
+                            Tổng trọng số: {question.testCases.reduce((acc, tc) => acc + (tc.points || 0), 0)} đ
+                          </span>
+                        </div>
 
-            {/* Constraints */}
-            {exam.constraints && (
-              <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col gap-2">
-                <h3 className="text-xs font-bold text-on-surface uppercase tracking-wide flex items-center gap-1.5">
-                  <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
-                  Ràng buộc kỹ thuật (Constraints)
-                </h3>
-                <div className="text-xs text-on-surface-variant leading-relaxed whitespace-pre-wrap font-mono bg-surface-container-low/50 p-3 rounded-lg border border-outline-variant/20">
-                  {exam.constraints}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                          {question.testCases.map((tc, tcIdx) => (
+                            <div key={tc.id || tcIdx} className="p-3 rounded-xl bg-surface-container-low/60 border border-outline-variant/30 flex flex-col gap-1.5 text-xs">
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold text-on-surface font-mono">{tc.name}</span>
+                                <div className="flex items-center gap-1.5">
+                                  {tc.isHidden ? (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">Test ẩn</span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Công khai</span>
+                                  )}
+                                  <span className="font-mono font-bold text-primary">{tc.points} đ</span>
+                                </div>
+                              </div>
+                              {tc.inputData && (
+                                <div className="font-mono text-[11px] text-on-surface-variant bg-surface-container-lowest p-2 rounded border border-outline-variant/20">
+                                  <span className="text-outline text-[10px] block">Input:</span>
+                                  <pre className="whitespace-pre-wrap">{tc.inputData}</pre>
+                                </div>
+                              )}
+                              {tc.expectedOutput && (
+                                <div className="font-mono text-[11px] text-on-surface-variant bg-surface-container-lowest p-2 rounded border border-outline-variant/20">
+                                  <span className="text-outline text-[10px] block">Output kỳ vọng:</span>
+                                  <pre className="whitespace-pre-wrap">{tc.expectedOutput}</pre>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <>
+                {/* Legacy Problem Statement Card */}
+                <div className="p-5 rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col gap-3">
+                  <h2 className="font-headline-sm text-sm font-bold text-on-surface flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-primary" />
+                    <span>Mô tả đề bài chi tiết</span>
+                  </h2>
+                  <div className="text-xs text-on-surface leading-relaxed whitespace-pre-wrap bg-surface-container-low/40 p-4 rounded-lg border border-outline-variant/20 font-sans">
+                    {exam.problemStatement || 'Chưa có nội dung đề bài chi tiết.'}
+                  </div>
                 </div>
-              </div>
-            )}
 
-            {/* Samples */}
-            {(exam.sampleInput || exam.sampleOutput) && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col gap-2">
-                  <h3 className="text-xs font-bold text-on-surface">Sample Input</h3>
-                  <pre className="font-mono text-xs bg-surface-container-low p-3 rounded-lg border border-outline-variant/20 overflow-x-auto whitespace-pre-wrap">
-                    {exam.sampleInput || '(trống)'}
-                  </pre>
+                {/* Input & Output Specifications */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col gap-2">
+                    <h3 className="text-xs font-bold text-on-surface uppercase tracking-wide flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                      Quy chuẩn Đầu vào (Input Specification)
+                    </h3>
+                    <p className="text-xs text-on-surface-variant leading-relaxed whitespace-pre-wrap">
+                      {exam.inputSpecification || 'Tiêu chuẩn theo stdin.'}
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col gap-2">
+                    <h3 className="text-xs font-bold text-on-surface uppercase tracking-wide flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                      Quy chuẩn Đầu ra (Output Specification)
+                    </h3>
+                    <p className="text-xs text-on-surface-variant leading-relaxed whitespace-pre-wrap">
+                      {exam.outputSpecification || 'Tiêu chuẩn theo stdout.'}
+                    </p>
+                  </div>
                 </div>
-                <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col gap-2">
-                  <h3 className="text-xs font-bold text-on-surface">Sample Output</h3>
-                  <pre className="font-mono text-xs bg-surface-container-low p-3 rounded-lg border border-outline-variant/20 overflow-x-auto whitespace-pre-wrap">
-                    {exam.sampleOutput || '(trống)'}
-                  </pre>
-                </div>
-              </div>
+
+                {/* Constraints */}
+                {exam.constraints && (
+                  <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col gap-2">
+                    <h3 className="text-xs font-bold text-on-surface uppercase tracking-wide flex items-center gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+                      Ràng buộc kỹ thuật (Constraints)
+                    </h3>
+                    <div className="text-xs text-on-surface-variant leading-relaxed whitespace-pre-wrap font-mono bg-surface-container-low/50 p-3 rounded-lg border border-outline-variant/20">
+                      {exam.constraints}
+                    </div>
+                  </div>
+                )}
+
+                {/* Samples */}
+                {(exam.sampleInput || exam.sampleOutput) && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col gap-2">
+                      <h3 className="text-xs font-bold text-on-surface">Sample Input</h3>
+                      <pre className="font-mono text-xs bg-surface-container-low p-3 rounded-lg border border-outline-variant/20 overflow-x-auto whitespace-pre-wrap">
+                        {exam.sampleInput || '(trống)'}
+                      </pre>
+                    </div>
+                    <div className="p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col gap-2">
+                      <h3 className="text-xs font-bold text-on-surface">Sample Output</h3>
+                      <pre className="font-mono text-xs bg-surface-container-low p-3 rounded-lg border border-outline-variant/20 overflow-x-auto whitespace-pre-wrap">
+                        {exam.sampleOutput || '(trống)'}
+                      </pre>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Rubric Criteria Table */}
@@ -986,7 +1181,7 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
                     ) : (
                       testCases.map((tc, index) => (
                         <tr key={tc.id} className="hover:bg-surface-container-low/60 transition-colors">
-                          <td className="py-3 px-4 font-mono font-semibold text-outline">{tc.displayOrder || index + 1}</td>
+                          <td className="py-3 px-4 font-mono font-semibold text-outline">{index + 1}</td>
                           <td className="py-3 px-4">
                             <span className="font-semibold text-on-surface block">{tc.name}</span>
                             {tc.description && (
@@ -1059,7 +1254,11 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
 
         {/* Edit Exam Modal */}
         {isEditModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div
+            id="edit-exam-modal"
+            data-testid="edit-exam-modal"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+          >
             <div className="bg-surface-container-lowest rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-outline-variant/40 flex flex-col gap-4 animate-in zoom-in-95 duration-150">
               <div className="flex items-center justify-between border-b border-outline-variant/30 pb-3">
                 <div className="flex items-center gap-2">
@@ -1083,6 +1282,51 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
                   </div>
                 )}
 
+                {/* A. Publication & Runtime Information Banner (Read-only) */}
+                <div className="p-3.5 rounded-xl bg-surface-container border border-outline-variant/40 flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-outline">Phát hành:</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                        isDraft 
+                          ? 'bg-amber-100 text-amber-800 border border-amber-300' 
+                          : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                      }`}>
+                        {isDraft ? 'Bản nháp (Draft)' : 'Đã phát hành (Published)'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-outline">Runtime Status:</span>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
+                        runtimeStatus === 'active'
+                          ? 'bg-emerald-600 text-white'
+                          : runtimeStatus === 'upcoming'
+                          ? 'bg-blue-600 text-white'
+                          : runtimeStatus === 'completed'
+                          ? 'bg-slate-700 text-white'
+                          : 'bg-amber-600 text-white'
+                      }`}>
+                        {runtimeStatus === 'active'
+                          ? 'Đang diễn ra (Active)'
+                          : runtimeStatus === 'upcoming'
+                          ? 'Sắp diễn ra (Upcoming)'
+                          : runtimeStatus === 'completed'
+                          ? 'Đã kết thúc (Completed)'
+                          : 'Bản nháp (Draft)'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-on-surface-variant leading-relaxed">
+                    {runtimeStatus === 'draft' && 'Bài thi đang ở trạng thái Bản nháp. Chỉ giáo viên mới có thể xem và chỉnh sửa. Hãy phát hành bài thi khi đã sẵn sàng.'}
+                    {runtimeStatus === 'upcoming' && 'Bài thi đã lên lịch nhưng chưa tới giờ bắt đầu. Câu hỏi và nội dung thi được ẩn đối với sinh viên.'}
+                    {runtimeStatus === 'active' && 'Bài thi đang diễn ra. Sinh viên có thể nộp bài độc lập. Lịch thi và danh sách lớp học được khóa để đảm bảo tính công bằng.'}
+                    {runtimeStatus === 'completed' && 'Bài thi đã hết thời gian làm bài. Hệ thống đã tự động đóng nhận bài nộp.'}
+                  </p>
+                </div>
+
+                {/* B. General Information */}
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-semibold text-on-surface">Tiêu đề bài thi *</label>
                   <input
@@ -1094,12 +1338,13 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
                   />
                 </div>
 
+                {/* C. Assigned Classes */}
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-on-surface">
                       Lớp học áp dụng ({editClassIds.length} lớp đã chọn) *
                     </label>
-                    {classes && classes.length > 1 && (
+                    {!isScheduleLocked && classes && classes.length > 1 && (
                       <div className="flex items-center gap-2 text-[11px]">
                         <button
                           type="button"
@@ -1111,7 +1356,10 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
                         <span className="text-outline">|</span>
                         <button
                           type="button"
-                          onClick={() => setEditClassIds([])}
+                          onClick={() => {
+                            const protectedIds = classes.filter(c => originallyAssignedClassIds.has(c.id) && hasSubmissions).map(c => c.id);
+                            setEditClassIds(protectedIds);
+                          }}
                           className="text-outline hover:underline cursor-pointer"
                         >
                           Bỏ chọn
@@ -1119,14 +1367,24 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
                       </div>
                     )}
                   </div>
+                  {isScheduleLocked && (
+                    <p className="text-[11px] text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                      Danh sách lớp học được khóa khi bài thi đang diễn ra hoặc đã kết thúc.
+                    </p>
+                  )}
                   <div className="max-h-40 overflow-y-auto p-2 bg-surface-container-low border border-outline-variant/40 rounded-lg flex flex-col gap-1.5">
                     {classes && classes.length > 0 ? (
                       classes.map((cls) => {
                         const isChecked = editClassIds.includes(cls.id);
+                        const isProtected = Boolean(hasSubmissions && originallyAssignedClassIds.has(cls.id));
+                        const isDisabled = isScheduleLocked || isProtected;
+
                         return (
                           <label
                             key={cls.id}
-                            className={`flex items-center justify-between p-2 rounded-md border text-xs cursor-pointer transition-colors ${
+                            className={`flex items-center justify-between p-2 rounded-md border text-xs transition-colors ${
+                              isDisabled ? 'opacity-80 cursor-not-allowed' : 'cursor-pointer'
+                            } ${
                               isChecked 
                                 ? 'bg-primary/5 border-primary/40 text-on-surface font-medium' 
                                 : 'bg-surface-container-lowest border-outline-variant/20 hover:bg-surface-container-high/40 text-on-surface-variant'
@@ -1136,18 +1394,30 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
                               <input
                                 type="checkbox"
                                 checked={isChecked}
-                                onChange={() => handleToggleClass(cls.id)}
-                                className="w-3.5 h-3.5 rounded text-primary focus:ring-primary cursor-pointer"
+                                disabled={isDisabled}
+                                onChange={() => {
+                                  if (isDisabled) return;
+                                  handleToggleClass(cls.id);
+                                }}
+                                className="w-3.5 h-3.5 rounded text-primary focus:ring-primary cursor-pointer disabled:cursor-not-allowed"
                               />
                               <span className="font-mono font-semibold">{cls.code}</span>
                               <span className="text-outline">—</span>
                               <span className="truncate max-w-[200px]">{cls.name}</span>
                             </div>
-                            {cls.studentCount !== undefined && (
-                              <span className="text-[11px] text-outline shrink-0">
-                                {cls.studentCount} sinh viên
-                              </span>
-                            )}
+                            <div className="flex items-center gap-2">
+                              {isProtected && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded">
+                                  <Lock className="w-3 h-3" />
+                                  Có bài nộp (Được bảo vệ)
+                                </span>
+                              )}
+                              {cls.studentCount !== undefined && (
+                                <span className="text-[11px] text-outline shrink-0">
+                                  {cls.studentCount} sinh viên
+                                </span>
+                              )}
+                            </div>
                           </label>
                         );
                       })
@@ -1157,15 +1427,17 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
                   </div>
                 </div>
 
+                {/* D. Schedule & Auto-calculated Expected End Time */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-semibold text-on-surface">Thời gian bắt đầu *</label>
                     <input
                       type="datetime-local"
                       required
+                      disabled={isScheduleLocked}
                       value={editDate}
                       onChange={(e) => setEditDate(e.target.value)}
-                      className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant/40 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary transition-colors"
+                      className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant/40 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                   </div>
 
@@ -1179,41 +1451,44 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
                       required
                       min={1}
                       max={1440}
+                      disabled={isScheduleLocked}
                       value={editDuration}
                       onChange={(e) => setEditDuration(Number(e.target.value))}
-                      className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant/40 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary transition-colors font-mono"
+                      className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant/40 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary transition-colors font-mono disabled:opacity-60 disabled:cursor-not-allowed"
                     />
-                    <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                      {[45, 60, 90, 120, 180].map((mins) => (
-                        <button
-                          key={mins}
-                          type="button"
-                          onClick={() => setEditDuration(mins)}
-                          className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer border ${
-                            editDuration === mins
-                              ? 'bg-primary text-on-primary border-primary'
-                              : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border-outline-variant/40'
-                          }`}
-                        >
-                          {mins} phút {mins === 60 ? '(1h)' : mins === 90 ? '(1.5h)' : mins === 120 ? '(2h)' : ''}
-                        </button>
-                      ))}
-                    </div>
+                    {!isScheduleLocked && (
+                      <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                        {[45, 60, 90, 120, 180].map((mins) => (
+                          <button
+                            key={mins}
+                            type="button"
+                            onClick={() => setEditDuration(mins)}
+                            className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer border ${
+                              editDuration === mins
+                                ? 'bg-primary text-on-primary border-primary'
+                                : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border-outline-variant/40'
+                            }`}
+                          >
+                            {mins} phút {mins === 60 ? '(1h)' : mins === 90 ? '(1.5h)' : mins === 120 ? '(2h)' : ''}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-on-surface">Trạng thái bài thi *</label>
-                  <select
-                    value={editStatus}
-                    onChange={(e) => setEditStatus(e.target.value)}
-                    className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant/40 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary transition-colors cursor-pointer"
-                  >
-                    <option value="draft">Bản nháp (Chưa phát hành cho sinh viên)</option>
-                    <option value="active">Đang mở thi (Cho phép sinh viên nộp bài)</option>
-                    <option value="upcoming">Sắp diễn ra (Đã lên lịch)</option>
-                    <option value="completed">Đã kết thúc (Đóng nhận bài nộp)</option>
-                  </select>
+                <div className="flex flex-col gap-1 p-2.5 rounded-lg bg-surface-container-low border border-outline-variant/30 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-outline font-medium">Thời gian kết thúc dự kiến:</span>
+                    <span className="font-semibold text-primary font-mono">
+                      {calculatedEndTimeStr ? calculatedEndTimeStr : 'Chưa xác định'}
+                    </span>
+                  </div>
+                  {isScheduleLocked && (
+                    <p className="text-[11px] text-amber-700 mt-1">
+                      Lịch thi (thời gian bắt đầu và thời lượng) không thể thay đổi khi bài thi đang diễn ra hoặc đã kết thúc.
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex justify-end gap-3 mt-2 pt-3 border-t border-outline-variant/30">
@@ -1468,6 +1743,15 @@ export function TeacherExamDetailView({ examId }: TeacherExamDetailViewProps) {
           </div>
         )}
       </div>
+      {scoresModalStudent && (
+        <StudentExamScoreAggregationModal
+          isOpen={Boolean(scoresModalStudent)}
+          onClose={() => setScoresModalStudent(null)}
+          examId={exam.id}
+          studentId={scoresModalStudent.studentId}
+          studentName={scoresModalStudent.studentName}
+        />
+      )}
     </div>
   );
 }

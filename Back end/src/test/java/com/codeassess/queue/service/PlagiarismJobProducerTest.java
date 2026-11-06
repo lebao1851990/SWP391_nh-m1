@@ -122,9 +122,11 @@ class PlagiarismJobProducerTest {
     @DisplayName("publish: Serialization failure is caught and wrapped in QueuePublicationException")
     void publish_serializationFailure_throwsQueuePublicationException() throws Exception {
         ObjectMapper failingMapper = mock(ObjectMapper.class);
-        when(failingMapper.writeValueAsString(any())).thenThrow(new JsonProcessingException("Serialization error") {});
+        when(failingMapper.writeValueAsString(any())).thenThrow(new JsonProcessingException("Serialization error") {
+        });
 
-        PlagiarismJobProducer producerWithFailingMapper = new PlagiarismJobProducer(redisTemplate, failingMapper, properties, validator);
+        PlagiarismJobProducer producerWithFailingMapper = new PlagiarismJobProducer(redisTemplate, failingMapper,
+                properties, validator);
 
         PlagiarismJobPayload payload = createValidPayload();
 

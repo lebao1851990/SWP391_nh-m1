@@ -3,5 +3,7 @@
 
 ALTER TABLE submissions
     ADD COLUMN claim_token VARCHAR(64) NULL,
-    ADD COLUMN lease_expires_at TIMESTAMP NULL,
+    ADD COLUMN lease_expires_at TIMESTAMP NULL;
+
+ALTER TABLE submissions
     ADD INDEX idx_submissions_status_lease (status, lease_expires_at);

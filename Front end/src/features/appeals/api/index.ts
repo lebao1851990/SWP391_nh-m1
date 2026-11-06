@@ -60,6 +60,14 @@ export async function getAdminAppealDetail(appealId: string): Promise<Appeal> {
 }
 
 /**
+ * Start reviewing an appeal (Transition PENDING -> UNDER_REVIEW) by Admin
+ */
+export async function startAdminAppealReview(appealId: string): Promise<Appeal> {
+  const response = await apiClient.post<Appeal>(`/admin/appeals/${appealId}/start-review`);
+  return response.data;
+}
+
+/**
  * Resolve an appeal (APPROVED or REJECTED) by Admin
  */
 export async function resolveAdminAppeal(appealId: string, payload: AppealResolvePayload): Promise<Appeal> {

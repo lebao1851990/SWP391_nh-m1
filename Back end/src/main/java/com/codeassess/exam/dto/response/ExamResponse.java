@@ -43,6 +43,11 @@ public class ExamResponse {
     private String sourceDocumentName;
     private java.util.List<com.codeassess.ai.dto.AiRubricItemDto> rubricCriteria;
 
+    // Multi-question support
+    private java.util.List<ExamQuestionResponse> questions;
+    private Integer totalQuestions;
+    private java.math.BigDecimal totalAllocatedPoints;
+
     @com.fasterxml.jackson.annotation.JsonProperty("durationMinutes")
     public Integer getDurationMinutes() {
         return duration;

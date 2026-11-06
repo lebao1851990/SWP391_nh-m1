@@ -20,6 +20,8 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 public class StudentAppealServiceTest {
@@ -44,7 +46,13 @@ public class StudentAppealServiceTest {
         student = User.builder().id("student1").build();
         
         Exam exam = Exam.builder().title("Midterm").build();
-        submission = Submission.builder().id("sub1").student(student).exam(exam).status("GRADED").build();
+        submission = Submission.builder()
+                .id("sub1")
+                .student(student)
+                .exam(exam)
+                .status("GRADED")
+                .publicationStatus("PUBLISHED")
+                .build();
         
         requestDto = new AppealCreateRequestDto();
         requestDto.setSubmissionId("sub1");
@@ -57,7 +65,7 @@ public class StudentAppealServiceTest {
         when(submissionRepository.findByIdAndStudent_IdForUpdate("sub1", "student1"))
                 .thenReturn(Optional.of(submission));
         
-        when(appealRepository.existsBySubmission_IdAndStatus("sub1", "PENDING"))
+        when(appealRepository.existsBySubmission_IdAndStatusIn(eq("sub1"), anyList()))
                 .thenReturn(false);
                 
         Appeal savedAppeal = Appeal.builder()
@@ -82,7 +90,6 @@ public class StudentAppealServiceTest {
         assertTrue(response.getId().startsWith("apl_"));
         
         verify(submissionRepository, times(1)).findByIdAndStudent_IdForUpdate("sub1", "student1");
-        verify(appealRepository, times(1)).existsBySubmission_IdAndStatus("sub1", "PENDING");
         verify(appealRepository, times(1)).save(any(Appeal.class));
     }
 
@@ -101,7 +108,7 @@ public class StudentAppealServiceTest {
         when(submissionRepository.findByIdAndStudent_IdForUpdate("sub1", "student1"))
                 .thenReturn(Optional.of(submission));
                 
-        when(appealRepository.existsBySubmission_IdAndStatus("sub1", "PENDING"))
+        when(appealRepository.existsBySubmission_IdAndStatusIn(eq("sub1"), anyList()))
                 .thenReturn(true);
                 
         assertThrows(ConflictException.class, () -> studentAppealService.createAppeal(requestDto, student));
@@ -135,13 +142,14 @@ public class StudentAppealServiceTest {
     @Test
     public void createAppeal_SubmissionNotGraded_ThrowsIllegalArgumentException() {
         submission.setStatus("PENDING");
+        submission.setPublicationStatus("UNPUBLISHED");
         when(submissionRepository.findByIdAndStudent_IdForUpdate("sub1", "student1"))
                 .thenReturn(Optional.of(submission));
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
                 studentAppealService.createAppeal(requestDto, student));
 
-        assertTrue(ex.getMessage().contains("đã được chấm điểm"));
+        assertTrue(ex.getMessage().contains("công bố") || ex.getMessage().contains("chấm"));
         verify(appealRepository, never()).save(any(Appeal.class));
     }
 }

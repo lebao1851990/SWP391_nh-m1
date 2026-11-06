@@ -8,12 +8,15 @@ import com.codeassess.plagiarism.entity.Appeal;
 import com.codeassess.plagiarism.repository.AppealRepository;
 import com.codeassess.scoring.entity.GradeAuditLog;
 import com.codeassess.scoring.repository.GradeAuditLogRepository;
+import com.codeassess.scoring.repository.StudentQuestionScoreRepository;
 import com.codeassess.submission.entity.Submission;
 import com.codeassess.submission.repository.SubmissionRepository;
 import com.codeassess.submission.service.SubmissionStorageService;
 import com.codeassess.user.entity.User;
+import com.codeassess.websocket.service.WebSocketBroadcaster;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +34,15 @@ public class AdminAppealService {
     private final SubmissionRepository submissionRepository;
     private final GradeAuditLogRepository gradeAuditLogRepository;
     private final SubmissionStorageService submissionStorageService;
+
+    @Autowired(required = false)
+    private StudentQuestionScoreRepository studentQuestionScoreRepository;
+
+    @Autowired(required = false)
+    private com.codeassess.testcase.service.AutomatedTestRunnerService automatedTestRunnerService;
+
+    @Autowired(required = false)
+    private WebSocketBroadcaster webSocketBroadcaster;
 
     @Transactional(readOnly = true)
     public List<AppealResponseDto> getAdminAppeals(String status) {
@@ -60,17 +72,62 @@ public class AdminAppealService {
     }
 
     @Transactional
+    public AppealResponseDto startReview(String opaqueId, User admin) {
+        Long id = OpaqueIdEncoder.decode(opaqueId);
+        if (id == null) {
+            throw new ResourceNotFoundException("Appeal not found");
+        }
+
+        Appeal appeal = appealRepository.findByIdForUpdate(id)
+                .or(() -> appealRepository.findById(id))
+                .orElseThrow(() -> new ResourceNotFoundException("Appeal not found"));
+
+        if (!"PENDING".equalsIgnoreCase(appeal.getStatus())) {
+            throw new ConflictException("Chỉ có thể bắt đầu thẩm định đơn khiếu nại đang ở trạng thái PENDING. Trạng thái hiện tại: " + appeal.getStatus());
+        }
+
+        appeal.setStatus("UNDER_REVIEW");
+        appeal.setAdmin(admin);
+        Appeal saved = appealRepository.save(appeal);
+
+        Submission submission = appeal.getSubmission();
+        if (submission != null) {
+            BigDecimal currentEffective = submission.getOverrideScore() != null ? submission.getOverrideScore()
+                    : (submission.getTotalScore() != null ? submission.getTotalScore() : submission.getAutoScore());
+            String actorName = admin != null ? (admin.getFullName() != null ? admin.getFullName() : admin.getEmail()) : "Admin";
+
+            GradeAuditLog auditLog = GradeAuditLog.builder()
+                    .submission(submission)
+                    .actor(admin)
+                    .actionType("APPEAL_UNDER_REVIEW")
+                    .preRubricScore(submission.getTotalScore())
+                    .postRubricScore(submission.getTotalScore())
+                    .preOverrideScore(submission.getOverrideScore())
+                    .postOverrideScore(submission.getOverrideScore())
+                    .preEffectiveScore(currentEffective)
+                    .postEffectiveScore(currentEffective)
+                    .rationale("Quản trị viên " + actorName + " đã tiếp nhận và bắt đầu thẩm định khiếu nại #" + appeal.getId())
+                    .build();
+            gradeAuditLogRepository.save(auditLog);
+        }
+
+        log.info("Admin {} started review for appeal {}", admin != null ? admin.getId() : "null", appeal.getId());
+        return toDto(saved);
+    }
+
+    @Transactional
     public AppealResponseDto resolveAppeal(String opaqueId, AppealResolveRequestDto dto, User admin) {
         Long id = OpaqueIdEncoder.decode(opaqueId);
         if (id == null) {
             throw new ResourceNotFoundException("Appeal not found");
         }
 
-        Appeal appeal = appealRepository.findById(id)
+        Appeal appeal = appealRepository.findByIdForUpdate(id)
+                .or(() -> appealRepository.findById(id))
                 .orElseThrow(() -> new ResourceNotFoundException("Appeal not found"));
 
         // Guard: Prevent re-resolution or illegal modifications after resolution
-        if (!"PENDING".equalsIgnoreCase(appeal.getStatus())) {
+        if (!"PENDING".equalsIgnoreCase(appeal.getStatus()) && !"UNDER_REVIEW".equalsIgnoreCase(appeal.getStatus())) {
             throw new ConflictException("Đơn khiếu nại này đã được giải quyết trước đó và không thể thay đổi.");
         }
 
@@ -87,11 +144,84 @@ public class AdminAppealService {
         BigDecimal preRubricScore = submission != null ? submission.getTotalScore() : null;
         BigDecimal preOverrideScore = submission != null ? submission.getOverrideScore() : null;
         BigDecimal preEffectiveScore = preOverrideScore != null ? preOverrideScore : preRubricScore;
+        String actorName = admin != null ? (admin.getFullName() != null ? admin.getFullName() : admin.getEmail()) : "Admin";
+
+        appeal.setAdmin(admin);
+        appeal.setReviewerNotes(dto.getReviewerNotes().trim());
+        appeal.setResolvedAt(LocalDateTime.now());
+        String resAction = dto.getResolutionAction() != null ? dto.getResolutionAction().trim().toUpperCase() : null;
+        appeal.setResolutionAction(resAction);
 
         if ("APPROVED".equals(decision)) {
             appeal.setStatus("APPROVED");
 
-            if (dto.getAdjustedScore() != null) {
+            if ("REGRADE".equals(resAction)) {
+                // Controlled resolution path 1: Trigger regrading
+                if (submission != null) {
+                    submission.setReviewStatus("PENDING_REVIEW");
+                    submission.setPublicationStatus("UNPUBLISHED");
+                    submission.setApprovedScore(null);
+                    submission.setPublishedScore(null);
+                    submission.setScoreVersion(submission.getScoreVersion() != null ? submission.getScoreVersion() + 1 : 1);
+                    submissionRepository.save(submission);
+
+                    if (studentQuestionScoreRepository != null && submission.getQuestion() != null && submission.getStudent() != null) {
+                        studentQuestionScoreRepository.unpublishQuestionScore(submission.getQuestion().getId(), submission.getStudent().getId());
+                    }
+
+                    if (automatedTestRunnerService != null) {
+                        try {
+                            automatedTestRunnerService.runAndGrade(submission);
+                        } catch (Exception ex) {
+                            log.error("Failed to rerun automated grading during appeal resolution for submission {}: {}",
+                                    submission.getId(), ex.getMessage());
+                        }
+                    }
+
+                    GradeAuditLog auditLog = GradeAuditLog.builder()
+                            .submission(submission)
+                            .actor(admin)
+                            .actionType("APPEAL_APPROVED_REGRADE")
+                            .preRubricScore(preRubricScore)
+                            .postRubricScore(preRubricScore)
+                            .preOverrideScore(preOverrideScore)
+                            .postOverrideScore(preOverrideScore)
+                            .preEffectiveScore(preEffectiveScore)
+                            .postEffectiveScore(preEffectiveScore)
+                            .rationale("Khiếu nại #" + appeal.getId() + " được Admin chấp thuận - Kích hoạt chấm lại: " + dto.getReviewerNotes().trim())
+                            .build();
+                    gradeAuditLogRepository.save(auditLog);
+                }
+            } else if ("FORWARD_ACADEMIC_REVIEW".equals(resAction)) {
+                // Controlled resolution path 2: Forward to authorized teacher for academic review
+                if (submission != null) {
+                    submission.setReviewStatus("REVISION_REQUIRED");
+                    submission.setPublicationStatus("UNPUBLISHED");
+                    submission.setPublishedScore(null);
+                    submission.setReviewNotes("Chuyển tiếp từ Hội đồng Khảo thí / Admin: " + dto.getReviewerNotes().trim());
+                    submission.setScoreVersion(submission.getScoreVersion() != null ? submission.getScoreVersion() + 1 : 1);
+                    submissionRepository.save(submission);
+
+                    if (studentQuestionScoreRepository != null && submission.getQuestion() != null && submission.getStudent() != null) {
+                        studentQuestionScoreRepository.unpublishQuestionScore(submission.getQuestion().getId(), submission.getStudent().getId());
+                    }
+
+                    GradeAuditLog auditLog = GradeAuditLog.builder()
+                            .submission(submission)
+                            .actor(admin)
+                            .actionType("APPEAL_FORWARDED_ACADEMIC_REVIEW")
+                            .preRubricScore(preRubricScore)
+                            .postRubricScore(preRubricScore)
+                            .preOverrideScore(preOverrideScore)
+                            .postOverrideScore(preOverrideScore)
+                            .preEffectiveScore(preEffectiveScore)
+                            .postEffectiveScore(preEffectiveScore)
+                            .rationale("Khiếu nại #" + appeal.getId() + " được Admin chuyển tiếp cho Giảng viên xem xét lại học thuật: " + dto.getReviewerNotes().trim())
+                            .build();
+                    gradeAuditLogRepository.save(auditLog);
+                }
+            } else if (dto.getAdjustedScore() != null) {
+                // Controlled resolution path 3: Authorized score adjustment
                 BigDecimal newScore = dto.getAdjustedScore();
                 if (newScore.compareTo(BigDecimal.ZERO) < 0 || newScore.compareTo(BigDecimal.valueOf(10)) > 0) {
                     throw new IllegalArgumentException("Điểm điều chỉnh phải nằm trong khoảng từ 0 đến 10.");
@@ -99,11 +229,26 @@ public class AdminAppealService {
 
                 if (submission != null) {
                     submission.setOverrideScore(newScore);
+                    submission.setStatus("GRADED");
                     submission.setEvaluatedAt(LocalDateTime.now());
-                    if (submission.getStatus() == null || "PENDING".equalsIgnoreCase(submission.getStatus())) {
-                        submission.setStatus("GRADED");
-                    }
+                    // Business rule: Require authorized teacher approval before republishing any adjusted score
+                    submission.setReviewStatus("PENDING_REVIEW");
+                    submission.setPublicationStatus("UNPUBLISHED");
+                    submission.setApprovedScore(null);
+                    submission.setPublishedScore(null);
+                    submission.setScoreVersion(submission.getScoreVersion() != null ? submission.getScoreVersion() + 1 : 1);
                     submissionRepository.save(submission);
+
+                    if (studentQuestionScoreRepository != null && submission.getQuestion() != null && submission.getStudent() != null) {
+                        studentQuestionScoreRepository.setQuestionOverride(
+                                submission.getQuestion().getId(),
+                                submission.getStudent().getId(),
+                                newScore,
+                                "Admin Appeal Resolution #" + appeal.getId() + ": " + dto.getReviewerNotes().trim(),
+                                admin != null ? admin.getId() : "ADMIN"
+                        );
+                        studentQuestionScoreRepository.unpublishQuestionScore(submission.getQuestion().getId(), submission.getStudent().getId());
+                    }
 
                     GradeAuditLog auditLog = GradeAuditLog.builder()
                             .submission(submission)
@@ -115,11 +260,12 @@ public class AdminAppealService {
                             .postOverrideScore(newScore)
                             .preEffectiveScore(preEffectiveScore)
                             .postEffectiveScore(newScore)
-                            .rationale("Khiếu nại #" + appeal.getId() + " được Admin chấp thuận: " + dto.getReviewerNotes().trim())
+                            .rationale("Khiếu nại #" + appeal.getId() + " được Admin chấp thuận với điểm điều chỉnh: " + dto.getReviewerNotes().trim())
                             .build();
                     gradeAuditLogRepository.save(auditLog);
                 }
             } else if (submission != null) {
+                // Approved maintaining current score
                 GradeAuditLog auditLog = GradeAuditLog.builder()
                         .submission(submission)
                         .actor(admin)
@@ -154,10 +300,20 @@ public class AdminAppealService {
             }
         }
 
-        appeal.setReviewerNotes(dto.getReviewerNotes().trim());
-        appeal.setResolvedAt(LocalDateTime.now());
-
         Appeal saved = appealRepository.save(appeal);
+        if (webSocketBroadcaster != null && saved.getStudent() != null) {
+            try {
+                webSocketBroadcaster.broadcastAppealStatus(
+                        String.valueOf(saved.getId()),
+                        saved.getStudent().getId(),
+                        saved.getStatus(),
+                        saved.getReviewerNotes()
+                );
+            } catch (Exception wsEx) {
+                log.debug("WebSocket broadcast error for appeal: {}", wsEx.getMessage());
+            }
+        }
+        log.info("Admin {} resolved appeal {} with decision {}", actorName, appeal.getId(), decision);
         return toDto(saved);
     }
 
@@ -168,7 +324,8 @@ public class AdminAppealService {
             throw new ResourceNotFoundException("Appeal not found");
         }
 
-        Appeal appeal = appealRepository.findById(id)
+        Appeal appeal = appealRepository.findByIdForUpdate(id)
+                .or(() -> appealRepository.findById(id))
                 .orElseThrow(() -> new ResourceNotFoundException("Appeal not found"));
 
         Submission submission = appeal.getSubmission();
@@ -264,10 +421,14 @@ public class AdminAppealService {
             }
         }
 
+        String adminName = appeal.getAdmin() != null ? appeal.getAdmin().getFullName() : null;
+
         return AppealResponseDto.builder()
                 .id(OpaqueIdEncoder.encode(appeal.getId()))
                 .submissionId(sub != null ? sub.getId() : null)
                 .examName(sub != null && sub.getExam() != null ? sub.getExam().getTitle() : null)
+                .questionId(sub != null && sub.getQuestion() != null ? sub.getQuestion().getId() : null)
+                .questionTitle(sub != null && sub.getQuestion() != null ? sub.getQuestion().getTitle() : null)
                 .status(appeal.getStatus())
                 .basis(appeal.getBasis())
                 .explanation(appeal.getReason())
@@ -278,6 +439,9 @@ public class AdminAppealService {
                 .originalScore(originalScore)
                 .updatedScore(updatedScore)
                 .autoScore(autoScore)
+                .publishedScore(sub != null ? sub.getPublishedScore() : null)
+                .publicationStatus(sub != null ? sub.getPublicationStatus() : null)
+                .reviewStatus(sub != null ? sub.getReviewStatus() : null)
                 .sourceCode(sub != null ? sub.getSourceCode() : null)
                 .testCasesPassed(sub != null ? sub.getTestCasesPassed() : null)
                 .testCasesTotal(sub != null ? sub.getTestCasesTotal() : null)
@@ -291,6 +455,8 @@ public class AdminAppealService {
                 .submittedAt(sub != null ? (sub.getEvaluatedAt() != null ? sub.getEvaluatedAt() : sub.getCreatedAt()) : null)
                 .reviewerName(reviewerName)
                 .reviewerEmail(reviewerEmail)
+                .adminName(adminName)
+                .resolutionAction(appeal.getResolutionAction())
                 .createdAt(appeal.getCreatedAt())
                 .resolvedAt(appeal.getResolvedAt())
                 .build();
